@@ -56,16 +56,15 @@ export const AuthForm: React.FC = () => {
       <div className="max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="cursor-pointer text-center">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Welcome to
-            </h1>
-            <Link to="/src/pages/HomePage.tsx">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                InfoNest
-              </h1>
-            </Link>
-          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+            Welcome to
+          </h1>
+          <Link 
+            to="/" 
+            className="inline-block text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105"
+          >
+            InfoNest
+          </Link>
           <p className="text-gray-600 mt-2">
             {isLogin ? 'Where Documentation Meets Efficiency' : 'Join the knowledge community'}
           </p>
