@@ -11,6 +11,7 @@ import { ArticleView } from './pages/ArticleView';
 import { MyArticles } from './pages/MyArticles';
 import { SearchPage } from './pages/SearchPage';
 import { AdminPanel } from './pages/AdminPanel';
+import { WriterRequestPage } from './pages/WriterRequestPage';
 
 function App() {
   const { loading, isAuthenticated } = useAuth();
@@ -60,6 +61,7 @@ function App() {
                   <Route path="/article/:id" element={<ArticleView />} />
                   <Route path="/my-articles" element={<MyArticles />} />
                   <Route path="/admin" element={<AdminPanel />} />
+                  <Route path="/writer-request" element={<WriterRequestPage />} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </Layout>

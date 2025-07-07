@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getPublishedArticles, getUserArticles, Article } from '../lib/articles';
-import { requestWriterAccess } from '../lib/auth';
+import { getUserWriterRequest, WriterRequest } from '../lib/writerRequests';
 import { SearchBar } from '../components/SearchBar';
 import { 
   BookOpen, 
@@ -14,7 +14,10 @@ import {
   Star,
   Plus,
   Calendar,
-  Tag
+  Tag,
+  FileText,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -23,6 +26,7 @@ export const Dashboard: React.FC = () => {
   const { userProfile, isInfoWriter, isUser, refreshProfile } = useAuth();
   const [publishedArticles, setPublishedArticles] = useState<Article[]>([]);
   const [myArticles, setMyArticles] = useState<Article[]>([]);
+  const [writerRequest, setWriterRequest] = useState<WriterRequest | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,6 +39,12 @@ export const Dashboard: React.FC = () => {
           const my = await getUserArticles(userProfile.uid);
           setMyArticles(my.slice(0, 4)); // Show 4 recent articles
         }
+
+        // Check for writer request status
+        if (userProfile) {
+          const request = await getUserWriterRequest(userProfile.uid);
+          setWriterRequest(request);
+        }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
         toast.error('Error loading dashboard data');
@@ -46,15 +56,76 @@ export const Dashboard: React.FC = () => {
     loadData();
   }, [isInfoWriter, userProfile]);
 
-  const handleRequestWriterAccess = async () => {
-    if (!userProfile) return;
+  const getRequestStatusDisplay = () => {
+    if (!writerRequest) return null;
 
-    try {
-      await requestWriterAccess(userProfile.uid);
-      await refreshProfile();
-      toast.success('Writer access requested! An admin will review your request.');
-    } catch (error) {
-      toast.error('Error requesting writer access');
+    switch (writerRequest.status) {
+      case 'pending':
+        return (
+          <div className="bg-yellow-50 rounded-2xl p-6 border border-yellow-200">
+            <div className="flex items-center space-x-3">
+              <Clock className="h-5 w-5 text-yellow-600" />
+              <div>
+                <h3 className="text-lg font-semibold text-yellow-800">
+                  InfoWriter Request Under Review
+                </h3>
+                <p className="text-yellow-700">
+                  Your InfoWriter application (ID: {writerRequest.requestId}) is being reviewed by our admin team.
+                </p>
+                <p className="text-sm text-yellow-600 mt-1">
+                  Submitted {formatDistanceToNow(writerRequest.submittedAt)} ago
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'approved':
+        return (
+          <div className="bg-green-50 rounded-2xl p-6 border border-green-200">
+            <div className="flex items-center space-x-3">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <div>
+                <h3 className="text-lg font-semibold text-green-800">
+                  InfoWriter Access Approved!
+                </h3>
+                <p className="text-green-700">
+                  Congratulations! Your InfoWriter application has been approved. You can now create and manage articles.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      case 'rejected':
+        return (
+          <div className="bg-red-50 rounded-2xl p-6 border border-red-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <XCircle className="h-5 w-5 text-red-600" />
+                <div>
+                  <h3 className="text-lg font-semibold text-red-800">
+                    InfoWriter Request Not Approved
+                  </h3>
+                  <p className="text-red-700">
+                    Your InfoWriter application was not approved at this time.
+                  </p>
+                  {writerRequest.adminNotes && (
+                    <p className="text-sm text-red-600 mt-1">
+                      Admin notes: {writerRequest.adminNotes}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Link
+                to="/writer-request"
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Apply Again
+              </Link>
+            </div>
+          </div>
+        );
+      default:
+        return null;
     }
   };
 
@@ -122,8 +193,11 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Writer Access Request */}
-      {isUser && !userProfile?.requestedWriterAccess && (
+      {/* Writer Request Status */}
+      {getRequestStatusDisplay()}
+
+      {/* Writer Access Request for Users */}
+      {isUser && !writerRequest && (
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-6 border border-purple-200">
           <div className="flex items-center justify-between">
             <div>
@@ -131,33 +205,16 @@ export const Dashboard: React.FC = () => {
                 Want to contribute content?
               </h3>
               <p className="text-gray-600">
-                Request InfoWriter access to create and manage articles.
+                Apply for InfoWriter access to create and manage articles with our comprehensive application form.
               </p>
             </div>
-            <button
-              onClick={handleRequestWriterAccess}
+            <Link
+              to="/writer-request"
               className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:from-purple-700 hover:to-blue-700 transition-all flex items-center space-x-2"
             >
-              <PenTool className="h-4 w-4" />
-              <span>Request Access</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Pending Request Notice */}
-      {userProfile?.requestedWriterAccess && (
-        <div className="bg-amber-50 rounded-2xl p-6 border border-amber-200">
-          <div className="flex items-center space-x-3">
-            <Clock className="h-5 w-5 text-amber-600" />
-            <div>
-              <h3 className="text-lg font-semibold text-amber-800">
-                Writer Access Request Pending
-              </h3>
-              <p className="text-amber-700">
-                Your request for InfoWriter access is being reviewed by an administrator.
-              </p>
-            </div>
+              <FileText className="h-4 w-4" />
+              <span>Apply Now</span>
+            </Link>
           </div>
         </div>
       )}
