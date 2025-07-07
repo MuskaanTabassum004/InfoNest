@@ -56,11 +56,11 @@ export const AuthForm: React.FC = () => {
       <div className="max-w-md w-full">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link to="/src/pages/HomePage.tsx">
             <div className="cursor-pointer text-center">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Welcome to
                 </h1>
+              <Link to="/src/pages/HomePage.tsx">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 InfoNest
                 </h1>
