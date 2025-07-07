@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Articles collection - allow reading published articles publicly
+    match /articles/{articleId} {
+      // Allow public read access for published articles, authenticated users can read all
+      allow read: if resource.data.status == 'published' || request.auth != null;
+      
+      // Create and update require authentication and proper role
+      allow create, update: if request.auth != null && 
+        (request.auth.uid == resource.data.authorId || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['infowriter', 'admin']);
+      
+      // Delete requires authentication and ownership or admin role
+      allow delete: if request.auth != null && 
+        (request.auth.uid == resource.data.authorId || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Article versions collection
+    match /articleVersions/{versionId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Writer requests collection - users can read their own requests, admins can read all
+    match /writerRequests/{requestId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.userId || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Legacy writer requests collection (for backward compatibility)
+    match /writerRequests/{requestId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.userId || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Users collection - users can read their own profile, admins can read/update all
+    match /users/{userId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == userId || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && 
+        (request.auth.uid == userId || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+  }
+}
