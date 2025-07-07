@@ -15,7 +15,6 @@ import {
   Calendar,
   User,
   Mail,
-  Phone,
   FileText,
   Tag,
   Users,
@@ -421,10 +420,6 @@ export const WriterRequestsAdmin: React.FC = () => {
                     <div>
                       <span className="text-sm text-gray-600">Email:</span>
                       <p className="font-medium">{selectedRequest.email}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-600">Phone:</span>
-                      <p className="font-medium">{selectedRequest.phoneNumber}</p>
                     </div>
                   </div>
                 </div>

@@ -21,7 +21,6 @@ export interface WriterRequest {
   userId: string;
   fullName: string;
   email: string;
-  phoneNumber: string;
   qualifications: string;
   areasOfInterest: string[];
   proposedTitle: string;

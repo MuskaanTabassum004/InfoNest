@@ -4,7 +4,6 @@ import { submitWriterRequest, getUserWriterRequest, WriterRequest, TargetAudienc
 import { 
   User, 
   Mail, 
-  Phone, 
   GraduationCap, 
   BookOpen, 
   FileText,
@@ -57,7 +56,6 @@ export const WriterRequestForm: React.FC<WriterRequestFormProps> = ({ onClose })
   const [formData, setFormData] = useState({
     fullName: '',
     email: userProfile?.email || '',
-    phoneNumber: '',
     qualifications: '',
     areasOfInterest: [] as string[],
     proposedTitle: '',
@@ -104,12 +102,6 @@ export const WriterRequestForm: React.FC<WriterRequestFormProps> = ({ onClose })
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
-    }
-
-    if (!formData.phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Phone number is required';
-    } else if (!/^\+?[\d\s\-\(\)]{10,}$/.test(formData.phoneNumber)) {
-      newErrors.phoneNumber = 'Please enter a valid phone number';
     }
 
     if (!formData.qualifications.trim()) {
@@ -309,27 +301,6 @@ export const WriterRequestForm: React.FC<WriterRequestFormProps> = ({ onClose })
               </div>
               {errors.email && (
                 <p className="text-red-600 text-sm mt-1">{errors.email}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number *
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="tel"
-                  value={formData.phoneNumber}
-                  onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                    errors.phoneNumber ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter your phone number"
-                />
-              </div>
-              {errors.phoneNumber && (
-                <p className="text-red-600 text-sm mt-1">{errors.phoneNumber}</p>
               )}
             </div>
           </div>
