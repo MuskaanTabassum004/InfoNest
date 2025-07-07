@@ -141,20 +141,27 @@ export const processWriterRequest = async (
 };
 
 export const getUserWriterRequest = async (userId: string): Promise<WriterRequest | null> => {
+  // Modified query to avoid composite index requirement
   const q = query(
     collection(db, 'writerRequests'),
-    where('userId', '==', userId),
-    orderBy('submittedAt', 'desc')
+    where('userId', '==', userId)
   );
   
   const querySnapshot = await getDocs(q);
   if (!querySnapshot.empty) {
-    const data = querySnapshot.docs[0].data();
-    return {
-      ...data,
-      submittedAt: data.submittedAt.toDate(),
-      processedAt: data.processedAt?.toDate()
-    } as WriterRequest;
+    // Sort the results in memory to get the most recent
+    const requests = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        submittedAt: data.submittedAt.toDate(),
+        processedAt: data.processedAt?.toDate()
+      } as WriterRequest;
+    });
+    
+    // Sort by submittedAt in descending order and return the first (most recent)
+    requests.sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
+    return requests[0];
   }
   
   return null;
