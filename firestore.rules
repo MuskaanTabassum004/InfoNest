@@ -3,8 +3,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Articles collection - allow reading published articles publicly
     match /articles/{articleId} {
-      // Allow public read access for published articles, authenticated users can read all
-      allow read: if resource.data.status == 'published' || request.auth != null;
+      // Allow public read access for published articles, 
+      // authenticated users can read their own articles (any status),
+      // and admins can read all articles
+      allow read: if resource.data.status == 'published' || 
+        (request.auth != null && 
+         (request.auth.uid == resource.data.authorId || 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
       
       // Create and update require authentication and proper role
       allow create, update: if request.auth != null && 
@@ -23,16 +28,6 @@ service cloud.firestore {
     }
     
     // Writer requests collection - users can read their own requests, admins can read all
-    match /writerRequests/{requestId} {
-      allow read: if request.auth != null && 
-        (request.auth.uid == resource.data.userId || 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      allow update: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    // Legacy writer requests collection (for backward compatibility)
     match /writerRequests/{requestId} {
       allow read: if request.auth != null && 
         (request.auth.uid == resource.data.userId || 
