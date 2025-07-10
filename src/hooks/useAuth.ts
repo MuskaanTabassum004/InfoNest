@@ -1,33 +1,31 @@
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { onAuthChange, getUserProfile, UserProfile } from '../lib/auth';
+import { auth } from '../lib/firebase'; // Make sure you import your firebase config
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [emailVerified, setEmailVerified] = useState<boolean>(false);
 
   useEffect(() => {
     const unsubscribe = onAuthChange(async (user) => {
       console.log('🔍 Auth state changed:', user ? `User logged in: ${user.email}` : 'User logged out');
       setUser(user);
-      
+
       if (user) {
+        await user.reload(); // ✅ Ensure we get updated email verification status
+        const refreshedUser = auth.currentUser;
+
+        if (refreshedUser) {
+          setEmailVerified(refreshedUser.emailVerified);
+          console.log('📩 Email Verified:', refreshedUser.emailVerified);
+        }
+
         try {
           console.log('📋 Fetching user profile for UID:', user.uid);
           const profile = await getUserProfile(user.uid);
-          console.log('📄 Raw profile data from Firestore:', profile);
-          
-          if (profile) {
-            console.log('✅ Profile found:');
-            console.log('  - Email:', profile.email);
-            console.log('  - Role:', profile.role);
-            console.log('  - Display Name:', profile.displayName);
-            console.log('  - UID:', profile.uid);
-          } else {
-            console.log('❌ No profile found in Firestore for this user');
-          }
-          
           setUserProfile(profile);
         } catch (error) {
           console.error('🚨 Error fetching user profile:', error);
@@ -35,8 +33,9 @@ export const useAuth = () => {
         }
       } else {
         setUserProfile(null);
+        setEmailVerified(false);
       }
-      
+
       setLoading(false);
     });
 
@@ -45,23 +44,24 @@ export const useAuth = () => {
 
   const refreshProfile = async () => {
     if (user) {
-      console.log('🔄 Refreshing profile for user:', user.uid);
+      console.log('🔄 Refreshing Firebase user and Firestore profile');
+
+      await user.reload(); // 🔄 Refresh email verification status
+      const refreshedUser = auth.currentUser;
+      if (refreshedUser) {
+        setEmailVerified(refreshedUser.emailVerified);
+        console.log('📩 Refreshed emailVerified:', refreshedUser.emailVerified);
+      }
+
       const profile = await getUserProfile(user.uid);
-      console.log('🔄 Refreshed profile data:', profile);
+      console.log('📄 Refreshed Firestore profile:', profile);
       setUserProfile(profile);
     }
   };
 
-  // Log the computed role-based flags
   const isAdmin = userProfile?.role === 'admin';
   const isInfoWriter = userProfile?.role === 'infowriter' || userProfile?.role === 'admin';
   const isUser = userProfile?.role === 'user';
-
-  console.log('🎭 Role-based flags:');
-  console.log('  - isAdmin:', isAdmin);
-  console.log('  - isInfoWriter:', isInfoWriter);
-  console.log('  - isUser:', isUser);
-  console.log('  - Current role:', userProfile?.role);
 
   return {
     user,
@@ -71,6 +71,7 @@ export const useAuth = () => {
     isAuthenticated: !!user,
     isAdmin,
     isInfoWriter,
-    isUser
+    isUser,
+    emailVerified,        // ✅ New: Track if user has verified email
   };
 };
