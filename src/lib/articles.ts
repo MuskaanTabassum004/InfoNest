@@ -169,16 +169,16 @@ export const getArticles = async (options: {
     q = query(q, where(field as string, operator as any, value));
   });
 
-  // For queries with authorId filter, we need to handle ordering differently
+  // For queries with authorId or status filter, we need to handle ordering differently
   // to avoid composite index requirements
-  if (options.authorId) {
-    // Don't add orderBy for authorId queries to avoid composite index requirement
+  if (options.authorId || options.status) {
+    // Don't add orderBy for filtered queries to avoid composite index requirement
     // We'll sort in memory instead
     if (options.limit) {
       q = query(q, limit(options.limit * 2)); // Get more to account for sorting
     }
   } else {
-    // Only add orderBy when not filtering by authorId
+    // Only add orderBy when not filtering by authorId or status
     q = query(q, orderBy('updatedAt', 'desc'));
     if (options.limit) {
       q = query(q, limit(options.limit));
@@ -196,8 +196,8 @@ export const getArticles = async (options: {
     } as Article;
   });
 
-  // Sort in memory if we filtered by authorId
-  if (options.authorId) {
+  // Sort in memory if we filtered by authorId or status
+  if (options.authorId || options.status) {
     articles = articles.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
     if (options.limit) {
       articles = articles.slice(0, options.limit);
