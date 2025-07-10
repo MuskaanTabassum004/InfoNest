@@ -119,6 +119,20 @@ export const denyWriterRequest = async (uid: string) => {
   });
 };
 
+export const getInfoWriters = async (): Promise<UserProfile[]> => {
+  const q = query(
+    collection(db, 'users'),
+    where('role', '==', 'infowriter')
+  );
+  
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    ...doc.data(),
+    createdAt: doc.data().createdAt?.toDate() ?? new Date(),
+    updatedAt: doc.data().updatedAt?.toDate() ?? new Date()
+  })) as UserProfile[];
+};
+
 export const onAuthChange = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, callback);
 };
