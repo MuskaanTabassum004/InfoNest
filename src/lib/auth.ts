@@ -1,14 +1,18 @@
-import { 
-  signInWithEmailAndPassword, 
+/ ✅ Updated auth.ts with email verification and Google sign-in support
+import {
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  User
+  User,
+  sendEmailVerification,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
+import {
+  doc,
+  setDoc,
+  getDoc,
   updateDoc,
   collection,
   query,
@@ -31,8 +35,10 @@ export interface UserProfile {
 
 export const signUp = async (email: string, password: string, displayName?: string) => {
   const result = await createUserWithEmailAndPassword(auth, email, password);
-  
-  // Create user profile in Firestore
+
+  // ✅ Send email verification
+  await sendEmailVerification(result.user);
+
   const userProfile: UserProfile = {
     uid: result.user.uid,
     email: result.user.email!,
@@ -58,7 +64,7 @@ export const signOut = async () => {
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
   const docRef = doc(db, 'users', uid);
   const docSnap = await getDoc(docRef);
-  
+
   if (docSnap.exists()) {
     const data = docSnap.data();
     return {
@@ -67,7 +73,7 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
       updatedAt: data.updatedAt?.toDate() ?? new Date()
     } as UserProfile;
   }
-  
+
   return null;
 };
 
@@ -93,7 +99,7 @@ export const getPendingWriterRequests = async () => {
     where('requestedWriterAccess', '==', true),
     where('role', '==', 'user')
   );
-  
+
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({
     ...doc.data(),
@@ -124,7 +130,7 @@ export const getInfoWriters = async () => {
     collection(db, 'users'),
     where('role', 'in', ['infowriter', 'admin'])
   );
-  
+
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({
     ...doc.data(),
@@ -135,4 +141,29 @@ export const getInfoWriters = async () => {
 
 export const onAuthChange = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, callback);
+};
+
+// ✅ Google Sign-In
+export const signInWithGoogle = async () => {
+  const provider = new GoogleAuthProvider();
+  const result = await signInWithPopup(auth, provider);
+
+  // If new user, create profile
+  const docRef = doc(db, 'users', result.user.uid);
+  const existing = await getDoc(docRef);
+
+  if (!existing.exists()) {
+    const newUserProfile: UserProfile = {
+      uid: result.user.uid,
+      email: result.user.email!,
+      role: 'user',
+      displayName: result.user.displayName || '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      requestedWriterAccess: false
+    };
+    await setDoc(docRef, newUserProfile);
+  }
+
+  return result;
 };
