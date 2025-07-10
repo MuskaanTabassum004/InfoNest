@@ -45,17 +45,18 @@ export const AuthForm: React.FC = () => {
   };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      await signInWithGoogle();
-      await refreshProfile();
-      toast.success('Signed in with Google!');
-    } catch (error: any) {
-      toast.error(error.message || 'Google Sign-In failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    await signInWithGoogle();
+    await refreshProfile();
+    toast.success('Signed in with Google!');
+  } catch (error: any) {
+    toast.error(error.message || 'Google sign-in failed.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
