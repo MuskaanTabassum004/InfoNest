@@ -34,7 +34,7 @@ export const AuthForm: React.FC = () => {
           return;
         }
         await signUp(formData.email, formData.password, formData.displayName);
-        toast.success('Account created! Please verify your email before logging in.');
+        toast.success('Account created! Please check your email and verify your address before logging in.');
         setIsLogin(true);
       }
     } catch (error: any) {

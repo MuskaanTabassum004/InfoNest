@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuth } from './hooks/useAuth';
 import { Layout } from './components/Layout';
 import { AuthForm } from './components/AuthForm';
+import { EmailVerificationPage } from './pages/EmailVerificationPage';
 import { HomePage } from './pages/HomePage';
 import { Dashboard } from './pages/Dashboard';
 import { ArticleEditor } from './pages/ArticleEditor';
@@ -14,7 +15,7 @@ import { AdminPanel } from './pages/AdminPanel';
 import { WriterRequestPage } from './pages/WriterRequestPage';
 
 function App() {
-  const { loading, isAuthenticated } = useAuth();
+  const { loading, isAuthenticated, emailVerified, user } = useAuth();
 
   if (loading) {
     return (
@@ -49,8 +50,13 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/auth" element={!isAuthenticated ? <AuthForm /> : <Navigate to="/dashboard" replace />} />
           
+          {/* Email Verification Route */}
+          {isAuthenticated && !emailVerified && (
+            <Route path="*" element={<EmailVerificationPage />} />
+          )}
+          
           {/* Protected Routes */}
-          {isAuthenticated ? (
+          {isAuthenticated && emailVerified ? (
             <Route path="/*" element={
               <Layout>
                 <Routes>

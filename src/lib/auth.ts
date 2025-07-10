@@ -54,7 +54,14 @@ export const signUp = async (email: string, password: string, displayName?: stri
 };
 
 export const signIn = async (email: string, password: string) => {
-  return await signInWithEmailAndPassword(auth, email, password);
+  const result = await signInWithEmailAndPassword(auth, email, password);
+  
+  // Check if email is verified
+  if (!result.user.emailVerified) {
+    throw new Error('Please verify your email address before signing in. Check your inbox for the verification link.');
+  }
+  
+  return result;
 };
 
 export const signOut = async () => {
