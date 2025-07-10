@@ -3,13 +3,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Articles collection - allow reading published articles publicly
     match /articles/{articleId} {
-      // Allow public read access for published articles, 
-      // authenticated users can read their own articles (any status),
-      // and admins can read all articles
-      allow read: if resource.data.status == 'published' || 
-        (request.auth != null && 
-         (request.auth.uid == resource.data.authorId || 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      // Allow public read access for published articles
+      allow read: if resource.data.status == 'published';
+      
+      // Allow authenticated users to read their own articles (any status)
+      // and admins to read all articles
+      allow read: if request.auth != null && 
+        (request.auth.uid == resource.data.authorId || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
       
       // Create and update require authentication and proper role
       allow create, update: if request.auth != null && 
@@ -34,7 +35,7 @@ service cloud.firestore {
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
       allow update: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
     
     // Users collection - users can read their own profile, admins can read/update all
