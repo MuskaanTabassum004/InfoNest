@@ -1,4 +1,4 @@
-/ ✅ Updated auth.ts with email verification and Google sign-in support
+// ✅ Updated auth.ts with email verification and Google sign-in support
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
