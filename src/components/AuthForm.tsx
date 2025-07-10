@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { signIn, signUp, signInWithGoogle } from '../lib/auth';
-import { BookOpen, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { BookOpen, Mail, Lock, User, Eye, EyeOff, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 
@@ -24,28 +24,34 @@ export const AuthForm: React.FC = () => {
 
     try {
       if (isLogin) {
-        const userCredential = await signIn(formData.email, formData.password);
-        if (!userCredential.user.emailVerified) {
-          toast.error("Please verify your email before logging in.");
-          setLoading(false);
-          return;
-        }
-
+        await signIn(formData.email, formData.password);
         await refreshProfile();
         toast.success('Welcome back!');
       } else {
-        // Validate password confirmation
         if (formData.password !== formData.confirmPassword) {
           toast.error('Passwords do not match');
           setLoading(false);
           return;
         }
-
         await signUp(formData.email, formData.password, formData.displayName);
-        toast.success('Account created! Please check your email to verify.');
+        toast.success('Account created! Please verify your email before logging in.');
+        setIsLogin(true);
       }
     } catch (error: any) {
       toast.error(error.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      await refreshProfile();
+      toast.success('Signed in with Google!');
+    } catch (error: any) {
+      toast.error(error.message || 'Google Sign-In failed');
     } finally {
       setLoading(false);
     }
@@ -58,23 +64,9 @@ export const AuthForm: React.FC = () => {
     }));
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    try {
-      await signInWithGoogle();
-      await refreshProfile();
-      toast.success("Signed in with Google!");
-    } catch (error: any) {
-      toast.error(error.message || "Google Sign-In failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#EFEDFA' }}>
       <div className="max-w-md w-full">
-        {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
             Welcome to
@@ -90,7 +82,6 @@ export const AuthForm: React.FC = () => {
           </p>
         </div>
 
-        {/* Form */}
         <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
@@ -199,14 +190,13 @@ export const AuthForm: React.FC = () => {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-gray-500 mb-2">or</p>
+          <div className="mt-4">
             <button
               onClick={handleGoogleSignIn}
-              className="w-full border border-gray-300 text-gray-700 py-2 rounded-xl hover:bg-gray-100 transition-all font-medium"
+              className="w-full flex items-center justify-center border border-gray-300 text-gray-700 bg-white py-2 rounded-xl font-medium hover:bg-gray-50 transition-all"
               disabled={loading}
             >
-              Continue with Google
+              <LogIn className="h-5 w-5 mr-2" /> Continue with Google
             </button>
           </div>
 
@@ -220,7 +210,6 @@ export const AuthForm: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-8 text-sm text-gray-500">
           <p>Secure knowledge management platform</p>
         </div>
