@@ -35,7 +35,7 @@ export const Dashboard: React.FC = () => {
         const published = await getPublishedArticles();
         setPublishedArticles(published.slice(0, 6)); // Show 6 recent articles
 
-        if (isInfoWriter && userProfile) {
+        if (isInfoWriter && userProfile?.uid) {
           const my = await getUserArticles(userProfile.uid);
           setMyArticles(my.slice(0, 4)); // Show 4 recent articles
         }
