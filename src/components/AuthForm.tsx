@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { signIn, signUp } from '../lib/auth';
+import { signIn, signUp, signInWithGoogle } from '../lib/auth';
 import { BookOpen, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
@@ -24,7 +24,13 @@ export const AuthForm: React.FC = () => {
 
     try {
       if (isLogin) {
-        await signIn(formData.email, formData.password);
+        const userCredential = await signIn(formData.email, formData.password);
+        if (!userCredential.user.emailVerified) {
+          toast.error("Please verify your email before logging in.");
+          setLoading(false);
+          return;
+        }
+
         await refreshProfile();
         toast.success('Welcome back!');
       } else {
@@ -34,8 +40,9 @@ export const AuthForm: React.FC = () => {
           setLoading(false);
           return;
         }
+
         await signUp(formData.email, formData.password, formData.displayName);
-        toast.success('Account created successfully!');
+        toast.success('Account created! Please check your email to verify.');
       }
     } catch (error: any) {
       toast.error(error.message || 'An error occurred');
@@ -49,6 +56,19 @@ export const AuthForm: React.FC = () => {
       ...prev,
       [e.target.name]: e.target.value
     }));
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      await refreshProfile();
+      toast.success("Signed in with Google!");
+    } catch (error: any) {
+      toast.error(error.message || "Google Sign-In failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -178,6 +198,17 @@ export const AuthForm: React.FC = () => {
               {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
           </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-gray-500 mb-2">or</p>
+            <button
+              onClick={handleGoogleSignIn}
+              className="w-full border border-gray-300 text-gray-700 py-2 rounded-xl hover:bg-gray-100 transition-all font-medium"
+              disabled={loading}
+            >
+              Continue with Google
+            </button>
+          </div>
 
           <div className="mt-6 text-center">
             <button
