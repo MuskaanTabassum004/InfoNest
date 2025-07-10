@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { signIn, signUp, signInWithGoogle } from '../lib/auth';
+import { validateEmail, validateEmailRealTime, EmailValidationResult } from '../utils/emailValidation';
 import { BookOpen, Mail, Lock, User, Eye, EyeOff, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
@@ -17,12 +18,22 @@ export const AuthForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [emailValidation, setEmailValidation] = useState<EmailValidationResult>({ isValid: true });
+  const [emailTouched, setEmailTouched] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Final email validation before submission
+      const finalEmailValidation = validateEmail(formData.email);
+      if (!finalEmailValidation.isValid) {
+        toast.error(finalEmailValidation.error || 'Please enter a valid email address');
+        setLoading(false);
+        return;
+      }
+
       if (isLogin) {
         await signIn(formData.email, formData.password);
         await refreshProfile();
@@ -59,10 +70,35 @@ export const AuthForm: React.FC = () => {
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: value
     }));
+
+    // Real-time email validation
+    if (name === 'email') {
+      const validation = validateEmailRealTime(value);
+      setEmailValidation(validation);
+      
+      if (!emailTouched && value.trim()) {
+        setEmailTouched(true);
+      }
+    }
+  };
+
+  const handleEmailBlur = () => {
+    setEmailTouched(true);
+    if (formData.email.trim()) {
+      const validation = validateEmail(formData.email);
+      setEmailValidation(validation);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setFormData(prev => ({ ...prev, email: suggestion }));
+    setEmailValidation({ isValid: true });
   };
 
   return (
@@ -97,11 +133,36 @@ export const AuthForm: React.FC = () => {
                     name="displayName"
                     value={formData.displayName}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    onBlur={handleEmailBlur}
+                    className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      emailTouched && !emailValidation.isValid
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-gray-200'
+                    }`}
                     placeholder="Enter your name"
                     required={!isLogin}
                   />
                 </div>
+                {emailTouched && !emailValidation.isValid && (
+                  <div className="mt-2">
+                    <p className="text-red-600 text-sm">{emailValidation.error}</p>
+                    {emailValidation.suggestions && emailValidation.suggestions.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-600 mb-1">Did you mean:</p>
+                        {emailValidation.suggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="inline-block bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded-full text-sm mr-2 transition-colors"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -184,7 +245,11 @@ export const AuthForm: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading || (!isLogin && formData.password !== formData.confirmPassword)}
+              disabled={
+                loading || 
+                (!isLogin && formData.password !== formData.confirmPassword) ||
+                (emailTouched && !emailValidation.isValid)
+              }
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
