@@ -98,8 +98,6 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
-              </div>
-            </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-orange-100">
           <div className="flex items-center justify-between">
@@ -112,8 +110,6 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
-              </div>
-            </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100">
           <div className="flex items-center justify-between">
@@ -126,8 +122,6 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
-              </div>
-            </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100">
           <div className="flex items-center justify-between">
@@ -147,9 +141,6 @@ export const AdminPanel: React.FC = () => {
           </div>
         </div>
       </div>
-              </div>
-            </div>
-          </div>
 
       {/* InfoWriter Requests Management */}
       <WriterRequestsAdmin />
@@ -189,16 +180,17 @@ export const AdminPanel: React.FC = () => {
                     <span>Version {article.version}</span>
                   </div>
                 </div>
-            <div className="space-y-4">
-                <div className="flex flex-wrap gap-1 ml-4">
-                  {article.categories.slice(0, 2).map((category) => (
-                    <span
-                      key={category}
-                      className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
-                    >
-                      {category}
-                    </span>
-                  ))}
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-1 ml-4">
+                    {article.categories.slice(0, 2).map((category) => (
+                      <span
+                        key={category}
+                        className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+                      >
+                        {category}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}
