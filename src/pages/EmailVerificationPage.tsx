@@ -15,29 +15,38 @@ export const EmailVerificationPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(() => {
+useEffect(() => {
     const interval = setInterval(async () => {
-      if (user && !user.emailVerified) {
+      const currentUser = auth.currentUser;
+
+      if (currentUser && !currentUser.emailVerified) {
         setChecking(true);
         try {
-          await user.reload(); // Firebase reload
-          await refreshProfile();
-
-          if (user.emailVerified) {
+          await currentUser.reload(); // ✅ reload from auth object
+          if (currentUser.emailVerified) {
+            await refreshProfile(); // refresh your custom userProfile
             toast.success('Email verified! Redirecting...');
             clearInterval(interval);
-            navigate('/dashboard'); // ✅ redirect after verify
+            navigate('/dashboard'); // or any route
           }
         } catch (error) {
-          toast.error('Error checking verification status.');
+          console.error(error);
+          toast.error('Error checking verification status. Please try again.');
         } finally {
           setChecking(false);
         }
       }
     }, 5000); // every 5 seconds
 
-    return () => clearInterval(interval); // Clean up on unmount
-  }, [user, refreshProfile, navigate]);
+    return () => clearInterval(interval); // Clean up
+  }, [navigate, refreshProfile]);
+
+  return (
+    <div>
+      {/* Your email verification page UI remains here */}
+    </div>
+  );
+};
 
   const handleResendVerification = async () => {
     if (!user) return;
