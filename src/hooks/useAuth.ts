@@ -5,6 +5,7 @@ import { auth, firestore } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
 export interface UserProfile {
+  uid: string;
   email: string;
   displayName: string;
   role: 'user' | 'infowriter' | 'admin';
@@ -20,12 +21,13 @@ export const useAuth = () => {
     if (!auth.currentUser) return;
     await auth.currentUser.reload();
     const currentUser = auth.currentUser;
-    const profileRef = doc(firestore, 'users', currentUser.uid);
+    const profileRef = doc(db, 'users', currentUser.uid);
     const profileSnap = await getDoc(profileRef);
 
     if (profileSnap.exists()) {
       const data = profileSnap.data();
       setUserProfile({
+        uid: currentUser.uid,
         email: currentUser.email || '',
         displayName: currentUser.displayName || data.displayName || '',
         role: data.role || 'user',
@@ -33,19 +35,20 @@ export const useAuth = () => {
       });
     }
   };
-
+  
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
           await firebaseUser.reload();
-          const profileRef = doc(firestore, 'users', firebaseUser.uid);
+          const profileRef = doc(db, 'users', firebaseUser.uid);
           const profileSnap = await getDoc(profileRef);
 
           if (profileSnap.exists()) {
             const data = profileSnap.data();
             setUserProfile({
+              uid: firebaseUser.uid,
               email: firebaseUser.email || '',
               displayName: firebaseUser.displayName || data.displayName || '',
               role: data.role || 'user',
@@ -75,6 +78,7 @@ export const useAuth = () => {
     emailVerified: user?.emailVerified || false,
     isAdmin: userProfile?.role === 'admin',
     isInfoWriter: userProfile?.role === 'infowriter',
+    isUser: userProfile?.role === 'user',
     loading,
     refreshProfile,
   };
