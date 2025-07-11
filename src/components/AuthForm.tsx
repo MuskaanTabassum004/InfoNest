@@ -5,6 +5,10 @@ import { validateEmail, validateEmailRealTime, EmailValidationResult } from '../
 import { BookOpen, Mail, Lock, User, Eye, EyeOff, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { applyActionCode, getAuth } from 'firebase/auth';
+
 
 export const AuthForm: React.FC = () => {
   const { refreshProfile } = useAuth();
@@ -100,6 +104,32 @@ export const AuthForm: React.FC = () => {
     setFormData(prev => ({ ...prev, email: suggestion }));
     setEmailValidation({ isValid: true });
   };
+
+  const location = useLocation();
+const navigate = useNavigate();
+
+useEffect(() => {
+  const queryParams = new URLSearchParams(location.search);
+  const mode = queryParams.get('mode');
+  const oobCode = queryParams.get('oobCode');
+
+  if (mode === 'verifyEmail' && oobCode) {
+    const auth = getAuth();
+    toast.loading('Verifying your email...');
+
+    applyActionCode(auth, oobCode)
+      .then(() => {
+        toast.dismiss();
+        toast.success('Email verified successfully! You can now log in.');
+        navigate('/auth', { replace: true }); // Clean the URL
+      })
+      .catch((error) => {
+        toast.dismiss();
+        console.error('Email verification failed:', error);
+        toast.error('Invalid or expired verification link.');
+      });
+  }
+}, [location.search, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#EFEDFA' }}>
