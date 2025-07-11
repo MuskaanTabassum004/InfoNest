@@ -78,7 +78,7 @@ export const AdminPanel: React.FC = () => {
     } finally {
       setProcessingRequest(null);
     }
-  };
+  }5000;
 
   if (!isAdmin) {
     return (
