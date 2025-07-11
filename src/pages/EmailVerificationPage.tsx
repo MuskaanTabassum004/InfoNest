@@ -15,24 +15,37 @@ export const EmailVerificationPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   useEffect(() => {
-  const params = new URLSearchParams(location.search);
-  const mode = params.get('mode');
-  const oobCode = params.get('oobCode');
+    const interval = setInterval(async () => {
+      if (user && !user.emailVerified) {
+        setChecking(true);
+        try {
+          await user.reload(); // Firebase reload
+          await refreshProfile();
 
-  if (mode === 'verifyEmail' && oobCode) {
-    applyActionCode(auth, oobCode)
-      .then(async () => {
-        toast.success('Email verified successfully!');
-        await auth.currentUser?.reload();
-        await refreshProfile();
-        navigate('/login'); // or '/dashboard' if you prefer
-      })
-      .catch(() => {
-        toast.error('Invalid or expired verification link.');
-      });
-  }
-}, [location.search]);
+          if (user.emailVerified) {
+            toast.success('Email verified! Redirecting...');
+            clearInterval(interval);
+            navigate('/dashboard'); // ✅ redirect after verify
+          }
+        } catch (error) {
+          toast.error('Error checking verification status.');
+        } finally {
+          setChecking(false);
+        }
+      }
+    }, 5000); // every 5 seconds
 
+    return () => clearInterval(interval); // Clean up on unmount
+  }, [user, refreshProfile, navigate]);
+
+  return (
+    <div>
+      {/* Your existing JSX remains unchanged */}
+      {/* Just make sure this useEffect is inside the component */}
+    </div>
+  );
+  
+  };
 
   const handleResendVerification = async () => {
     if (!user) return;
