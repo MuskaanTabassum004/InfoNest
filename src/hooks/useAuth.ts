@@ -21,7 +21,7 @@ export const useAuth = () => {
     if (!auth.currentUser) return;
     await auth.currentUser.reload();
     const currentUser = auth.currentUser;
-    const profileRef = doc(db, 'users', currentUser.uid);
+    const profileRef = doc(firestore, 'users', currentUser.uid);
     const profileSnap = await getDoc(profileRef);
 
     if (profileSnap.exists()) {
@@ -42,7 +42,7 @@ export const useAuth = () => {
       if (firebaseUser) {
         try {
           await firebaseUser.reload();
-          const profileRef = doc(db, 'users', firebaseUser.uid);
+          const profileRef = doc(firestore, 'users', firebaseUser.uid);
           const profileSnap = await getDoc(profileRef);
 
           if (profileSnap.exists()) {
