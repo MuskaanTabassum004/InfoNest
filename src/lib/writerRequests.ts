@@ -11,7 +11,7 @@ import {
   Timestamp,
   deleteDoc
 } from 'firebase/firestore';
-import { firestore as db } from './firebase';
+import { firestore } from './firebase';
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected';
 export type TargetAudience = 'beginners' | 'intermediate' | 'advanced' | 'all-levels';
