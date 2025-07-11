@@ -19,7 +19,7 @@ import {
   where,
   getDocs
 } from 'firebase/firestore';
-import { auth, firestore as db } from './firebase';
+import { auth, firestore } from './firebase';
 
 export type UserRole = 'user' | 'infowriter' | 'admin';
 
@@ -49,7 +49,7 @@ export const signUp = async (email: string, password: string, displayName?: stri
     requestedWriterAccess: false
   };
 
-  await setDoc(doc(db, 'users', result.user.uid), userProfile);
+  await setDoc(doc(firestore, 'users', result.user.uid), userProfile);
   return result;
 };
 
@@ -69,7 +69,7 @@ export const signOut = async () => {
 };
 
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
-  const docRef = doc(db, 'users', uid);
+  const docRef = doc(firestore, 'users', uid);
   const docSnap = await getDoc(docRef);
 
   if (docSnap.exists()) {
@@ -85,7 +85,7 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 };
 
 export const updateUserRole = async (uid: string, role: UserRole) => {
-  const userRef = doc(db, 'users', uid);
+  const userRef = doc(firestore, 'users', uid);
   await updateDoc(userRef, {
     role,
     updatedAt: new Date()
@@ -93,7 +93,7 @@ export const updateUserRole = async (uid: string, role: UserRole) => {
 };
 
 export const requestWriterAccess = async (uid: string) => {
-  const userRef = doc(db, 'users', uid);
+  const userRef = doc(firestore, 'users', uid);
   await updateDoc(userRef, {
     requestedWriterAccess: true,
     updatedAt: new Date()
@@ -102,7 +102,7 @@ export const requestWriterAccess = async (uid: string) => {
 
 export const getPendingWriterRequests = async () => {
   const q = query(
-    collection(db, 'users'),
+    collection(firestore, 'users'),
     where('requestedWriterAccess', '==', true),
     where('role', '==', 'user')
   );
@@ -116,7 +116,7 @@ export const getPendingWriterRequests = async () => {
 };
 
 export const approveWriterRequest = async (uid: string) => {
-  const userRef = doc(db, 'users', uid);
+  const userRef = doc(firestore, 'users', uid);
   await updateDoc(userRef, {
     role: 'infowriter',
     requestedWriterAccess: false,
@@ -125,7 +125,7 @@ export const approveWriterRequest = async (uid: string) => {
 };
 
 export const denyWriterRequest = async (uid: string) => {
-  const userRef = doc(db, 'users', uid);
+  const userRef = doc(firestore, 'users', uid);
   await updateDoc(userRef, {
     requestedWriterAccess: false,
     updatedAt: new Date()
@@ -134,7 +134,7 @@ export const denyWriterRequest = async (uid: string) => {
 
 export const getInfoWriters = async () => {
   const q = query(
-    collection(db, 'users'),
+    collection(firebase, 'users'),
     where('role', 'in', ['infowriter', 'admin'])
   );
 
@@ -156,7 +156,7 @@ export const signInWithGoogle = async () => {
   const result = await signInWithPopup(auth, provider);
 
   // If new user, create profile
-  const docRef = doc(db, 'users', result.user.uid);
+  const docRef = doc(firestore, 'users', result.user.uid);
   const existing = await getDoc(docRef);
 
   if (!existing.exists()) {
