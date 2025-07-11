@@ -19,7 +19,7 @@ import {
   where,
   getDocs
 } from 'firebase/firestore';
-import { auth, db } from './firebase';
+import { auth, firestore as db } from './firebase';
 
 export type UserRole = 'user' | 'infowriter' | 'admin';
 
