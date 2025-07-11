@@ -26,38 +26,61 @@ export const AuthForm: React.FC = () => {
   const [emailTouched, setEmailTouched] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
 
-    try {
-      // Final email validation before submission
-      const finalEmailValidation = validateEmail(formData.email);
-      if (!finalEmailValidation.isValid) {
-        toast.error(finalEmailValidation.error || 'Please enter a valid email address');
-        setLoading(false);
+  try {
+    const finalEmailValidation = validateEmail(formData.email);
+    if (!finalEmailValidation.isValid) {
+      toast.error(finalEmailValidation.error || 'Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
+
+    if (isLogin) {
+      await signIn(formData.email, formData.password);
+      await refreshProfile();
+
+      const { userProfile } = useAuth(); // get updated userProfile
+      if (!userProfile) {
+        toast.error("Could not load user profile.");
         return;
       }
 
-      if (isLogin) {
-        await signIn(formData.email, formData.password);
-        await refreshProfile();
-        toast.success('Welcome back!');
-      } else {
-        if (formData.password !== formData.confirmPassword) {
-          toast.error('Passwords do not match');
-          setLoading(false);
-          return;
-        }
-        await signUp(formData.email, formData.password, formData.displayName);
-        toast.success('Account created! Please check your email and verify your address before logging in.');
-        setIsLogin(true);
+      if (!userProfile.emailVerified) {
+        toast.error("Please verify your email before continuing.");
+        navigate("/email-verify");
+        return;
       }
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred');
-    } finally {
-      setLoading(false);
+
+      toast.success("Welcome back!");
+
+      const role = userProfile.role;
+      if (role === "admin") {
+        navigate("/admin");
+      } else if (role === "infowriter") {
+        navigate("/my-articles");
+      } else {
+        navigate("/dashboard");
+      }
+
+    } else {
+      if (formData.password !== formData.confirmPassword) {
+        toast.error('Passwords do not match');
+        setLoading(false);
+        return;
+      }
+      await signUp(formData.email, formData.password, formData.displayName);
+      toast.success('Account created! Please check your email and verify your address before logging in.');
+      setIsLogin(true);
     }
-  };
+  } catch (error: any) {
+    toast.error(error.message || 'An error occurred');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleGoogleSignIn = async () => {
   setLoading(true);
