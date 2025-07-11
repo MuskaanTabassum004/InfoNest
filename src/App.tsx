@@ -45,31 +45,37 @@ function App() {
           }}
         />
         
+        
+        
         <Routes>
-  {/* Public Routes */}
-  <Route path="/" element={<HomePage />} />
-  <Route path="/auth" element={!isAuthenticated ? <AuthForm /> : <Navigate to="/dashboard" replace />} />
+          
+          {/* Public Routes */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/auth" element={!isAuthenticated ? <AuthForm /> : <Navigate to="/dashboard" replace />} />
+          
+          {/* Always render this so verification link works */}
+          <Route path="/email-verify" element={<EmailVerificationPage />} />
 
-  {/* Always render this so verification link works */}
-  <Route path="/email-verify" element={<EmailVerificationPage />} />
-
-  {/* Protected & Verified Routes */}
-  {isAuthenticated && emailVerified ? (
-    <Route path="/*" element={
-      <Layout>
-        <Routes>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/article/new" element={<ArticleEditor />} />
-          <Route path="/article/edit/:id" element={<ArticleEditor />} />
-          <Route path="/article/:id" element={<ArticleView />} />
-          <Route path="/my-articles" element={<MyArticles />} />
-          <Route path="/admin" element={<AdminPanel />} />
-          <Route path="/writer-request" element={<WriterRequestPage />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Layout>
-    } />
+          {/* Protected & Verified Routes */}  
+          {isAuthenticated && emailVerified ? (
+          <Route path="/*" element={
+            
+            <Layout>
+              <Routes>
+                
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/search" element={<SearchPage />} />
+                <Route path="/article/new" element={<ArticleEditor />} />
+                <Route path="/article/edit/:id" element={<ArticleEditor />} />
+                <Route path="/article/:id" element={<ArticleView />} />
+                <Route path="/my-articles" element={<MyArticles />} />
+                <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/writer-request" element={<WriterRequestPage />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+              
+          </Layout>
+          } />
   ) : isAuthenticated && !emailVerified ? (
     // 👇 Unverified user accessing protected route
     <Route path="/*" element={<Navigate to="/email-verify" replace />} />
