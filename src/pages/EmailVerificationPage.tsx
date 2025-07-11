@@ -4,6 +4,7 @@ import { auth } from '../lib/firebase';
 import { sendEmailVerification, signOut } from 'firebase/auth';
 import { Mail, RefreshCw, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { applyActionCode } from 'firebase/auth';
 
 export const EmailVerificationPage: React.FC = () => {
   const { user, refreshProfile } = useAuth();
@@ -34,9 +35,10 @@ export const EmailVerificationPage: React.FC = () => {
     setChecking(true);
     try {
       await user.reload();
-      await refreshProfile();
+      await refreshProfile(); // This function updates the `emailVerified` state in useAuth
       
-      if (user.emailVerified) {
+      // Use the emailVerified state directly from useAuth
+      if (emailVerified) { 
         toast.success('Email verified successfully! Welcome to InfoNest.');
       } else {
         toast.error('Email not yet verified. Please check your inbox and click the verification link.');
