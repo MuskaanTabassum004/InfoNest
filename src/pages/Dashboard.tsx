@@ -56,7 +56,7 @@ export const Dashboard: React.FC = () => {
 
     loadData();
     }
-  }, [isInfoWriter, userProfile]);
+  }, [isInfoWriter, userProfile])
 
   const getRequestStatusDisplay = () => {
     if (!writerRequest) return null;
