@@ -11,7 +11,8 @@ import { applyActionCode, getAuth } from 'firebase/auth';
 
 
 export const AuthForm: React.FC = () => {
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, userProfile } = useAuth();
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
@@ -40,30 +41,7 @@ export const AuthForm: React.FC = () => {
     if (isLogin) {
       await signIn(formData.email, formData.password);
       await refreshProfile();
-
-      const { userProfile } = useAuth(); // get updated userProfile
-      if (!userProfile) {
-        toast.error("Could not load user profile.");
-        return;
-      }
-
-      if (!userProfile.emailVerified) {
-        toast.error("Please verify your email before continuing.");
-        navigate("/email-verify");
-        return;
-      }
-
       toast.success("Welcome back!");
-
-      const role = userProfile.role;
-      if (role === "admin") {
-        navigate("/admin");
-      } else if (role === "infowriter") {
-        navigate("/my-articles");
-      } else {
-        navigate("/dashboard");
-      }
-
     } else {
       if (formData.password !== formData.confirmPassword) {
         toast.error('Passwords do not match');
@@ -129,7 +107,6 @@ export const AuthForm: React.FC = () => {
   };
 
   const location = useLocation();
-const navigate = useNavigate();
 
 useEffect(() => {
   const queryParams = new URLSearchParams(location.search);
