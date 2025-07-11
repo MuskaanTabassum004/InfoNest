@@ -69,7 +69,7 @@ export const EmailVerificationPage: React.FC = () => {
         navigate('/dashboard'); // Auto-redirect to dashboard
         clearInterval(interval);
       }
-    }, 5000);
+    },
     return () => clearInterval(interval);
   }, [user, refreshProfile, navigate]);
 
