@@ -9,11 +9,12 @@ import { Mail, RefreshCw, LogOut, CheckCircle, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast';
 
 export const EmailVerificationPage: React.FC = () => {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, emailVerified } = useAuth();
   const [sending, setSending] = useState(false);
   const [checking, setChecking] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
   useEffect(() => {
     const interval = setInterval(async () => {
       if (user && !user.emailVerified) {
@@ -37,15 +38,6 @@ export const EmailVerificationPage: React.FC = () => {
 
     return () => clearInterval(interval); // Clean up on unmount
   }, [user, refreshProfile, navigate]);
-
-  return (
-    <div>
-      {/* Your existing JSX remains unchanged */}
-      {/* Just make sure this useEffect is inside the component */}
-    </div>
-  );
-  
-  };
 
   const handleResendVerification = async () => {
     if (!user) return;
@@ -76,6 +68,7 @@ export const EmailVerificationPage: React.FC = () => {
       // Use the emailVerified state directly from useAuth
       if (emailVerified) { 
         toast.success('Email verified successfully! Welcome to InfoNest.');
+        navigate('/dashboard');
       } else {
         toast.error('Email not yet verified. Please check your inbox and click the verification link.');
       }
