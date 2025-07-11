@@ -11,8 +11,9 @@ import {
   orderBy,
   limit,
   Timestamp
-} from 'firebase/firestore';
-import { firestore } from './firebase';
+} from 'firebase/firestore
+  
+  import { firestore } from './firebase';
 
 export type ArticleStatus = 'draft' | 'published' | 'archived';
 
