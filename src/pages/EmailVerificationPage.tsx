@@ -7,29 +7,10 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 export const EmailVerificationPage: React.FC = () => {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, emailVerified } = useAuth();
   const [sending, setSending] = useState(false);
   const [checking, setChecking] = useState(false);
   const navigate = useNavigate();
-
-  const checkEmailVerification = async () => {
-    if (!user) return;
-    setChecking(true);
-    try {
-      await user.reload();
-      await refreshProfile();
-      if (user.emailVerified) {
-        toast.success('Email verified successfully!');
-        navigate('/auth'); // Or '/dashboard' if logged in
-      } else {
-        toast.error('Email not yet verified.');
-      }
-    } catch (error) {
-      toast.error('Error checking verification status. Please try again.');
-    } finally {
-      setChecking(false);
-    }
-  };
 
   const handleResendVerification = async () => {
     if (!user) return;
@@ -48,24 +29,44 @@ export const EmailVerificationPage: React.FC = () => {
     }
   };
 
+  const handleCheckVerification = async () => {
+    if (!user) return;
+    setChecking(true);
+    try {
+      await user.reload();
+      await refreshProfile();
+      if (emailVerified) {
+        toast.success('Email verified successfully!');
+        navigate('/auth'); // Redirect to login page as requested
+      } else {
+        toast.error('Email not yet verified.');
+      }
+    } catch (error) {
+      toast.error('Error checking verification status. Please try again.');
+    } finally {
+      setChecking(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut(auth);
       toast.success('Signed out successfully');
+      navigate('/'); // Redirect to homepage as requested
     } catch {
       toast.error('Sign out failed');
     }
   };
 
-  // 🟡 Auto-check every 5 seconds
+  // Auto-check every 5 seconds and redirect to dashboard when verified
   useEffect(() => {
     const interval = setInterval(async () => {
       if (!user) return;
       await user.reload();
       await refreshProfile();
       if (user.emailVerified) {
-        toast.success('Email verified!');
-        navigate('/auth');
+        toast.success('Email verified! Welcome to InfoNest.');
+        navigate('/dashboard'); // Auto-redirect to dashboard
         clearInterval(interval);
       }
     }, 5000);
@@ -104,14 +105,17 @@ export const EmailVerificationPage: React.FC = () => {
             <p className="font-semibold text-gray-900 mb-6">{user?.email}</p>
 
             <p className="text-sm text-gray-600 mb-6">
-              Don’t see the email? Check your spam folder or request a new one.
+              Click the verification link in your email to activate your account.
+            </p>
+            <p className="text-sm text-gray-600 mb-6">
+              Don't see the email? Check your spam folder or request a new one.
             </p>
           </div>
 
           {/* Buttons */}
           <div className="space-y-4">
             <button
-              onClick={checkEmailVerification}
+              onClick={handleCheckVerification}
               disabled={checking}
               className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
             >
@@ -123,7 +127,7 @@ export const EmailVerificationPage: React.FC = () => {
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4" />
-                  <span>I’ve Verified My Email</span>
+                  <span>I've Verified My Email</span>
                 </>
               )}
             </button>
