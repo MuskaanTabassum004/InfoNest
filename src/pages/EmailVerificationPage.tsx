@@ -1,78 +1,28 @@
-import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { applyActionCode } from 'firebase/auth';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { auth } from '../lib/firebase';
 import { sendEmailVerification, signOut } from 'firebase/auth';
-import { Mail, RefreshCw, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
+import { Mail, RefreshCw, LogOut, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 export const EmailVerificationPage: React.FC = () => {
-  const { user, refreshProfile, emailVerified } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [sending, setSending] = useState(false);
   const [checking, setChecking] = useState(false);
-  const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const currentUser = auth.currentUser;
-
-      if (currentUser && !currentUser.emailVerified) {
-        setChecking(true);
-        try {
-          await currentUser.reload(); // ✅ reload from auth object
-          if (currentUser.emailVerified) {
-            await refreshProfile(); // refresh your custom userProfile
-            toast.success('Email verified! Redirecting...');
-            clearInterval(interval);
-            navigate('/dashboard'); // or any route
-          }
-        } catch (error) {
-          console.error(error);
-          toast.error('Error checking verification status. Please try again.');
-        } finally {
-          setChecking(false);
-        }
-      }
-    }, 5000); // every 5 seconds
-
-    return () => clearInterval(interval); // Clean up
-  }, [navigate, refreshProfile]);
-
-  const handleResendVerification = async () => {
+  const checkEmailVerification = async () => {
     if (!user) return;
-
-    setSending(true);
-    try {
-      await sendEmailVerification(user);
-      toast.success('Verification email sent! Please check your inbox.');
-    } catch (error: any) {
-      if (error.code === 'auth/too-many-requests') {
-        toast.error('Too many requests. Please wait before requesting another email.');
-      } else {
-        toast.error('Failed to send verification email. Please try again.');
-      }
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleCheckVerification = async () => {
-    if (!user) return;
-
     setChecking(true);
     try {
       await user.reload();
-      await refreshProfile(); // This function updates the `emailVerified` state in useAuth
-      
-      // Use the emailVerified state directly from useAuth
-      if (emailVerified) { 
-        toast.success('Email verified successfully! Welcome to InfoNest.');
-        navigate('/dashboard');
+      await refreshProfile();
+      if (user.emailVerified) {
+        toast.success('Email verified successfully!');
+        navigate('/auth'); // Or '/dashboard' if logged in
       } else {
-        toast.error('Email not yet verified. Please check your inbox and click the verification link.');
+        toast.error('Email not yet verified.');
       }
     } catch (error) {
       toast.error('Error checking verification status. Please try again.');
@@ -81,14 +31,46 @@ export const EmailVerificationPage: React.FC = () => {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (!user) return;
+    setSending(true);
+    try {
+      await sendEmailVerification(user);
+      toast.success('Verification email sent! Please check your inbox.');
+    } catch (error: any) {
+      if (error.code === 'auth/too-many-requests') {
+        toast.error('Too many requests. Please wait before trying again.');
+      } else {
+        toast.error('Failed to send verification email.');
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut(auth);
       toast.success('Signed out successfully');
-    } catch (error) {
-      toast.error('Error signing out');
+    } catch {
+      toast.error('Sign out failed');
     }
   };
+
+  // 🟡 Auto-check every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!user) return;
+      await user.reload();
+      await refreshProfile();
+      if (user.emailVerified) {
+        toast.success('Email verified!');
+        navigate('/auth');
+        clearInterval(interval);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [user, refreshProfile, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#EFEDFA' }}>
@@ -102,7 +84,7 @@ export const EmailVerificationPage: React.FC = () => {
             Verify Your Email
           </h1>
           <p className="text-gray-600">
-            We've sent a verification link to your email address
+            We've sent a verification link to your email address.
           </p>
         </div>
 
@@ -113,32 +95,23 @@ export const EmailVerificationPage: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <AlertCircle className="h-5 w-5 text-yellow-600" />
                 <p className="text-yellow-800 text-sm">
-                  Please verify your email address to continue using InfoNest
+                  Please verify your email address to continue using InfoNest.
                 </p>
               </div>
             </div>
 
-            <p className="text-gray-700 mb-2">
-              We sent a verification email to:
-            </p>
-            <p className="font-semibold text-gray-900 mb-6">
-              {user?.email}
-            </p>
+            <p className="text-gray-700 mb-2">We sent a verification email to:</p>
+            <p className="font-semibold text-gray-900 mb-6">{user?.email}</p>
 
-            <div className="text-sm text-gray-600 mb-6">
-              <p className="mb-2">
-                Click the verification link in your email to activate your account.
-              </p>
-              <p>
-                Don't see the email? Check your spam folder or request a new one.
-              </p>
-            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              Don’t see the email? Check your spam folder or request a new one.
+            </p>
           </div>
 
-          {/* Action Buttons */}
+          {/* Buttons */}
           <div className="space-y-4">
             <button
-              onClick={handleCheckVerification}
+              onClick={checkEmailVerification}
               disabled={checking}
               className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50"
             >
@@ -150,7 +123,7 @@ export const EmailVerificationPage: React.FC = () => {
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4" />
-                  <span>I've Verified My Email</span>
+                  <span>I’ve Verified My Email</span>
                 </>
               )}
             </button>
@@ -185,9 +158,8 @@ export const EmailVerificationPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-8 text-sm text-gray-500">
-          <p>Having trouble? Contact support for assistance.</p>
+          <p>Having trouble? Contact support for help.</p>
         </div>
       </div>
     </div>
