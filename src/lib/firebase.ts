@@ -12,9 +12,8 @@ const firebaseConfig = {
   measurementId: "G-DYCBMWR5EG"
 };
 
-// Initialize Firebase only if no apps exist, otherwise use the existing default app
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const firestore = getFirestore(app); // ✅ Exported as 'firestore'
 export default app;
