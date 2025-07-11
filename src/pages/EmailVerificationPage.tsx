@@ -1,15 +1,38 @@
+import { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { applyActionCode } from 'firebase/auth';
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { auth } from '../lib/firebase';
 import { sendEmailVerification, signOut } from 'firebase/auth';
 import { Mail, RefreshCw, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { applyActionCode } from 'firebase/auth';
 
 export const EmailVerificationPage: React.FC = () => {
   const { user, refreshProfile } = useAuth();
   const [sending, setSending] = useState(false);
   const [checking, setChecking] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+  const params = new URLSearchParams(location.search);
+  const mode = params.get('mode');
+  const oobCode = params.get('oobCode');
+
+  if (mode === 'verifyEmail' && oobCode) {
+    applyActionCode(auth, oobCode)
+      .then(async () => {
+        toast.success('Email verified successfully!');
+        await auth.currentUser?.reload();
+        await refreshProfile();
+        navigate('/login'); // or '/dashboard' if you prefer
+      })
+      .catch(() => {
+        toast.error('Invalid or expired verification link.');
+      });
+  }
+}, [location.search]);
+
 
   const handleResendVerification = async () => {
     if (!user) return;
