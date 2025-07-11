@@ -83,7 +83,7 @@ function App() {
     // 👇 Unauthenticated users
     <Route path="*" element={<Navigate to="/auth" replace />} />
   )}
-</Routes>
+        </Routes>
 
       </div>
     </Router>
