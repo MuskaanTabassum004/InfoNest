@@ -12,7 +12,7 @@ import {
   limit,
   Timestamp
 } from 'firebase/firestore';
-import { firestore as db } from './firebase';
+import { firestore } from './firebase';
 
 export type ArticleStatus = 'draft' | 'published' | 'archived';
 
