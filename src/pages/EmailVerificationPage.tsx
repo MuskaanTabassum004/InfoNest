@@ -59,7 +59,7 @@ export const EmailVerificationPage: React.FC = () => {
   };
 
   // Auto-check every 5 seconds and redirect to dashboard when verified
-  useEffect(() => {
+  useEffect() => {
     const interval = setInterval(async () => {
       if (!user) return;
       await user.reload();
