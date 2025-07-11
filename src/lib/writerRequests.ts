@@ -54,7 +54,7 @@ export const submitWriterRequest = async (
 ): Promise<string> => {
   // Check if user already has a pending request
   const existingRequestQuery = query(
-    collection(db, 'writerRequests'),
+    collection(firestore, 'writerRequests'),
     where('userId', '==', requestData.userId),
     where('status', '==', 'pending')
   );
@@ -64,7 +64,7 @@ export const submitWriterRequest = async (
     throw new Error('You already have a pending InfoWriter request. Please wait for admin review.');
   }
 
-  const docRef = doc(collection(db, 'writerRequests'));
+  const docRef = doc(collection(firestore, 'writerRequests'));
   const requestId = generateRequestId();
   
   const sanitizedRequest: WriterRequest = {
@@ -88,7 +88,7 @@ export const submitWriterRequest = async (
 };
 
 export const getWriterRequests = async (status?: RequestStatus): Promise<WriterRequest[]> => {
-  let q = query(collection(db, 'writerRequests'));
+  let q = query(collection(firestore, 'writerRequests'));
   
   if (status) {
     q = query(q, where('status', '==', status));
@@ -108,7 +108,7 @@ export const getWriterRequests = async (status?: RequestStatus): Promise<WriterR
 };
 
 export const getWriterRequest = async (id: string): Promise<WriterRequest | null> => {
-  const docRef = doc(db, 'writerRequests', id);
+  const docRef = doc(firestore, 'writerRequests', id);
   const docSnap = await getDoc(docRef);
   
   if (docSnap.exists()) {
@@ -129,7 +129,7 @@ export const processWriterRequest = async (
   adminId: string,
   adminNotes?: string
 ): Promise<void> => {
-  const requestRef = doc(db, 'writerRequests', id);
+  const requestRef = doc(firestore, 'writerRequests', id);
   
   await updateDoc(requestRef, {
     status,
@@ -142,7 +142,7 @@ export const processWriterRequest = async (
 export const getUserWriterRequest = async (userId: string): Promise<WriterRequest | null> => {
   // Modified query to avoid composite index requirement
   const q = query(
-    collection(db, 'writerRequests'),
+    collection(firestore, 'writerRequests'),
     where('userId', '==', userId)
   );
   

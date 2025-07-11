@@ -117,7 +117,7 @@ export const deleteArticle = async (id: string): Promise<void> => {
   
   // Clean up versions
   const versionsQuery = query(
-    collection(db, 'articleVersions'),
+    collection(firestore, 'articleVersions'),
     where('articleId', '==', id)
   );
   const versionsSnapshot = await getDocs(versionsQuery);
