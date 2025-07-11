@@ -143,16 +143,7 @@ export const AdminPanel: React.FC = () => {
           >
             InfoWriter Requests
           </button>
-          <button
-            onClick={() => setActiveTab('legacy-requests')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'legacy-requests'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-            }`}
-          >
-            Legacy Requests
-          </button>
+          
         </div>
       </div>
 
@@ -176,7 +167,7 @@ export const AdminPanel: React.FC = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-orange-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-orange-600">Legacy Requests</p>
+                  <p className="text-sm font-medium text-orange-600">InfoWriter Requests</p>
                   <p className="text-2xl font-bold text-gray-900">{pendingRequests.length}</p>
                 </div>
                 <div className="bg-orange-100 p-3 rounded-xl">
