@@ -130,7 +130,7 @@ useEffect(() => {
       });
   }
 }, [location.search, navigate]);
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#EFEDFA' }}>
       <div className="max-w-md w-full">
