@@ -11,9 +11,8 @@ import {
   orderBy,
   limit,
   Timestamp
-} from 'firebase/firestore
-  
-  import { firestore } from './firebase';
+} from 'firebase/firestore';
+import { firestore } from './firebase';
 
 export type ArticleStatus = 'draft' | 'published' | 'archived';
 
@@ -55,7 +54,7 @@ const generateSlug = (title: string): string => {
 export const createArticle = async (
   article: Omit<Article, 'id' | 'createdAt' | 'updatedAt' | 'version' | 'slug'>
 ): Promise<string> => {
-  const docRef = doc(collection(db, 'articles'));
+  const docRef = doc(collection(firestore, 'articles'));
   const slug = generateSlug(article.title);
   
   const newArticle: Article = {
@@ -84,7 +83,7 @@ export const updateArticle = async (
   id: string,
   updates: Partial<Omit<Article, 'id' | 'createdAt' | 'version'>>
 ): Promise<void> => {
-  const articleRef = doc(db, 'articles', id);
+  const articleRef = doc(firestore, 'articles', id);
   const currentDoc = await getDoc(articleRef);
   
   if (!currentDoc.exists()) {
@@ -114,7 +113,7 @@ export const updateArticle = async (
 };
 
 export const deleteArticle = async (id: string): Promise<void> => {
-  await deleteDoc(doc(db, 'articles', id));
+  await deleteDoc(doc(firestore, 'articles', id));
   
   // Clean up versions
   const versionsQuery = query(
@@ -128,7 +127,7 @@ export const deleteArticle = async (id: string): Promise<void> => {
 };
 
 export const getArticle = async (id: string): Promise<Article | null> => {
-  const docRef = doc(db, 'articles', id);
+  const docRef = doc(firestore, 'articles', id);
   const docSnap = await getDoc(docRef);
   
   if (docSnap.exists()) {
@@ -150,7 +149,7 @@ export const getArticles = async (options: {
   categories?: string[];
   limit?: number;
 } = {}): Promise<Article[]> => {
-  let q = query(collection(db, 'articles'));
+  let q = query(collection(firestore, 'articles'));
   const filters = [];
 
   if (options.status) {
@@ -222,7 +221,7 @@ const saveArticleVersion = async (
   version: number,
   createdBy: string
 ): Promise<void> => {
-  const versionRef = doc(collection(db, 'articleVersions'));
+  const versionRef = doc(collection(firestore, 'articleVersions'));
   
   const articleVersion: Omit<ArticleVersion, 'id'> = {
     articleId,
@@ -240,7 +239,7 @@ const saveArticleVersion = async (
 
 export const getArticleVersions = async (articleId: string): Promise<ArticleVersion[]> => {
   const q = query(
-    collection(db, 'articleVersions'),
+    collection(firestore, 'articleVersions'),
     where('articleId', '==', articleId),
     orderBy('version', 'desc')
   );
