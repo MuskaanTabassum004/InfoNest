@@ -15,7 +15,7 @@ export const EmailVerificationPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-useEffect(() => {
+  useEffect(() => {
     const interval = setInterval(async () => {
       const currentUser = auth.currentUser;
 
@@ -40,13 +40,6 @@ useEffect(() => {
 
     return () => clearInterval(interval); // Clean up
   }, [navigate, refreshProfile]);
-
-  return (
-    <div>
-      {/* Your email verification page UI remains here */}
-    </div>
-  );
-};
 
   const handleResendVerification = async () => {
     if (!user) return;
