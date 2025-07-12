@@ -326,7 +326,7 @@ export const InfoWriterManagement: React.FC = () => {
             <p className="text-gray-600 mb-6">
               Are you sure you want to remove InfoWriter access from{' '}
               <strong>{confirmRemoval.displayName || confirmRemoval.email}</strong>?
-              This will revert their role to "User" and they will lose the ability to create and manage articles.
+              This will revert their role to "User\" and they will lose the ability to create and manage articles.
             </p>
             
             <div className="flex justify-end space-x-3">
