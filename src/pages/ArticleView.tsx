@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { SaveArticleButton } from '../components/SaveArticleButton';
 
 export const ArticleView: React.FC = () => {
   const { id } = useParams();
@@ -102,6 +103,9 @@ export const ArticleView: React.FC = () => {
         </button>
 
         <div className="flex items-center space-x-3">
+          {/* Save Article Button for Users */}
+          <SaveArticleButton article={article} />
+
           {canEdit(article) && (
             <>
               <button
