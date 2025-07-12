@@ -276,7 +276,7 @@ export const Dashboard: React.FC = () => {
               <div className="bg-purple-100 p-3 rounded-xl group-hover:bg-purple-200 transition-colors">
                 <Star className="h-6 w-6 text-purple-600" />
               </div>
-            </div>
+              </div>
           </Link>
         ) : (
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100">
