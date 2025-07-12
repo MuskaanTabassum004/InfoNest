@@ -64,7 +64,7 @@ export const Layout: React.FC = () => {
                 <span>Search</span>
               </Link>
 
-              <PermissionGate requiredRoles={["infowriter", "admin"]}>
+              <PermissionGate requiredRole="infowriter">
                 <Link
                   to="/my-articles"
                   className={getLinkClass("/my-articles", "purple")}
