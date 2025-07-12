@@ -15,7 +15,7 @@ import {
 import { WriterRequestsAdmin } from "../components/WriterRequestsAdmin";
 import { InfoWriterManagement } from "../components/InfoWriterManagement";
 import { RoleManagement } from "../components/RoleManagement";
-import { StorageTest } from "../components/StorageTest";
+
 import {
   Shield,
   Users,
@@ -27,6 +27,7 @@ import {
   TrendingUp,
   AlertCircle,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
@@ -40,12 +41,12 @@ export const AdminPanel: React.FC = () => {
   const [processingRequest, setProcessingRequest] = useState<string | null>(
     null
   );
+  const [recentlyApprovedCount, setRecentlyApprovedCount] = useState(0);
   const [activeTab, setActiveTab] = useState<
     | "overview"
     | "writer-requests"
     | "infowriter-management"
     | "role-management"
-    | "storage-test"
     | "legacy-requests"
   >("overview");
 
@@ -53,6 +54,17 @@ export const AdminPanel: React.FC = () => {
     if (isAdmin) {
       loadAdminData();
     }
+  }, [isAdmin]);
+
+  // Refresh data every 30 seconds for real-time updates
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const interval = setInterval(() => {
+      loadAdminData();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
   }, [isAdmin]);
 
   const loadAdminData = async () => {
@@ -67,6 +79,15 @@ export const AdminPanel: React.FC = () => {
       setPendingRequests(requests);
       setAllArticles(articles);
       setActiveInfoWriters(infoWriters);
+
+      // Calculate InfoWriters approved in the past week
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      const recentlyApproved = infoWriters.filter(writer =>
+        writer.updatedAt && writer.updatedAt >= oneWeekAgo
+      );
+      setRecentlyApprovedCount(recentlyApproved.length);
     } catch (error) {
       toast.error("Error loading admin data");
     } finally {
@@ -147,8 +168,18 @@ export const AdminPanel: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-gradient-to-r from-amber-100 to-orange-100 p-3 rounded-xl">
-          <Shield className="h-8 w-8 text-amber-600" />
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={loadAdminData}
+            disabled={loading}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+          <div className="bg-gradient-to-r from-amber-100 to-orange-100 p-3 rounded-xl">
+            <Shield className="h-8 w-8 text-amber-600" />
+          </div>
         </div>
       </div>
 
@@ -195,16 +226,7 @@ export const AdminPanel: React.FC = () => {
           >
             Role Management
           </button>
-          <button
-            onClick={() => setActiveTab("storage-test")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === "storage-test"
-                ? "bg-blue-600 text-white"
-                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-            }`}
-          >
-            Storage Test
-          </button>
+
         </div>
       </div>
 
@@ -245,7 +267,10 @@ export const AdminPanel: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100">
+            <div
+              className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100 cursor-pointer hover:border-green-200 transition-colors"
+              onClick={() => setActiveTab("infowriter-management")}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-green-600">
@@ -253,6 +278,9 @@ export const AdminPanel: React.FC = () => {
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
                     {activeInfoWriters.length}
+                  </p>
+                  <p className="text-xs text-green-500 mt-1">
+                    Click to view details
                   </p>
                 </div>
                 <div className="bg-green-100 p-3 rounded-xl">
@@ -265,16 +293,13 @@ export const AdminPanel: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-purple-600">
-                    This Week
+                    Approved This Week
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {
-                      allArticles.filter((a) => {
-                        const weekAgo = new Date();
-                        weekAgo.setDate(weekAgo.getDate() - 7);
-                        return a.publishedAt && a.publishedAt > weekAgo;
-                      }).length
-                    }
+                    {recentlyApprovedCount}
+                  </p>
+                  <p className="text-xs text-purple-500 mt-1">
+                    InfoWriters approved
                   </p>
                 </div>
                 <div className="bg-purple-100 p-3 rounded-xl">
@@ -361,7 +386,7 @@ export const AdminPanel: React.FC = () => {
 
       {activeTab === "role-management" && <RoleManagement />}
 
-      {activeTab === "storage-test" && <StorageTest />}
+
 
       {activeTab === "legacy-requests" && (
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
