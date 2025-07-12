@@ -37,25 +37,31 @@ service cloud.firestore {
         (request.auth.uid == resource.data.userId || 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      allow update: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow update: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     // Users collection - users can read their own profile, admins can read/update all
     match /users/{userId} {
+      // Allow users to read their own profile
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Allow admins to read all user profiles (simplified rule)
       allow read: if request.auth != null &&
-        (request.auth.uid == userId ||
-         (request.auth.uid != userId && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+      // Allow user creation
       allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Allow users to update their own profile (except role)
+      allow update: if request.auth != null && request.auth.uid == userId &&
+        (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+
+      // Allow admins to update any profile including roles
       allow update: if request.auth != null &&
-        (
-          // Users can update their own profile (except role)
-          (request.auth.uid == userId &&
-           (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)) ||
-          // Admins can update any profile including roles
-          (request.auth.uid != userId &&
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
-        );
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Saved articles collection (for user bookmarks) - future feature
