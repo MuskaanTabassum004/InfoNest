@@ -6,7 +6,6 @@ import {
   getDocs,
   query,
   where,
-  orderBy,
   onSnapshot,
   getDoc,
   Timestamp,
@@ -29,10 +28,15 @@ export interface SavedArticle {
 // Save an article for a user
 export const saveArticle = async (userId: string, article: Article): Promise<void> => {
   try {
-    const savedArticleRef = doc(firestore, 'savedArticles', `${userId}_${article.id}`);
-    
+    const docId = `${userId}_${article.id}`;
+    console.log('💾 Saving article with ID:', docId);
+    console.log('👤 User ID:', userId);
+    console.log('📄 Article:', article.title);
+
+    const savedArticleRef = doc(firestore, 'savedArticles', docId);
+
     const savedArticleData = {
-      id: `${userId}_${article.id}`,
+      id: docId,
       userId,
       articleId: article.id,
       articleTitle: article.title,
@@ -43,9 +47,11 @@ export const saveArticle = async (userId: string, article: Article): Promise<voi
       savedAt: Timestamp.now(),
     };
 
+    console.log('📝 Saving data:', savedArticleData);
     await setDoc(savedArticleRef, savedArticleData);
+    console.log('✅ Article saved successfully');
   } catch (error) {
-    console.error('Error saving article:', error);
+    console.error('❌ Error saving article:', error);
     throw new Error('Failed to save article');
   }
 };
@@ -78,8 +84,7 @@ export const getUserSavedArticles = async (userId: string): Promise<SavedArticle
   try {
     const q = query(
       collection(firestore, 'savedArticles'),
-      where('userId', '==', userId),
-      orderBy('savedAt', 'desc')
+      where('userId', '==', userId)
     );
 
     const querySnapshot = await getDocs(q);
@@ -117,15 +122,20 @@ export const subscribeToSavedArticlesCount = (
   userId: string,
   callback: (count: number) => void
 ): (() => void) => {
+  console.log('🔔 Setting up saved articles count subscription for user:', userId);
+
   const q = query(
     collection(firestore, 'savedArticles'),
     where('userId', '==', userId)
   );
 
   return onSnapshot(q, (snapshot) => {
+    console.log('📊 Saved articles count updated:', snapshot.size);
     callback(snapshot.size);
   }, (error) => {
-    console.error('Error in saved articles count subscription:', error);
+    console.error('❌ Error in saved articles count subscription:', error);
+    console.error('🔍 User ID:', userId);
+    console.error('🔍 Error details:', error.code, error.message);
     callback(0);
   });
 };
@@ -135,23 +145,33 @@ export const subscribeToUserSavedArticles = (
   userId: string,
   callback: (articles: SavedArticle[]) => void
 ): (() => void) => {
+  console.log('🔔 Setting up saved articles subscription for user:', userId);
+
+  // Remove orderBy to avoid index requirement - sort in JavaScript instead
   const q = query(
     collection(firestore, 'savedArticles'),
-    where('userId', '==', userId),
-    orderBy('savedAt', 'desc')
+    where('userId', '==', userId)
   );
 
   return onSnapshot(q, (snapshot) => {
+    console.log('📚 Saved articles updated, count:', snapshot.size);
     const articles = snapshot.docs.map(doc => {
       const data = doc.data();
+      console.log('📄 Saved article data:', data);
       return {
         ...data,
         savedAt: data.savedAt.toDate(),
       } as SavedArticle;
     });
+
+    // Sort by savedAt date in JavaScript (newest first)
+    articles.sort((a, b) => b.savedAt.getTime() - a.savedAt.getTime());
+
     callback(articles);
   }, (error) => {
-    console.error('Error in saved articles subscription:', error);
+    console.error('❌ Error in saved articles subscription:', error);
+    console.error('🔍 User ID:', userId);
+    console.error('🔍 Error details:', error.code, error.message);
     callback([]);
   });
 };
