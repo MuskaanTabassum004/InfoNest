@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getPublishedArticles, Article } from '../lib/articles';
 import { SearchBar } from '../components/SearchBar';
+import { useAuth } from '../hooks/useAuth';
 import { 
   BookOpen,
   Calendar,
@@ -14,6 +15,7 @@ import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 
 export const SearchPage: React.FC = () => {
+  const { isUser } = useAuth();
   const [articles, setArticles] = useState<Article[]>([]);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,8 +102,9 @@ export const SearchPage: React.FC = () => {
       {/* Search Bar */}
       <SearchBar />
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Stats - Hidden for regular users */}
+      {!isUser && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100">
           <div className="flex items-center justify-between">
             <div>
@@ -138,6 +141,7 @@ export const SearchPage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
