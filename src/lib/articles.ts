@@ -16,12 +16,6 @@ import { firestore } from './firebase';
 
 export type ArticleStatus = 'draft' | 'published' | 'archived';
 
-export interface ArticleAttachment {
-  fileName: string;
-  url: string;
-  size: number;
-}
-
 export interface Article {
   id: string;
   title: string;
@@ -37,7 +31,6 @@ export interface Article {
   publishedAt?: Date;
   version: number;
   slug: string;
-  attachments?: ArticleAttachment[];
 }
 
 export interface ArticleVersion {

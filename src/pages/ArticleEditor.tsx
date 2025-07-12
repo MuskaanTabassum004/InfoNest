@@ -1,44 +1,51 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { createArticle, updateArticle, getArticle, Article } from '../lib/articles';
-import { RichTextEditor } from '../components/RichTextEditor';
-import { FileUpload } from '../components/FileUpload';
-import { FileUploadResult } from '../lib/storage';
-import { Save, Eye, ArrowLeft, Trash2, Send } from 'lucide-react';
-import toast from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import {
+  createArticle,
+  updateArticle,
+  getArticle,
+  Article,
+} from "../lib/articles";
+import { RichTextEditor } from "../components/RichTextEditor";
+import { FileUpload } from "../components/FileUpload";
+import { Save, Eye, ArrowLeft, Trash2, Send, Upload } from "lucide-react";
+import { UploadResult } from "../lib/fileUpload";
+import toast from "react-hot-toast";
 
 export const ArticleEditor: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { userProfile, isInfoWriter } = useAuth();
-  const isEditing = id !== 'new';
+  const isEditing = id !== "new";
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [article, setArticle] = useState<Partial<Article>>({
-    title: '',
-    content: '',
-    excerpt: '',
-    status: 'draft',
+    title: "",
+    content: "",
+    excerpt: "",
+    status: "draft",
     categories: [],
     tags: [],
-    attachments: []
   });
-  const [categoryInput, setCategoryInput] = useState('');
-  const [tagInput, setTagInput] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState<FileUploadResult[]>([]);
+  const [categoryInput, setCategoryInput] = useState("");
+  const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
+    // Wait for user profile to load before checking permissions
+    if (!userProfile) return;
+
     if (!isInfoWriter) {
-      navigate('/dashboard');
+      toast.error("You need InfoWriter privileges to create or edit articles");
+      navigate("/dashboard");
       return;
     }
 
     if (isEditing && id) {
       loadArticle(id);
     }
-  }, [id, isEditing, isInfoWriter, navigate]);
+  }, [id, isEditing, isInfoWriter, navigate, userProfile]);
 
   const loadArticle = async (articleId: string) => {
     setLoading(true);
@@ -46,32 +53,37 @@ export const ArticleEditor: React.FC = () => {
       const loadedArticle = await getArticle(articleId);
       if (loadedArticle) {
         // Check if user owns this article or is admin
-        if (loadedArticle.authorId !== userProfile?.uid && userProfile?.role !== 'admin') {
-          toast.error('You can only edit your own articles');
-          navigate('/my-articles');
+        if (
+          loadedArticle.authorId !== userProfile?.uid &&
+          userProfile?.role !== "admin"
+        ) {
+          toast.error("You can only edit your own articles");
+          navigate("/my-articles");
           return;
         }
         setArticle(loadedArticle);
       } else {
-        toast.error('Article not found');
-        navigate('/my-articles');
+        toast.error("Article not found");
+        navigate("/my-articles");
       }
     } catch (error) {
-      toast.error('Error loading article');
-      navigate('/my-articles');
+      toast.error("Error loading article");
+      navigate("/my-articles");
     } finally {
       setLoading(false);
     }
   };
 
   const generateExcerpt = (content: string): string => {
-    const textContent = content.replace(/<[^>]*>/g, '').trim();
-    return textContent.length > 200 ? textContent.substring(0, 200) + '...' : textContent;
+    const textContent = content.replace(/<[^>]*>/g, "").trim();
+    return textContent.length > 200
+      ? textContent.substring(0, 200) + "..."
+      : textContent;
   };
 
-  const handleSave = async (status: 'draft' | 'published' = 'draft') => {
+  const handleSave = async (status: "draft" | "published" = "draft") => {
     if (!userProfile || !article.title?.trim() || !article.content?.trim()) {
-      toast.error('Please fill in title and content');
+      toast.error("Please fill in title and content");
       return;
     }
 
@@ -83,81 +95,77 @@ export const ArticleEditor: React.FC = () => {
         excerpt: article.excerpt || generateExcerpt(article.content),
         authorId: userProfile.uid,
         authorName: userProfile.displayName || userProfile.email,
-        publishedAt: status === 'published' ? new Date() : article.publishedAt
+        publishedAt: status === "published" ? new Date() : article.publishedAt,
       };
 
       if (isEditing && id) {
         await updateArticle(id, articleData);
-        toast.success(`Article ${status === 'published' ? 'published' : 'saved'} successfully`);
+        toast.success(
+          `Article ${
+            status === "published" ? "published" : "saved"
+          } successfully`
+        );
       } else {
-        const newId = await createArticle(articleData as Omit<Article, 'id' | 'createdAt' | 'updatedAt' | 'version' | 'slug'>);
-        toast.success(`Article ${status === 'published' ? 'published' : 'created'} successfully`);
+        const newId = await createArticle(
+          articleData as Omit<
+            Article,
+            "id" | "createdAt" | "updatedAt" | "version" | "slug"
+          >
+        );
+        toast.success(
+          `Article ${
+            status === "published" ? "published" : "created"
+          } successfully`
+        );
         navigate(`/article/edit/${newId}`);
       }
 
-      setArticle(prev => ({ ...prev, status }));
+      setArticle((prev) => ({ ...prev, status }));
     } catch (error) {
-      toast.error('Error saving article');
+      toast.error("Error saving article");
     } finally {
       setSaving(false);
     }
   };
 
   const addCategory = () => {
-    if (categoryInput.trim() && !article.categories?.includes(categoryInput.trim())) {
-      setArticle(prev => ({
+    if (
+      categoryInput.trim() &&
+      !article.categories?.includes(categoryInput.trim())
+    ) {
+      setArticle((prev) => ({
         ...prev,
-        categories: [...(prev.categories || []), categoryInput.trim()]
+        categories: [...(prev.categories || []), categoryInput.trim()],
       }));
-      setCategoryInput('');
+      setCategoryInput("");
     }
   };
 
   const removeCategory = (category: string) => {
-    setArticle(prev => ({
+    setArticle((prev) => ({
       ...prev,
-      categories: prev.categories?.filter(c => c !== category) || []
+      categories: prev.categories?.filter((c) => c !== category) || [],
     }));
   };
 
   const addTag = () => {
     if (tagInput.trim() && !article.tags?.includes(tagInput.trim())) {
-      setArticle(prev => ({
+      setArticle((prev) => ({
         ...prev,
-        tags: [...(prev.tags || []), tagInput.trim()]
+        tags: [...(prev.tags || []), tagInput.trim()],
       }));
-      setTagInput('');
+      setTagInput("");
     }
   };
 
   const removeTag = (tag: string) => {
-    setArticle(prev => ({
+    setArticle((prev) => ({
       ...prev,
-      tags: prev.tags?.filter(t => t !== tag) || []
+      tags: prev.tags?.filter((t) => t !== tag) || [],
     }));
   };
 
-  const handleFileUploaded = (file: FileUploadResult) => {
-    setUploadedFiles(prev => [...prev, file]);
-    setArticle(prev => ({
-      ...prev,
-      attachments: [...(prev.attachments || []), {
-        fileName: file.fileName,
-        url: file.url,
-        size: file.size
-      }]
-    }));
-  };
-
-  const handleFileRemoved = (fileName: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.fileName !== fileName));
-    setArticle(prev => ({
-      ...prev,
-      attachments: prev.attachments?.filter(a => a.fileName !== fileName) || []
-    }));
-  };
-
-  if (loading) {
+  if (loading || !userProfile) {
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
@@ -170,7 +178,7 @@ export const ArticleEditor: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate('/my-articles')}
+          onClick={() => navigate("/my-articles")}
           className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -189,16 +197,16 @@ export const ArticleEditor: React.FC = () => {
           )}
 
           <button
-            onClick={() => handleSave('draft')}
+            onClick={() => handleSave("draft")}
             disabled={saving}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
-            <span>{saving ? 'Saving...' : 'Save Draft'}</span>
+            <span>{saving ? "Saving..." : "Save Draft"}</span>
           </button>
 
           <button
-            onClick={() => handleSave('published')}
+            onClick={() => handleSave("published")}
             disabled={saving}
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
           >
@@ -212,11 +220,13 @@ export const ArticleEditor: React.FC = () => {
       <div>
         <input
           type="text"
-          value={article.title || ''}
-          onChange={(e) => setArticle(prev => ({ ...prev, title: e.target.value }))}
+          value={article.title || ""}
+          onChange={(e) =>
+            setArticle((prev) => ({ ...prev, title: e.target.value }))
+          }
           placeholder="Article title..."
           className="w-full text-3xl font-bold border-none outline-none bg-transparent placeholder-gray-400 resize-none"
-          style={{ minHeight: '1.2em' }}
+          style={{ minHeight: "1.2em" }}
         />
       </div>
 
@@ -248,7 +258,9 @@ export const ArticleEditor: React.FC = () => {
               type="text"
               value={categoryInput}
               onChange={(e) => setCategoryInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCategory())}
+              onKeyPress={(e) =>
+                e.key === "Enter" && (e.preventDefault(), addCategory())
+              }
               placeholder="Add category..."
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -287,7 +299,9 @@ export const ArticleEditor: React.FC = () => {
               type="text"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+              onKeyPress={(e) =>
+                e.key === "Enter" && (e.preventDefault(), addTag())
+              }
               placeholder="Add tag..."
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -307,8 +321,10 @@ export const ArticleEditor: React.FC = () => {
           Excerpt (Optional)
         </label>
         <textarea
-          value={article.excerpt || ''}
-          onChange={(e) => setArticle(prev => ({ ...prev, excerpt: e.target.value }))}
+          value={article.excerpt || ""}
+          onChange={(e) =>
+            setArticle((prev) => ({ ...prev, excerpt: e.target.value }))
+          }
           placeholder="Brief description of the article..."
           rows={3}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
@@ -318,28 +334,38 @@ export const ArticleEditor: React.FC = () => {
         </p>
       </div>
 
-      {/* File Attachments */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          File Attachments (Optional)
-        </label>
-        <FileUpload
-          onFileUploaded={handleFileUploaded}
-          onFileRemoved={handleFileRemoved}
-          uploadedFiles={uploadedFiles}
-          path={`articles/${userProfile?.uid || 'anonymous'}`}
-          maxFiles={5}
-        />
-      </div>
-
       {/* Content Editor */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Content
         </label>
         <RichTextEditor
-          content={article.content || ''}
-          onChange={(content) => setArticle(prev => ({ ...prev, content }))}
+          content={article.content || ""}
+          onChange={(content) => setArticle((prev) => ({ ...prev, content }))}
+        />
+      </div>
+
+      {/* File Upload Section */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Upload Files
+        </label>
+        <p className="text-sm text-gray-600 mb-3">
+          Upload images, documents, or other files to include in your article.
+          Files will be inserted at your cursor position in the editor.
+        </p>
+        <FileUpload
+          onUploadComplete={(result: UploadResult) => {
+            toast.success(
+              "File uploaded! Use the upload button in the toolbar to insert it."
+            );
+          }}
+          onUploadError={(error: string) => {
+            toast.error(error);
+          }}
+          accept="image/*,.pdf,.txt,.doc,.docx"
+          folder="articles"
+          className="mb-4"
         />
       </div>
 
@@ -347,10 +373,15 @@ export const ArticleEditor: React.FC = () => {
       {isEditing && (
         <div className="bg-gray-50 rounded-lg p-4">
           <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>Status: <span className="capitalize font-medium">{article.status}</span></span>
+            <span>
+              Status:{" "}
+              <span className="capitalize font-medium">{article.status}</span>
+            </span>
             <span>Version: {article.version}</span>
             {article.updatedAt && (
-              <span>Last updated: {new Date(article.updatedAt).toLocaleDateString()}</span>
+              <span>
+                Last updated: {new Date(article.updatedAt).toLocaleDateString()}
+              </span>
             )}
           </div>
         </div>

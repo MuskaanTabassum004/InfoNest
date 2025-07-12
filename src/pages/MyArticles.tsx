@@ -1,27 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { getUserArticles, deleteArticle, Article } from '../lib/articles';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import {
+  getUserArticles,
+  deleteArticle,
+  updateArticle,
+  Article,
+} from "../lib/articles";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
   Calendar,
   Search,
-  Filter
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import toast from 'react-hot-toast';
+  Filter,
+  Send,
+  Archive,
+  FileText,
+  MoreVertical,
+  CheckCircle,
+  Clock,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import toast from "react-hot-toast";
 
 export const MyArticles: React.FC = () => {
   const { userProfile, isInfoWriter } = useAuth();
   const [articles, setArticles] = useState<Article[]>([]);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published' | 'archived'>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "draft" | "published" | "archived"
+  >("all");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (isInfoWriter && userProfile) {
@@ -33,15 +48,29 @@ export const MyArticles: React.FC = () => {
     filterArticles();
   }, [articles, searchQuery, statusFilter]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (activeDropdown) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [activeDropdown]);
+
   const loadArticles = async () => {
     if (!userProfile) return;
-    
+
     setLoading(true);
     try {
       const userArticles = await getUserArticles(userProfile.uid);
       setArticles(userArticles);
     } catch (error) {
-      toast.error('Error loading articles');
+      toast.error("Error loading articles");
     } finally {
       setLoading(false);
     }
@@ -51,18 +80,19 @@ export const MyArticles: React.FC = () => {
     let filtered = articles;
 
     // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(article => article.status === statusFilter);
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((article) => article.status === statusFilter);
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(article =>
-        article.title.toLowerCase().includes(query) ||
-        article.excerpt.toLowerCase().includes(query) ||
-        article.categories.some(cat => cat.toLowerCase().includes(query)) ||
-        article.tags.some(tag => tag.toLowerCase().includes(query))
+      filtered = filtered.filter(
+        (article) =>
+          article.title.toLowerCase().includes(query) ||
+          article.excerpt.toLowerCase().includes(query) ||
+          article.categories.some((cat) => cat.toLowerCase().includes(query)) ||
+          article.tags.some((tag) => tag.toLowerCase().includes(query))
       );
     }
 
@@ -72,33 +102,80 @@ export const MyArticles: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await deleteArticle(id);
-      setArticles(prev => prev.filter(article => article.id !== id));
-      toast.success('Article deleted successfully');
+      setArticles((prev) => prev.filter((article) => article.id !== id));
+      toast.success("Article deleted successfully");
     } catch (error) {
-      toast.error('Error deleting article');
+      toast.error("Error deleting article");
     } finally {
       setDeleteConfirm(null);
     }
   };
 
+  const handleStatusChange = async (
+    id: string,
+    newStatus: "draft" | "published" | "archived"
+  ) => {
+    setUpdatingStatus(id);
+    try {
+      await updateArticle(id, {
+        status: newStatus,
+        publishedAt: newStatus === "published" ? new Date() : undefined,
+      });
+
+      setArticles((prev) =>
+        prev.map((article) =>
+          article.id === id
+            ? {
+                ...article,
+                status: newStatus,
+                publishedAt:
+                  newStatus === "published" ? new Date() : article.publishedAt,
+              }
+            : article
+        )
+      );
+
+      const statusText =
+        newStatus === "published"
+          ? "published"
+          : newStatus === "archived"
+          ? "archived"
+          : "saved as draft";
+      toast.success(`Article ${statusText} successfully`);
+    } catch (error) {
+      toast.error(`Error updating article status`);
+    } finally {
+      setUpdatingStatus(null);
+      setActiveDropdown(null);
+    }
+  };
+
+  const toggleDropdown = (articleId: string) => {
+    setActiveDropdown(activeDropdown === articleId ? null : articleId);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'published':
-        return 'bg-green-100 text-green-800';
-      case 'draft':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'archived':
-        return 'bg-gray-100 text-gray-800';
+      case "published":
+        return "bg-green-100 text-green-800";
+      case "draft":
+        return "bg-yellow-100 text-yellow-800";
+      case "archived":
+        return "bg-gray-100 text-gray-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   if (!isInfoWriter) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h2>
-        <p className="text-gray-600">You need InfoWriter access to view this page.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          Access Restricted
+        </h2>
+        <p className="text-gray-600">
+          You need InfoWriter access to view this page.
+        </p>
       </div>
     );
   }
@@ -162,24 +239,26 @@ export const MyArticles: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
-          <div className="text-2xl font-bold text-gray-900">{articles.length}</div>
+          <div className="text-2xl font-bold text-gray-900">
+            {articles.length}
+          </div>
           <div className="text-sm text-gray-600">Total Articles</div>
         </div>
         <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-green-200">
           <div className="text-2xl font-bold text-green-700">
-            {articles.filter(a => a.status === 'published').length}
+            {articles.filter((a) => a.status === "published").length}
           </div>
           <div className="text-sm text-green-600">Published</div>
         </div>
         <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-200">
           <div className="text-2xl font-bold text-yellow-700">
-            {articles.filter(a => a.status === 'draft').length}
+            {articles.filter((a) => a.status === "draft").length}
           </div>
           <div className="text-sm text-yellow-600">Drafts</div>
         </div>
         <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
           <div className="text-2xl font-bold text-gray-700">
-            {articles.filter(a => a.status === 'archived').length}
+            {articles.filter((a) => a.status === "archived").length}
           </div>
           <div className="text-sm text-gray-600">Archived</div>
         </div>
@@ -190,12 +269,14 @@ export const MyArticles: React.FC = () => {
         <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200">
           <div className="text-6xl mb-4">📝</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {articles.length === 0 ? 'No articles yet' : 'No articles match your filters'}
+            {articles.length === 0
+              ? "No articles yet"
+              : "No articles match your filters"}
           </h3>
           <p className="text-gray-600 mb-6">
-            {articles.length === 0 
-              ? 'Start creating your first article to share knowledge with your team.'
-              : 'Try adjusting your search or filter criteria.'}
+            {articles.length === 0
+              ? "Start creating your first article to share knowledge with your team."
+              : "Try adjusting your search or filter criteria."}
           </p>
           {articles.length === 0 && (
             <Link
@@ -220,7 +301,11 @@ export const MyArticles: React.FC = () => {
                     <h3 className="text-lg font-semibold text-gray-900">
                       {article.title}
                     </h3>
-                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${getStatusColor(article.status)}`}>
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full font-medium ${getStatusColor(
+                        article.status
+                      )}`}
+                    >
                       {article.status}
                     </span>
                   </div>
@@ -250,13 +335,16 @@ export const MyArticles: React.FC = () => {
 
                   <div className="flex items-center text-sm text-gray-500">
                     <Calendar className="h-4 w-4 mr-1" />
-                    <span>Updated {formatDistanceToNow(article.updatedAt)} ago</span>
+                    <span>
+                      Updated {formatDistanceToNow(article.updatedAt)} ago
+                    </span>
                     <span className="mx-2">•</span>
                     <span>Version {article.version}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2 ml-4">
+                  {/* Quick Actions */}
                   <Link
                     to={`/article/${article.id}`}
                     className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -273,13 +361,92 @@ export const MyArticles: React.FC = () => {
                     <Edit className="h-4 w-4" />
                   </Link>
 
-                  <button
-                    onClick={() => setDeleteConfirm(article.id)}
-                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete Article"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {/* Status Quick Actions */}
+                  {article.status === "draft" && (
+                    <button
+                      onClick={() =>
+                        handleStatusChange(article.id, "published")
+                      }
+                      disabled={updatingStatus === article.id}
+                      className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Publish Article"
+                    >
+                      {updatingStatus === article.id ? (
+                        <Clock className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
+
+                  {/* More Actions Dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => toggleDropdown(article.id)}
+                      className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors"
+                      title="More Actions"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+
+                    {activeDropdown === article.id && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                        <div className="py-1">
+                          {article.status !== "published" && (
+                            <button
+                              onClick={() =>
+                                handleStatusChange(article.id, "published")
+                              }
+                              disabled={updatingStatus === article.id}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 flex items-center space-x-2 disabled:opacity-50"
+                            >
+                              <Send className="h-4 w-4" />
+                              <span>Publish</span>
+                            </button>
+                          )}
+
+                          {article.status !== "draft" && (
+                            <button
+                              onClick={() =>
+                                handleStatusChange(article.id, "draft")
+                              }
+                              disabled={updatingStatus === article.id}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-yellow-50 hover:text-yellow-700 flex items-center space-x-2 disabled:opacity-50"
+                            >
+                              <FileText className="h-4 w-4" />
+                              <span>Save as Draft</span>
+                            </button>
+                          )}
+
+                          {article.status !== "archived" && (
+                            <button
+                              onClick={() =>
+                                handleStatusChange(article.id, "archived")
+                              }
+                              disabled={updatingStatus === article.id}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-700 flex items-center space-x-2 disabled:opacity-50"
+                            >
+                              <Archive className="h-4 w-4" />
+                              <span>Archive</span>
+                            </button>
+                          )}
+
+                          <div className="border-t border-gray-100 my-1"></div>
+
+                          <button
+                            onClick={() => {
+                              setDeleteConfirm(article.id);
+                              setActiveDropdown(null);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -295,7 +462,8 @@ export const MyArticles: React.FC = () => {
               Delete Article
             </h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this article? This action cannot be undone.
+              Are you sure you want to delete this article? This action cannot
+              be undone.
             </p>
             <div className="flex justify-end space-x-3">
               <button

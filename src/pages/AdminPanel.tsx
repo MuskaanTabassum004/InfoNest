@@ -1,38 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
-import { 
-  getPendingWriterRequests, 
-  approveWriterRequest, 
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../hooks/useAuth";
+import {
+  getPendingWriterRequests,
+  approveWriterRequest,
   denyWriterRequest,
+  getInfoWriters,
   UserProfile,
-  getAllInfoWriters
-} from '../lib/auth';
-import { getPublishedArticles, getUserArticles, Article } from '../lib/articles';
-import { WriterRequestsAdmin } from '../components/WriterRequestsAdmin';
-import { InfoWriterManagement } from '../components/InfoWriterManagement';
-import { 
-  Shield, 
-  Users, 
-  BookOpen, 
+} from "../lib/auth";
+import {
+  getPublishedArticles,
+  getUserArticles,
+  Article,
+} from "../lib/articles";
+import { WriterRequestsAdmin } from "../components/WriterRequestsAdmin";
+import { InfoWriterManagement } from "../components/InfoWriterManagement";
+import { RoleManagement } from "../components/RoleManagement";
+import { StorageTest } from "../components/StorageTest";
+import {
+  Shield,
+  Users,
+  BookOpen,
   Clock,
   Check,
   X,
   Calendar,
   TrendingUp,
   AlertCircle,
-  FileText
-} from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import toast from 'react-hot-toast';
+  FileText,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import toast from "react-hot-toast";
 
 export const AdminPanel: React.FC = () => {
   const { userProfile, isAdmin } = useAuth();
   const [pendingRequests, setPendingRequests] = useState<UserProfile[]>([]);
   const [allArticles, setAllArticles] = useState<Article[]>([]);
-  const [activeWriters, setActiveWriters] = useState<UserProfile[]>([]);
+  const [activeInfoWriters, setActiveInfoWriters] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'writer-requests' | 'legacy-requests' | 'manage-writers'>('overview');
+  const [processingRequest, setProcessingRequest] = useState<string | null>(
+    null
+  );
+  const [activeTab, setActiveTab] = useState<
+    | "overview"
+    | "writer-requests"
+    | "infowriter-management"
+    | "role-management"
+    | "storage-test"
+    | "legacy-requests"
+  >("overview");
 
   useEffect(() => {
     if (isAdmin) {
@@ -43,17 +58,17 @@ export const AdminPanel: React.FC = () => {
   const loadAdminData = async () => {
     setLoading(true);
     try {
-      const [requests, articles, writers] = await Promise.all([
+      const [requests, articles, infoWriters] = await Promise.all([
         getPendingWriterRequests(),
         getPublishedArticles(),
-        getAllInfoWriters()
+        getInfoWriters(),
       ]);
-      
+
       setPendingRequests(requests);
       setAllArticles(articles);
-      setActiveWriters(writers);
+      setActiveInfoWriters(infoWriters);
     } catch (error) {
-      toast.error('Error loading admin data');
+      toast.error("Error loading admin data");
     } finally {
       setLoading(false);
     }
@@ -63,10 +78,22 @@ export const AdminPanel: React.FC = () => {
     setProcessingRequest(uid);
     try {
       await approveWriterRequest(uid);
-      setPendingRequests(prev => prev.filter(req => req.uid !== uid));
-      toast.success('Writer access approved');
+
+      // Update pending requests
+      const approvedUser = pendingRequests.find((req) => req.uid === uid);
+      setPendingRequests((prev) => prev.filter((req) => req.uid !== uid));
+
+      // Add to active InfoWriters if user was found
+      if (approvedUser) {
+        setActiveInfoWriters((prev) => [
+          ...prev,
+          { ...approvedUser, role: "infowriter" },
+        ]);
+      }
+
+      toast.success("Writer access approved");
     } catch (error) {
-      toast.error('Error approving request');
+      toast.error("Error approving request");
     } finally {
       setProcessingRequest(null);
     }
@@ -76,23 +103,23 @@ export const AdminPanel: React.FC = () => {
     setProcessingRequest(uid);
     try {
       await denyWriterRequest(uid);
-      setPendingRequests(prev => prev.filter(req => req.uid !== uid));
-      toast.success('Writer access request denied');
+      setPendingRequests((prev) => prev.filter((req) => req.uid !== uid));
+      toast.success("Writer access request denied");
     } catch (error) {
-      toast.error('Error denying request');
+      toast.error("Error denying request");
     } finally {
       setProcessingRequest(null);
     }
-    };
-    
-  
+  };
 
   if (!isAdmin) {
     return (
       <div className="text-center py-12">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-        <p className="text-gray-600">You need administrator privileges to access this page.</p>
+        <p className="text-gray-600">
+          You need administrator privileges to access this page.
+        </p>
       </div>
     );
   }
@@ -129,49 +156,72 @@ export const AdminPanel: React.FC = () => {
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-2 border border-gray-200">
         <div className="flex space-x-2">
           <button
-            onClick={() => setActiveTab('overview')}
+            onClick={() => setActiveTab("overview")}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'overview'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+              activeTab === "overview"
+                ? "bg-blue-600 text-white"
+                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
             }`}
           >
             Overview
           </button>
           <button
-            onClick={() => setActiveTab('writer-requests')}
+            onClick={() => setActiveTab("writer-requests")}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'writer-requests'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+              activeTab === "writer-requests"
+                ? "bg-blue-600 text-white"
+                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
             }`}
           >
             InfoWriter Requests
           </button>
-          
           <button
-            onClick={() => setActiveTab('manage-writers')}
+            onClick={() => setActiveTab("infowriter-management")}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === 'manage-writers'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+              activeTab === "infowriter-management"
+                ? "bg-blue-600 text-white"
+                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
             }`}
           >
-            Manage InfoWriters
+            Active InfoWriters
+          </button>
+          <button
+            onClick={() => setActiveTab("role-management")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "role-management"
+                ? "bg-blue-600 text-white"
+                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            Role Management
+          </button>
+          <button
+            onClick={() => setActiveTab("storage-test")}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === "storage-test"
+                ? "bg-blue-600 text-white"
+                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            Storage Test
           </button>
         </div>
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'overview' && (
+      {activeTab === "overview" && (
         <>
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-blue-600">Total Articles</p>
-                  <p className="text-2xl font-bold text-gray-900">{allArticles.length}</p>
+                  <p className="text-sm font-medium text-blue-600">
+                    Total Articles
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {allArticles.length}
+                  </p>
                 </div>
                 <div className="bg-blue-100 p-3 rounded-xl">
                   <BookOpen className="h-6 w-6 text-blue-600" />
@@ -182,8 +232,12 @@ export const AdminPanel: React.FC = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-orange-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-orange-600">InfoWriter Requests</p>
-                  <p className="text-2xl font-bold text-gray-900">{pendingRequests.length}</p>
+                  <p className="text-sm font-medium text-orange-600">
+                    InfoWriter Requests
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {pendingRequests.length}
+                  </p>
                 </div>
                 <div className="bg-orange-100 p-3 rounded-xl">
                   <Clock className="h-6 w-6 text-orange-600" />
@@ -191,14 +245,15 @@ export const AdminPanel: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100 cursor-pointer hover:bg-green-50 transition-colors" onClick={() => setActiveTab('manage-writers')}>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-600">Active InfoWriters</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {activeWriters.length}
+                  <p className="text-sm font-medium text-green-600">
+                    Active InfoWriters
                   </p>
-                  <p className="text-xs text-green-600 mt-1">Click to manage</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {activeInfoWriters.length}
+                  </p>
                 </div>
                 <div className="bg-green-100 p-3 rounded-xl">
                   <Users className="h-6 w-6 text-green-600" />
@@ -209,13 +264,17 @@ export const AdminPanel: React.FC = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-purple-600">This Week</p>
+                  <p className="text-sm font-medium text-purple-600">
+                    This Week
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {allArticles.filter(a => {
-                      const weekAgo = new Date();
-                      weekAgo.setDate(weekAgo.getDate() - 7);
-                      return a.publishedAt && a.publishedAt > weekAgo;
-                    }).length}
+                    {
+                      allArticles.filter((a) => {
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return a.publishedAt && a.publishedAt > weekAgo;
+                      }).length
+                    }
                   </p>
                 </div>
                 <div className="bg-purple-100 p-3 rounded-xl">
@@ -235,8 +294,12 @@ export const AdminPanel: React.FC = () => {
             {recentArticles.length === 0 ? (
               <div className="text-center py-8">
                 <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No articles published</h3>
-                <p className="text-gray-600">Articles will appear here once they are published.</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No articles published
+                </h3>
+                <p className="text-gray-600">
+                  Articles will appear here once they are published.
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -255,7 +318,12 @@ export const AdminPanel: React.FC = () => {
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
                         <span>By {article.authorName}</span>
                         <span>•</span>
-                        <span>{formatDistanceToNow(article.publishedAt || article.createdAt)} ago</span>
+                        <span>
+                          {formatDistanceToNow(
+                            article.publishedAt || article.createdAt
+                          )}{" "}
+                          ago
+                        </span>
                         <span>•</span>
                         <span>Version {article.version}</span>
                       </div>
@@ -279,11 +347,23 @@ export const AdminPanel: React.FC = () => {
         </>
       )}
 
-      {activeTab === 'writer-requests' && <WriterRequestsAdmin />}
-      
-      {activeTab === 'manage-writers' && <InfoWriterManagement />}
+      {activeTab === "writer-requests" && <WriterRequestsAdmin />}
 
-      {activeTab === 'legacy-requests' && (
+      {activeTab === "infowriter-management" && (
+        <InfoWriterManagement
+          onInfoWriterRemoved={(removedWriter) => {
+            setActiveInfoWriters((prev) =>
+              prev.filter((writer) => writer.uid !== removedWriter.uid)
+            );
+          }}
+        />
+      )}
+
+      {activeTab === "role-management" && <RoleManagement />}
+
+      {activeTab === "storage-test" && <StorageTest />}
+
+      {activeTab === "legacy-requests" && (
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
             <Clock className="h-5 w-5 mr-2 text-orange-500" />
@@ -293,8 +373,12 @@ export const AdminPanel: React.FC = () => {
           {pendingRequests.length === 0 ? (
             <div className="text-center py-8">
               <Clock className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No pending requests</h3>
-              <p className="text-gray-600">All legacy writer access requests have been processed.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No pending requests
+              </h3>
+              <p className="text-gray-600">
+                All legacy writer access requests have been processed.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -310,14 +394,16 @@ export const AdminPanel: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900">
-                          {request.displayName || 'User'}
+                          {request.displayName || "User"}
                         </h3>
                         <p className="text-sm text-gray-600">{request.email}</p>
                       </div>
                     </div>
                     <div className="flex items-center text-sm text-gray-500 ml-11">
                       <Calendar className="h-3 w-3 mr-1" />
-                      <span>Requested {formatDistanceToNow(request.updatedAt)} ago</span>
+                      <span>
+                        Requested {formatDistanceToNow(request.updatedAt)} ago
+                      </span>
                     </div>
                   </div>
 
@@ -337,7 +423,11 @@ export const AdminPanel: React.FC = () => {
                       className="flex items-center space-x-2 px-4 py-2 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors disabled:opacity-50"
                     >
                       <Check className="h-4 w-4" />
-                      <span>{processingRequest === request.uid ? 'Processing...' : 'Approve'}</span>
+                      <span>
+                        {processingRequest === request.uid
+                          ? "Processing..."
+                          : "Approve"}
+                      </span>
                     </button>
                   </div>
                 </div>
