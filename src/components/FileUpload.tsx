@@ -62,14 +62,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     // Prevent uploading the same file twice in a row
     if (lastUploadedFile === fileId) {
       console.log("⚠️ Same file already uploaded recently, ignoring duplicate");
-      toast.warning("This file was just uploaded. Please wait before uploading again.");
+      toast.error("This file was just uploaded. Please wait before uploading again.");
       return;
     }
 
     // Prevent uploading the same file multiple times (by content signature)
     if (uploadedFiles.has(fileHash)) {
       console.log("⚠️ File with same content already uploaded, ignoring duplicate");
-      toast.warning("A file with the same name, size, and type has already been uploaded.");
+      toast.error("A file with the same name, size, and type has already been uploaded.");
       return;
     }
 
