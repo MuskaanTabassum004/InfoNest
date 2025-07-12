@@ -151,11 +151,27 @@ export const uploadFile = async (
 
 export const deleteFile = async (filePath: string): Promise<void> => {
   try {
+    console.log("🗑️ Attempting to delete file:", filePath);
+    console.log("🔗 Storage reference path:", filePath);
+
     const storageRef = ref(storage, filePath);
+    console.log("📍 Storage reference created for:", storageRef.fullPath);
+
     await deleteObject(storageRef);
-  } catch (error) {
-    console.error("Error deleting file:", error);
-    throw new Error("Failed to delete file.");
+    console.log("✅ File deleted successfully from Firebase Storage:", filePath);
+  } catch (error: any) {
+    console.error("❌ Error deleting file:", error);
+    console.error("🔍 Error code:", error?.code);
+    console.error("📝 Error message:", error?.message);
+    console.error("🎯 Attempted path:", filePath);
+
+    // If file doesn't exist, consider it already deleted (success)
+    if (error?.code === 'storage/object-not-found') {
+      console.log("ℹ️ File already deleted or doesn't exist:", filePath);
+      return; // Don't throw error for already deleted files
+    }
+
+    throw new Error(`Failed to delete file: ${error?.message || 'Unknown error'}`);
   }
 };
 
@@ -164,13 +180,13 @@ export const isImageFile = (fileType: string): boolean => {
 };
 
 export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return "0 Bytes";
+  if (bytes === 0) return '0 Bytes';
 
   const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 // Hook for file upload with progress
