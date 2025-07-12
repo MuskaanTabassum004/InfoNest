@@ -4,10 +4,12 @@ import {
   getPendingWriterRequests, 
   approveWriterRequest, 
   denyWriterRequest,
-  UserProfile 
+  UserProfile,
+  getAllInfoWriters
 } from '../lib/auth';
 import { getPublishedArticles, getUserArticles, Article } from '../lib/articles';
 import { WriterRequestsAdmin } from '../components/WriterRequestsAdmin';
+import { InfoWriterManagement } from '../components/InfoWriterManagement';
 import { 
   Shield, 
   Users, 
@@ -27,9 +29,10 @@ export const AdminPanel: React.FC = () => {
   const { userProfile, isAdmin } = useAuth();
   const [pendingRequests, setPendingRequests] = useState<UserProfile[]>([]);
   const [allArticles, setAllArticles] = useState<Article[]>([]);
+  const [activeWriters, setActiveWriters] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'writer-requests' | 'legacy-requests'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'writer-requests' | 'legacy-requests' | 'manage-writers'>('overview');
 
   useEffect(() => {
     if (isAdmin) {
@@ -40,13 +43,15 @@ export const AdminPanel: React.FC = () => {
   const loadAdminData = async () => {
     setLoading(true);
     try {
-      const [requests, articles] = await Promise.all([
+      const [requests, articles, writers] = await Promise.all([
         getPendingWriterRequests(),
-        getPublishedArticles()
+        getPublishedArticles(),
+        getAllInfoWriters()
       ]);
       
       setPendingRequests(requests);
       setAllArticles(articles);
+      setActiveWriters(writers);
     } catch (error) {
       toast.error('Error loading admin data');
     } finally {
@@ -144,6 +149,16 @@ export const AdminPanel: React.FC = () => {
             InfoWriter Requests
           </button>
           
+          <button
+            onClick={() => setActiveTab('manage-writers')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'manage-writers'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+            }`}
+          >
+            Manage InfoWriters
+          </button>
         </div>
       </div>
 
@@ -176,13 +191,14 @@ export const AdminPanel: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100 cursor-pointer hover:bg-green-50 transition-colors" onClick={() => setActiveTab('manage-writers')}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-green-600">Active Writers</p>
+                  <p className="text-sm font-medium text-green-600">Active InfoWriters</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {new Set(allArticles.map(a => a.authorId)).size}
+                    {activeWriters.length}
                   </p>
+                  <p className="text-xs text-green-600 mt-1">Click to manage</p>
                 </div>
                 <div className="bg-green-100 p-3 rounded-xl">
                   <Users className="h-6 w-6 text-green-600" />
@@ -264,6 +280,8 @@ export const AdminPanel: React.FC = () => {
       )}
 
       {activeTab === 'writer-requests' && <WriterRequestsAdmin />}
+      
+      {activeTab === 'manage-writers' && <InfoWriterManagement />}
 
       {activeTab === 'legacy-requests' && (
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">

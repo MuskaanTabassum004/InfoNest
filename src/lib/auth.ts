@@ -134,7 +134,7 @@ export const denyWriterRequest = async (uid: string) => {
 
 export const getInfoWriters = async () => {
   const q = query(
-    collection(firebase, 'users'),
+    collection(firestore, 'users'),
     where('role', 'in', ['infowriter', 'admin'])
   );
 
@@ -144,6 +144,28 @@ export const getInfoWriters = async () => {
     createdAt: doc.data().createdAt?.toDate() ?? new Date(),
     updatedAt: doc.data().updatedAt?.toDate() ?? new Date()
   })) as UserProfile[];
+};
+
+export const getAllInfoWriters = async (): Promise<UserProfile[]> => {
+  const q = query(
+    collection(firestore, 'users'),
+    where('role', '==', 'infowriter')
+  );
+
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({
+    ...doc.data(),
+    createdAt: doc.data().createdAt?.toDate() ?? new Date(),
+    updatedAt: doc.data().updatedAt?.toDate() ?? new Date()
+  })) as UserProfile[];
+};
+
+export const removeInfoWriterAccess = async (uid: string) => {
+  const userRef = doc(firestore, 'users', uid);
+  await updateDoc(userRef, {
+    role: 'user',
+    updatedAt: new Date()
+  });
 };
 
 export const onAuthChange = (callback: (user: User | null) => void) => {

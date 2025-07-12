@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { createArticle, updateArticle, getArticle, Article } from '../lib/articles';
 import { RichTextEditor } from '../components/RichTextEditor';
+import { FileUpload } from '../components/FileUpload';
+import { FileUploadResult } from '../lib/storage';
 import { Save, Eye, ArrowLeft, Trash2, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -20,10 +22,12 @@ export const ArticleEditor: React.FC = () => {
     excerpt: '',
     status: 'draft',
     categories: [],
-    tags: []
+    tags: [],
+    attachments: []
   });
   const [categoryInput, setCategoryInput] = useState('');
   const [tagInput, setTagInput] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<FileUploadResult[]>([]);
 
   useEffect(() => {
     if (!isInfoWriter) {
@@ -130,6 +134,26 @@ export const ArticleEditor: React.FC = () => {
     setArticle(prev => ({
       ...prev,
       tags: prev.tags?.filter(t => t !== tag) || []
+    }));
+  };
+
+  const handleFileUploaded = (file: FileUploadResult) => {
+    setUploadedFiles(prev => [...prev, file]);
+    setArticle(prev => ({
+      ...prev,
+      attachments: [...(prev.attachments || []), {
+        fileName: file.fileName,
+        url: file.url,
+        size: file.size
+      }]
+    }));
+  };
+
+  const handleFileRemoved = (fileName: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.fileName !== fileName));
+    setArticle(prev => ({
+      ...prev,
+      attachments: prev.attachments?.filter(a => a.fileName !== fileName) || []
     }));
   };
 
@@ -292,6 +316,20 @@ export const ArticleEditor: React.FC = () => {
         <p className="text-xs text-gray-500 mt-1">
           Leave blank to auto-generate from content
         </p>
+      </div>
+
+      {/* File Attachments */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          File Attachments (Optional)
+        </label>
+        <FileUpload
+          onFileUploaded={handleFileUploaded}
+          onFileRemoved={handleFileRemoved}
+          uploadedFiles={uploadedFiles}
+          path={`articles/${userProfile?.uid || 'anonymous'}`}
+          maxFiles={5}
+        />
       </div>
 
       {/* Content Editor */}
