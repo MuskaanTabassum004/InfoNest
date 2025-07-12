@@ -14,7 +14,7 @@ import {
 } from "../lib/articles";
 import { WriterRequestsAdmin } from "../components/WriterRequestsAdmin";
 import { InfoWriterManagement } from "../components/InfoWriterManagement";
-import { RoleManagement } from "../components/RoleManagement";
+
 
 import {
   Shield,
@@ -46,7 +46,6 @@ export const AdminPanel: React.FC = () => {
     | "overview"
     | "writer-requests"
     | "infowriter-management"
-    | "role-management"
     | "legacy-requests"
   >("overview");
 
@@ -216,16 +215,7 @@ export const AdminPanel: React.FC = () => {
           >
             Active InfoWriters
           </button>
-          <button
-            onClick={() => setActiveTab("role-management")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === "role-management"
-                ? "bg-blue-600 text-white"
-                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-            }`}
-          >
-            Role Management
-          </button>
+
 
         </div>
       </div>
@@ -384,7 +374,7 @@ export const AdminPanel: React.FC = () => {
         />
       )}
 
-      {activeTab === "role-management" && <RoleManagement />}
+
 
 
 
