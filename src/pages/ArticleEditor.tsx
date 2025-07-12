@@ -351,14 +351,29 @@ export const ArticleEditor: React.FC = () => {
           Upload Files
         </label>
         <p className="text-sm text-gray-600 mb-3">
-          Upload images, documents, or other files to include in your article.
-          Files will be inserted at your cursor position in the editor.
+          Upload images, PDFs, or documents to include in your article.
+          Files will be automatically inserted into your document as clickable links.
         </p>
         <FileUpload
           onUploadComplete={(result: UploadResult) => {
-            toast.success(
-              "File uploaded! Use the upload button in the toolbar to insert it."
-            );
+            // Automatically insert the uploaded file into the document
+            if (result.type.startsWith("image/")) {
+              // Insert image
+              const imageHtml = `<img src="${result.url}" alt="${result.name}" style="max-width: 100%; height: auto;" />`;
+              setArticle(prev => ({
+                ...prev,
+                content: (prev.content || "") + `\n\n${imageHtml}\n\n`
+              }));
+            } else {
+              // Insert link for non-image files (PDFs, documents, etc.)
+              const fileType = result.type === 'application/pdf' ? 'PDF' : 'Document';
+              const linkHtml = `<p><a href="${result.url}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline;">📄 ${result.name} (${fileType})</a></p>`;
+              setArticle(prev => ({
+                ...prev,
+                content: (prev.content || "") + `\n\n${linkHtml}\n\n`
+              }));
+            }
+            toast.success("File uploaded and inserted into document!");
           }}
           onUploadError={(error: string) => {
             toast.error(error);
