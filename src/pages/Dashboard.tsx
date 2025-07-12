@@ -224,27 +224,44 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="text-center">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-          Welcome to InfoNest
-        </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Your centralized knowledge management platform. Discover, learn, and
-          contribute to our growing library of documentation.
-        </p>
-      </div>
-
-      {/* Search Bar */}
-      <SearchBar />
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* First stat card - different for users vs InfoWriters */}
-        {isUser ? (
-          <Link
-            to="/saved-articles"
-            className="block bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 hover:border-purple-200 transition-all duration-200 hover:shadow-lg group"
-          >
+      <section
+        className="relative py-20 px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.1),rgba(0,0,0,0.1)),url('/image.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}>
+        <div className="max-w-7xl mx-auto text-center relative z-10">
+          <h1 className="text-4xl md:text-7xl font-bold text-white mb-6" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.5)'}}>Welcome to InfoNest</h1>
+          <p className="text-2xl md:text-3xl text-white mb-4 font-light" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.5)'}}>Where Documentation Meets Efficiency</p>
+          <p className="text-xl text-white max-w-3xl mx-auto mb-12 leading-relaxed" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.5)'}}>Centralized knowledge hub for your organization's documentation. Discover, search, and access all your important documents in one secure, organized platform.</p>
+          <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-16">
+            <div className="relative">
+              <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 h-6 w-6 text-gray-400"/>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search articles, guides, documentation..."
+                className="w-full pl-16 pr-6 py-5 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-lg"
+              />
+              <button
+                type="submit"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all"
+              >Search</button>
+            </div>
+          </form>
+          <div className="mt-8">
+            <Link
+              to="/auth"
+              className="inline-flex items-center space-x-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+            >
+              <span>Login or Signup to Access Documents</span>
+              <ArrowRight className="h-5 w-5"/>
+            </Link>
+          </div>
+        </div>
+      </section>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-purple-600">
