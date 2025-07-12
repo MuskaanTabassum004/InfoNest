@@ -32,6 +32,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+  const [lastUploadedFile, setLastUploadedFile] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (files: FileList | null) => {
@@ -47,12 +49,37 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       return;
     }
 
+    // Prevent duplicate uploads
+    if (isUploading) {
+      console.log("⚠️ Upload already in progress, ignoring duplicate request");
+      return;
+    }
+
     const file = files[0];
+    const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+    const fileHash = `${file.name}_${file.size}_${file.type}`;
+
+    // Prevent uploading the same file twice in a row
+    if (lastUploadedFile === fileId) {
+      console.log("⚠️ Same file already uploaded recently, ignoring duplicate");
+      toast.warning("This file was just uploaded. Please wait before uploading again.");
+      return;
+    }
+
+    // Prevent uploading the same file multiple times (by content signature)
+    if (uploadedFiles.has(fileHash)) {
+      console.log("⚠️ File with same content already uploaded, ignoring duplicate");
+      toast.warning("A file with the same name, size, and type has already been uploaded.");
+      return;
+    }
+
     console.log("📁 File selected:", {
       name: file.name,
       size: file.size,
       type: file.type,
       lastModified: new Date(file.lastModified),
+      fileId: fileId,
+      fileHash: fileHash
     });
 
     // Validate file
@@ -82,6 +109,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       );
 
       console.log("🎉 Upload completed successfully:", result);
+      setLastUploadedFile(fileId); // Track this file as uploaded
+      setUploadedFiles(prev => new Set([...prev, fileHash])); // Track file content signature
+
+      // Clear the recent upload tracking after 5 seconds to allow re-uploading if needed
+      setTimeout(() => {
+        setLastUploadedFile(null);
+      }, 5000);
+
       toast.success("File uploaded successfully!");
       onUploadComplete(result);
     } catch (error) {
@@ -93,6 +128,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+
+      // Clear the file input to allow re-uploading the same file later if needed
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
