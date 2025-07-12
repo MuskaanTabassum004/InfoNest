@@ -7,6 +7,7 @@ import {
   Article,
 } from "../lib/articles";
 import { getUserWriterRequest, WriterRequest } from "../lib/writerRequests";
+import { subscribeToSavedArticlesCount } from "../lib/savedArticles";
 import { QuickUploadTest } from "../components/QuickUploadTest";
 import { SearchBar } from "../components/SearchBar";
 import {
@@ -36,6 +37,7 @@ export const Dashboard: React.FC = () => {
   const [writerRequest, setWriterRequest] = useState<WriterRequest | null>(
     null
   );
+  const [savedArticlesCount, setSavedArticlesCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // User filtering states
@@ -81,10 +83,25 @@ export const Dashboard: React.FC = () => {
         setLoading(false);
       }
     };
+
     if (userProfile) {
       loadData();
     }
   }, [isInfoWriter, userProfile]);
+
+  // Real-time subscription for saved articles count (users only)
+  useEffect(() => {
+    if (!userProfile?.uid || !isUser) return;
+
+    const unsubscribe = subscribeToSavedArticlesCount(
+      userProfile.uid,
+      (count) => {
+        setSavedArticlesCount(count);
+      }
+    );
+
+    return unsubscribe;
+  }, [userProfile?.uid, isUser]);
 
   // Filter articles based on selected category and tags
   useEffect(() => {
@@ -224,22 +241,25 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* First stat card - different for users vs InfoWriters */}
         {isUser ? (
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100">
+          <Link
+            to="/saved-articles"
+            className="block bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100 hover:border-purple-200 transition-all duration-200 hover:shadow-lg group"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-purple-600">
                   Saved Articles
                 </p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
-                <p className="text-xs text-purple-500 mt-1">
-                  Feature coming soon
+                <p className="text-2xl font-bold text-gray-900">{savedArticlesCount}</p>
+                <p className="text-xs text-purple-500 mt-1 group-hover:text-purple-600 transition-colors">
+                  Click to view saved articles
                 </p>
               </div>
-              <div className="bg-purple-100 p-3 rounded-xl">
+              <div className="bg-purple-100 p-3 rounded-xl group-hover:bg-purple-200 transition-colors">
                 <Star className="h-6 w-6 text-purple-600" />
               </div>
             </div>
-          </div>
+          </Link>
         ) : (
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100">
             <div className="flex items-center justify-between">
