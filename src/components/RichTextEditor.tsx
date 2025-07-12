@@ -98,12 +98,14 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         .setImage({ src: result.url, alt: result.name })
         .run();
     } else {
-      // Insert link for non-image files
+      // Insert link for non-image files (PDFs, documents, etc.)
+      const fileType = result.type === 'application/pdf' ? 'PDF' : 'Document';
+      const linkText = `📄 ${result.name} (${fileType})`;
       editor
         .chain()
         .focus()
-        .setLink({ href: result.url })
-        .insertContent(result.name)
+        .setLink({ href: result.url, target: '_blank' })
+        .insertContent(linkText)
         .run();
     }
     toast.success("File inserted into article!");
