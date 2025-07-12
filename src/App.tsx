@@ -134,9 +134,9 @@ function App() {
               <Route
                 path="my-articles"
                 element={
-                  <InfoWriterRoute>
+                  <ProtectedRoute requiredRole="infowriter">
                     <MyArticles />
-                  </InfoWriterRoute>
+                  </ProtectedRoute>
                 }
               />
 
