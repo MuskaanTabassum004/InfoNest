@@ -64,10 +64,19 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Saved articles collection (for user bookmarks) - future feature
-    match /savedArticles/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Saved articles collection (compound ID format: userId_articleId)
+    match /savedArticles/{savedArticleId} {
+      // Users can read/write their own saved articles
+      allow read, write: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+
+      // Allow creation if the user ID matches the authenticated user
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.userId;
+
+      // Admins can read all saved articles
       allow read: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
