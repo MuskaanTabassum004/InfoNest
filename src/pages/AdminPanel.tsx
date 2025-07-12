@@ -33,7 +33,7 @@ import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 
 export const AdminPanel: React.FC = () => {
-  const { userProfile, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [pendingRequests, setPendingRequests] = useState<UserProfile[]>([]);
   const [allArticles, setAllArticles] = useState<Article[]>([]);
   const [activeInfoWriters, setActiveInfoWriters] = useState<UserProfile[]>([]);
@@ -55,16 +55,7 @@ export const AdminPanel: React.FC = () => {
     }
   }, [isAdmin]);
 
-  // Refresh data every 30 seconds for real-time updates
-  useEffect(() => {
-    if (!isAdmin) return;
 
-    const interval = setInterval(() => {
-      loadAdminData();
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [isAdmin]);
 
   const loadAdminData = async () => {
     setLoading(true);
@@ -87,7 +78,7 @@ export const AdminPanel: React.FC = () => {
         writer.updatedAt && writer.updatedAt >= oneWeekAgo
       );
       setRecentlyApprovedCount(recentlyApproved.length);
-    } catch (error) {
+    } catch (error: any) {
       toast.error("Error loading admin data");
     } finally {
       setLoading(false);
