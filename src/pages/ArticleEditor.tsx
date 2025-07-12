@@ -9,6 +9,7 @@ import {
 } from "../lib/articles";
 import { RichTextEditor } from "../components/RichTextEditor";
 import { FileUpload } from "../components/FileUpload";
+import { FileManager, useArticleFiles, ManagedFile } from "../components/FileManager";
 import { Save, Eye, ArrowLeft, Trash2, Send, Upload } from "lucide-react";
 import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
@@ -31,6 +32,29 @@ export const ArticleEditor: React.FC = () => {
   });
   const [categoryInput, setCategoryInput] = useState("");
   const [tagInput, setTagInput] = useState("");
+
+  // Extract files from article content
+  const articleFiles = useArticleFiles(article.content || "");
+
+  // Handle file removal from both document and storage
+  const handleFileRemoved = (removedFile: ManagedFile) => {
+    // Remove file references from article content
+    let updatedContent = article.content || "";
+
+    // Remove image tags with this URL
+    const imgRegex = new RegExp(`<img[^>]*src=["']${removedFile.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>`, 'gi');
+    updatedContent = updatedContent.replace(imgRegex, '');
+
+    // Remove link tags with this URL
+    const linkRegex = new RegExp(`<a[^>]*href=["']${removedFile.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>.*?</a>`, 'gi');
+    updatedContent = updatedContent.replace(linkRegex, '');
+
+    // Remove paragraph tags that might be empty after link removal
+    updatedContent = updatedContent.replace(/<p>\s*<\/p>/gi, '');
+
+    // Update article content
+    setArticle(prev => ({ ...prev, content: updatedContent }));
+  };
 
   useEffect(() => {
     // Wait for user profile to load before checking permissions
@@ -381,6 +405,13 @@ export const ArticleEditor: React.FC = () => {
           accept="image/*,.pdf,.txt,.doc,.docx"
           folder="articles"
           className="mb-4"
+        />
+
+        {/* File Manager - Show uploaded files with delete option */}
+        <FileManager
+          files={articleFiles}
+          onFileRemoved={handleFileRemoved}
+          className="mt-4"
         />
       </div>
 
