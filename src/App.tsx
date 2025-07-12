@@ -18,6 +18,7 @@ import { MyArticles } from "./pages/MyArticles";
 import { SearchPage } from "./pages/SearchPage";
 import { AdminPanel } from "./pages/AdminPanel";
 import { WriterRequestPage } from "./pages/WriterRequestPage";
+import { SavedArticles } from "./pages/SavedArticles";
 import {
   ProtectedRoute,
   AdminRoute,
@@ -110,6 +111,14 @@ function App() {
                 element={
                   <UserRoute>
                     <WriterRequestPage />
+                  </UserRoute>
+                }
+              />
+              <Route
+                path="saved-articles"
+                element={
+                  <UserRoute>
+                    <SavedArticles />
                   </UserRoute>
                 }
               />
