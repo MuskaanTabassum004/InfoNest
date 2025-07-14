@@ -112,6 +112,21 @@ export const useAuth = () => {
     return userProfile.uid === authorId || userProfile.role === "admin";
   };
 
+  // Enhanced role checking with better performance
+  const isUserRole = (role: "user" | "infowriter" | "admin"): boolean => {
+    return userProfile?.role === role;
+  };
+
+  const hasMinimumRole = (minimumRole: "user" | "infowriter" | "admin"): boolean => {
+    if (!userProfile) return false;
+    
+    const roleHierarchy = { user: 1, infowriter: 2, admin: 3 };
+    const userRoleLevel = roleHierarchy[userProfile.role];
+    const requiredLevel = roleHierarchy[minimumRole];
+    
+    return userRoleLevel >= requiredLevel;
+  };
+
   return {
     user,
     userProfile,
@@ -128,5 +143,8 @@ export const useAuth = () => {
     canCreateArticles,
     canManageUsers,
     canEditArticle,
+    // New optimized role functions
+    isUserRole,
+    hasMinimumRole,
   };
 };

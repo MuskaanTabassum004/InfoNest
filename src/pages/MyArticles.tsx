@@ -22,15 +22,17 @@ import {
   CheckCircle,
   Clock,
   Loader2,
+  Shield,
+  AlertCircle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 
 export const MyArticles: React.FC = () => {
-  const { userProfile, isInfoWriter, loading: authLoading } = useAuth();
+  const { userProfile, isInfoWriter, loading: authLoading, canCreateArticles } = useAuth();
   const [articles, setArticles] = useState<Article[]>([]);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [articlesLoading, setArticlesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
     "all" | "draft" | "published" | "archived"
@@ -39,37 +41,34 @@ export const MyArticles: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
-  const loadArticles = async (): Promise<void> => {
-    if (!userProfile) return;
+  // Determine if we should show loading, access denied, or content
+  const shouldShowLoading = authLoading || (!userProfile && !authLoading);
+  const shouldShowAccessDenied = userProfile && !authLoading && !canCreateArticles();
+  const shouldShowContent = userProfile && !authLoading && canCreateArticles();
 
-    setLoading(true);
+  const loadArticles = async (): Promise<void> => {
+    if (!userProfile?.uid) return;
+
+    setArticlesLoading(true);
     try {
       const userArticles = await getUserArticles(userProfile.uid);
       setArticles(userArticles);
     } catch (error) {
+      console.error("Error loading articles:", error);
       toast.error("Error loading articles");
     } finally {
-      setLoading(false);
+      setArticlesLoading(false);
     }
   };
 
+  // Load articles only when we have confirmed InfoWriter access
   useEffect(() => {
-    const initializeArticles = async () => {
-      if (authLoading) return; // Wait for auth to complete
-      
-      if (!isInfoWriter) {
-        setLoading(false);
-        return;
-      }
+    if (shouldShowContent && userProfile?.uid) {
+      loadArticles();
+    }
+  }, [shouldShowContent, userProfile?.uid]);
 
-      if (userProfile) {
-        await loadArticles();
-      }
-    };
-
-    initializeArticles();
-  }, [isInfoWriter, userProfile, authLoading]);
-
+  // Filter articles whenever articles, search, or status filter changes
   useEffect(() => {
     filterArticles();
   }, [articles, searchQuery, statusFilter]);
@@ -179,44 +178,87 @@ export const MyArticles: React.FC = () => {
     }
   };
 
-  // Show loading state while auth or data is loading
-  if (loading || authLoading) {
+  // Show loading state while checking authentication and role
+  if (shouldShowLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Articles</h2>
-          <p className="text-gray-600">
-            {authLoading ? "Authenticating..." : "Loading your articles..."}
+          <div className="relative">
+            <Loader2 className="h-16 w-16 text-blue-600 animate-spin mx-auto mb-6" />
+            <Shield className="h-6 w-6 text-blue-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+            Verifying Access
+          </h2>
+          <p className="text-gray-600 max-w-md mx-auto">
+            Checking your InfoWriter permissions and loading your articles...
           </p>
+          <div className="mt-4 flex items-center justify-center space-x-2">
+            <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!isInfoWriter) {
+  // Show access denied only after role verification is complete
+  if (shouldShowAccessDenied) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Access Restricted
-        </h2>
-        <p className="text-gray-600">
-          You need InfoWriter access to view this page.
-        </p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="bg-red-100 p-6 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+            <AlertCircle className="h-10 w-10 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            InfoWriter Access Required
+          </h2>
+          <p className="text-gray-600 mb-6">
+            You need InfoWriter privileges to create and manage articles. 
+            {userProfile?.role === 'user' && " Apply for InfoWriter access to get started."}
+          </p>
+          <div className="space-y-3">
+            {userProfile?.role === 'user' && (
+              <Link
+                to="/writer-request"
+                className="block w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
+              >
+                Apply for InfoWriter Access
+              </Link>
+            )}
+            <Link
+              to="/dashboard"
+              className="block w-full px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+            >
+              Return to Dashboard
+            </Link>
+          </div>
+        </div>
       </div>
     );
+  }
+
+  // Show content only after successful role verification
+  if (!shouldShowContent) {
+    return null; // This should never happen, but just in case
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          My Articles
-        </h1>
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            My Articles
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Create, edit, and manage your documentation
+          </p>
+        </div>
         <Link
           to="/article/new"
-          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
+          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
         >
           <Plus className="h-4 w-4" />
           <span>New Article</span>
@@ -283,8 +325,20 @@ export const MyArticles: React.FC = () => {
         </div>
       </div>
 
-      {/* Articles List */}
-      {filteredArticles.length === 0 ? (
+      {/* Articles Loading State */}
+      {articlesLoading ? (
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 border border-gray-200">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Loading Your Articles
+            </h3>
+            <p className="text-gray-600">
+              Fetching your latest articles and drafts...
+            </p>
+          </div>
+        </div>
+      ) : filteredArticles.length === 0 ? (
         <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200">
           <div className="text-6xl mb-4">📝</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
