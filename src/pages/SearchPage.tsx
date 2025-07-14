@@ -9,34 +9,29 @@ import {
   User,
   Tag,
   Folder,
-  TrendingUp
+  Loader2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 
+interface SearchPageData {
+  articles: Article[];
+  categories: string[];
+  tags: string[];
+}
+
 export const SearchPage: React.FC = () => {
-  const { isUser } = useAuth();
-  const [articles, setArticles] = useState<Article[]>([]);
+  const { isUser, loading: authLoading } = useAuth();
+  const [searchData, setSearchData] = useState<SearchPageData | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedTag, setSelectedTag] = useState<string>('');
-  const [categories, setCategories] = useState<string[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
 
-  useEffect(() => {
-    loadArticles();
-  }, []);
-
-  useEffect(() => {
-    filterArticles();
-  }, [articles, selectedCategory, selectedTag]);
-
-  const loadArticles = async () => {
+  const loadSearchData = async (): Promise<void> => {
     setLoading(true);
     try {
       const publishedArticles = await getPublishedArticles();
-      setArticles(publishedArticles);
       
       // Extract unique categories and tags
       const allCategories = new Set<string>();
@@ -47,8 +42,11 @@ export const SearchPage: React.FC = () => {
         article.tags.forEach(tag => allTags.add(tag));
       });
       
-      setCategories(Array.from(allCategories).sort());
-      setTags(Array.from(allTags).sort());
+      setSearchData({
+        articles: publishedArticles,
+        categories: Array.from(allCategories).sort(),
+        tags: Array.from(allTags).sort()
+      });
     } catch (error) {
       toast.error('Error loading articles');
     } finally {
@@ -56,8 +54,19 @@ export const SearchPage: React.FC = () => {
     }
   };
 
-  const filterArticles = () => {
-    let filtered = articles;
+  useEffect(() => {
+    const initializeSearch = async () => {
+      if (authLoading) return; // Wait for auth to complete
+      await loadSearchData();
+    };
+
+    initializeSearch();
+  }, [authLoading]);
+
+  useEffect(() => {
+    if (!searchData) return;
+
+    let filtered = searchData.articles;
 
     if (selectedCategory) {
       filtered = filtered.filter(article => 
@@ -72,17 +81,36 @@ export const SearchPage: React.FC = () => {
     }
 
     setFilteredArticles(filtered);
-  };
+  }, [searchData, selectedCategory, selectedTag]);
 
   const clearFilters = () => {
     setSelectedCategory('');
     setSelectedTag('');
   };
 
-  if (loading) {
+  // Show loading state while auth or data is loading
+  if (loading || authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Knowledge Base</h2>
+          <p className="text-gray-600">
+            {authLoading ? "Authenticating..." : "Loading articles and categories..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Ensure data is loaded before rendering
+  if (!searchData) {
     return (
       <div className="flex items-center justify-center min-h-64">
-        <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading search data...</p>
+        </div>
       </div>
     );
   }
@@ -105,42 +133,42 @@ export const SearchPage: React.FC = () => {
       {/* Stats - Hidden for regular users */}
       {!isUser && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600">Total Articles</p>
-              <p className="text-2xl font-bold text-gray-900">{articles.length}</p>
-            </div>
-            <div className="bg-blue-100 p-3 rounded-xl">
-              <BookOpen className="h-6 w-6 text-blue-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">Total Articles</p>
+                <p className="text-2xl font-bold text-gray-900">{searchData.articles.length}</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-xl">
+                <BookOpen className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-purple-600">Categories</p>
-              <p className="text-2xl font-bold text-gray-900">{categories.length}</p>
-            </div>
-            <div className="bg-purple-100 p-3 rounded-xl">
-              <Folder className="h-6 w-6 text-purple-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-purple-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600">Categories</p>
+                <p className="text-2xl font-bold text-gray-900">{searchData.categories.length}</p>
+              </div>
+              <div className="bg-purple-100 p-3 rounded-xl">
+                <Folder className="h-6 w-6 text-purple-600" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-600">Tags</p>
-              <p className="text-2xl font-bold text-gray-900">{tags.length}</p>
-            </div>
-            <div className="bg-green-100 p-3 rounded-xl">
-              <Tag className="h-6 w-6 text-green-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">Tags</p>
+                <p className="text-2xl font-bold text-gray-900">{searchData.tags.length}</p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-xl">
+                <Tag className="h-6 w-6 text-green-600" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* Filters */}
@@ -153,7 +181,7 @@ export const SearchPage: React.FC = () => {
               Categories
             </h3>
             <div className="flex flex-wrap gap-2">
-              {categories.slice(0, 10).map((category) => (
+              {searchData.categories.slice(0, 10).map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(
@@ -178,7 +206,7 @@ export const SearchPage: React.FC = () => {
               Tags
             </h3>
             <div className="flex flex-wrap gap-2">
-              {tags.slice(0, 10).map((tag) => (
+              {searchData.tags.slice(0, 10).map((tag) => (
                 <button
                   key={tag}
                   onClick={() => setSelectedTag(
@@ -229,10 +257,10 @@ export const SearchPage: React.FC = () => {
         <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200">
           <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {articles.length === 0 ? 'No articles published yet' : 'No articles match your filters'}
+            {searchData.articles.length === 0 ? 'No articles published yet' : 'No articles match your filters'}
           </h3>
           <p className="text-gray-600">
-            {articles.length === 0 
+            {searchData.articles.length === 0 
               ? 'Check back later for new content.'
               : 'Try adjusting your filter criteria.'}
           </p>

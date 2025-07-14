@@ -21,12 +21,13 @@ import {
   MoreVertical,
   CheckCircle,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 
 export const MyArticles: React.FC = () => {
-  const { userProfile, isInfoWriter } = useAuth();
+  const { userProfile, isInfoWriter, loading: authLoading } = useAuth();
   const [articles, setArticles] = useState<Article[]>([]);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,11 +39,36 @@ export const MyArticles: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isInfoWriter && userProfile) {
-      loadArticles();
+  const loadArticles = async (): Promise<void> => {
+    if (!userProfile) return;
+
+    setLoading(true);
+    try {
+      const userArticles = await getUserArticles(userProfile.uid);
+      setArticles(userArticles);
+    } catch (error) {
+      toast.error("Error loading articles");
+    } finally {
+      setLoading(false);
     }
-  }, [isInfoWriter, userProfile]);
+  };
+
+  useEffect(() => {
+    const initializeArticles = async () => {
+      if (authLoading) return; // Wait for auth to complete
+      
+      if (!isInfoWriter) {
+        setLoading(false);
+        return;
+      }
+
+      if (userProfile) {
+        await loadArticles();
+      }
+    };
+
+    initializeArticles();
+  }, [isInfoWriter, userProfile, authLoading]);
 
   useEffect(() => {
     filterArticles();
@@ -61,20 +87,6 @@ export const MyArticles: React.FC = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [activeDropdown]);
-
-  const loadArticles = async () => {
-    if (!userProfile) return;
-
-    setLoading(true);
-    try {
-      const userArticles = await getUserArticles(userProfile.uid);
-      setArticles(userArticles);
-    } catch (error) {
-      toast.error("Error loading articles");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filterArticles = () => {
     let filtered = articles;
@@ -167,6 +179,21 @@ export const MyArticles: React.FC = () => {
     }
   };
 
+  // Show loading state while auth or data is loading
+  if (loading || authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Articles</h2>
+          <p className="text-gray-600">
+            {authLoading ? "Authenticating..." : "Loading your articles..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isInfoWriter) {
     return (
       <div className="text-center py-12">
@@ -176,14 +203,6 @@ export const MyArticles: React.FC = () => {
         <p className="text-gray-600">
           You need InfoWriter access to view this page.
         </p>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
       </div>
     );
   }

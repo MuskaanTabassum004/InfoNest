@@ -1,4 +1,4 @@
-// useAuth.ts
+// useAuth.ts - Enhanced with proper async loading
 import { useEffect, useState } from "react";
 import { User, onAuthStateChanged } from "firebase/auth";
 import { auth, firestore } from "../lib/firebase";
@@ -19,55 +19,71 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
-  const refreshProfile = async () => {
+  const refreshProfile = async (): Promise<void> => {
     if (!auth.currentUser) return;
-    await auth.currentUser.reload();
-    const currentUser = auth.currentUser;
-    const profileRef = doc(firestore, "users", currentUser.uid);
-    const profileSnap = await getDoc(profileRef);
+    
+    setProfileLoading(true);
+    try {
+      await auth.currentUser.reload();
+      const currentUser = auth.currentUser;
+      const profileRef = doc(firestore, "users", currentUser.uid);
+      const profileSnap = await getDoc(profileRef);
 
-    if (profileSnap.exists()) {
-      const data = profileSnap.data();
-      setUserProfile({
-        uid: currentUser.uid,
-        email: currentUser.email || "",
-        displayName: currentUser.displayName || data.displayName || "",
-        role: data.role || "user",
-        emailVerified: currentUser.emailVerified,
-      });
+      if (profileSnap.exists()) {
+        const data = profileSnap.data();
+        setUserProfile({
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          displayName: currentUser.displayName || data.displayName || "",
+          role: data.role || "user",
+          emailVerified: currentUser.emailVerified,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to refresh profile:", error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const loadUserProfile = async (firebaseUser: User): Promise<void> => {
+    try {
+      await firebaseUser.reload();
+      const profileRef = doc(firestore, "users", firebaseUser.uid);
+      const profileSnap = await getDoc(profileRef);
+
+      if (profileSnap.exists()) {
+        const data = profileSnap.data();
+        setUserProfile({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          displayName: firebaseUser.displayName || data.displayName || "",
+          role: data.role || "user",
+          emailVerified: firebaseUser.emailVerified,
+        });
+      } else {
+        setUserProfile(null);
+      }
+    } catch (error) {
+      console.error("Failed to load user profile:", error);
+      setUserProfile(null);
     }
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true);
       setUser(firebaseUser);
+      
       if (firebaseUser) {
-        try {
-          await firebaseUser.reload();
-          const profileRef = doc(firestore, "users", firebaseUser.uid);
-          const profileSnap = await getDoc(profileRef);
-
-          if (profileSnap.exists()) {
-            const data = profileSnap.data();
-            setUserProfile({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              displayName: firebaseUser.displayName || data.displayName || "",
-              role: data.role || "user",
-              emailVerified: firebaseUser.emailVerified,
-            });
-          } else {
-            setUserProfile(null);
-          }
-        } catch (error) {
-          console.error("Failed to load user profile:", error);
-          setUserProfile(null);
-        }
+        await loadUserProfile(firebaseUser);
       } else {
         setUser(null);
         setUserProfile(null);
       }
+      
       setLoading(false);
     });
 
@@ -104,7 +120,7 @@ export const useAuth = () => {
     isAdmin: userProfile?.role === "admin",
     isInfoWriter: userProfile?.role === "infowriter",
     isUser: userProfile?.role === "user",
-    loading,
+    loading: loading || profileLoading,
     refreshProfile,
     // Enhanced role functions
     hasRole,

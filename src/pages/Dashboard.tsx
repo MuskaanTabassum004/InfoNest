@@ -24,70 +24,106 @@ import {
   FileText,
   CheckCircle,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 
+interface DashboardData {
+  publishedArticles: Article[];
+  myArticles: Article[];
+  myArticlesTotal: number;
+  writerRequest: WriterRequest | null;
+  availableCategories: string[];
+  availableTags: string[];
+}
+
 export const Dashboard: React.FC = () => {
-  const { userProfile, isInfoWriter, isUser, refreshProfile } = useAuth();
-  const [publishedArticles, setPublishedArticles] = useState<Article[]>([]);
+  const { userProfile, isInfoWriter, isUser, refreshProfile, loading: authLoading } = useAuth();
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
-  const [myArticles, setMyArticles] = useState<Article[]>([]);
-  const [myArticlesTotal, setMyArticlesTotal] = useState(0);
-  const [writerRequest, setWriterRequest] = useState<WriterRequest | null>(
-    null
-  );
   const [savedArticlesCount, setSavedArticlesCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [recentlyApprovedCount, setRecentlyApprovedCount] = useState(0);
 
   // User filtering states
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const published = await getPublishedArticles();
-        setPublishedArticles(published);
-        setFilteredArticles(published.slice(0, 6)); // Show 6 recent articles initially
+  // Load all dashboard data asynchronously
+  const loadDashboardData = async (): Promise<void> => {
+    if (!userProfile) return;
 
-        // Extract categories and tags for filtering
-        const categories = new Set<string>();
-        const tags = new Set<string>();
-
-        published.forEach((article) => {
-          article.categories?.forEach((cat) => categories.add(cat));
-          article.tags?.forEach((tag) => tags.add(tag));
-        });
-
-        setAvailableCategories(Array.from(categories).sort());
-        setAvailableTags(Array.from(tags).sort());
-
-        if (isInfoWriter && userProfile?.uid) {
-          const my = await getUserArticles(userProfile.uid);
-          setMyArticles(my.slice(0, 4)); // Show 4 recent articles
-          setMyArticlesTotal(my.length); // Store total count
-        }
-
-        // Check for writer request status
-        if (userProfile) {
-          const request = await getUserWriterRequest(userProfile.uid);
-          setWriterRequest(request);
-        }
-      } catch (error) {
-        console.error("Error loading dashboard data:", error);
-        toast.error("Error loading dashboard data");
-      } finally {
-        setLoading(false);
+    setDataLoading(true);
+    try {
+      // Load published articles
+      const published = await getPublishedArticles();
+      
+      // Load user-specific data if InfoWriter
+      let myArticles: Article[] = [];
+      let myArticlesTotal = 0;
+      if (isInfoWriter && userProfile?.uid) {
+        const userArticles = await getUserArticles(userProfile.uid);
+        myArticles = userArticles.slice(0, 4); // Show 4 recent articles
+        myArticlesTotal = userArticles.length; // Store total count
       }
+
+      // Check for writer request status
+      let writerRequest: WriterRequest | null = null;
+      if (userProfile) {
+        writerRequest = await getUserWriterRequest(userProfile.uid);
+      }
+
+      // Extract categories and tags for filtering
+      const categories = new Set<string>();
+      const tags = new Set<string>();
+
+      published.forEach((article) => {
+        article.categories?.forEach((cat) => categories.add(cat));
+        article.tags?.forEach((tag) => tags.add(tag));
+      });
+
+      const availableCategories = Array.from(categories).sort();
+      const availableTags = Array.from(tags).sort();
+
+      // Calculate InfoWriters approved in the past week
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      setDashboardData({
+        publishedArticles: published,
+        myArticles,
+        myArticlesTotal,
+        writerRequest,
+        availableCategories,
+        availableTags,
+      });
+
+      // Set initial filtered articles
+      setFilteredArticles(published.slice(0, 6));
+
+    } catch (error) {
+      console.error("Error loading dashboard data:", error);
+      toast.error("Error loading dashboard data");
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  // Wait for auth to complete, then load dashboard data
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      if (authLoading) return; // Wait for auth to complete
+      
+      if (userProfile) {
+        await loadDashboardData();
+      }
+      setLoading(false);
     };
 
-    if (userProfile) {
-      loadData();
-    }
-  }, [isInfoWriter, userProfile]);
+    initializeDashboard();
+  }, [userProfile, isInfoWriter, authLoading]);
 
   // Real-time subscription for saved articles count (users only)
   useEffect(() => {
@@ -105,7 +141,9 @@ export const Dashboard: React.FC = () => {
 
   // Filter articles based on selected category and tags
   useEffect(() => {
-    let filtered = publishedArticles;
+    if (!dashboardData) return;
+
+    let filtered = dashboardData.publishedArticles;
 
     if (selectedCategory) {
       filtered = filtered.filter((article) =>
@@ -120,7 +158,7 @@ export const Dashboard: React.FC = () => {
     }
 
     setFilteredArticles(filtered.slice(0, 6));
-  }, [publishedArticles, selectedCategory, selectedTags]);
+  }, [dashboardData, selectedCategory, selectedTags]);
 
   // Helper functions for filtering
   const handleCategorySelect = (category: string) => {
@@ -139,7 +177,9 @@ export const Dashboard: React.FC = () => {
   };
 
   const getRequestStatusDisplay = () => {
-    if (!writerRequest) return null;
+    if (!dashboardData?.writerRequest) return null;
+
+    const writerRequest = dashboardData.writerRequest;
 
     switch (writerRequest.status) {
       case "pending":
@@ -213,10 +253,29 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  if (loading || !userProfile) {
+  // Show loading state while auth or data is loading
+  if (loading || authLoading || dataLoading || !userProfile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Dashboard</h2>
+          <p className="text-gray-600">
+            {authLoading ? "Authenticating..." : dataLoading ? "Loading your data..." : "Preparing your dashboard..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Ensure data is loaded before rendering
+  if (!dashboardData) {
     return (
       <div className="flex items-center justify-center min-h-64">
-        <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading dashboard data...</p>
+        </div>
       </div>
     );
   }
@@ -275,7 +334,7 @@ export const Dashboard: React.FC = () => {
                   Total Articles
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {publishedArticles.length}
+                  {dashboardData.publishedArticles.length}
                 </p>
               </div>
               <div className="bg-blue-100 p-3 rounded-xl">
@@ -290,10 +349,10 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-purple-600">
-                  Total Articles
+                  My Articles
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {myArticlesTotal}
+                  {dashboardData.myArticlesTotal}
                 </p>
               </div>
               <div className="bg-purple-100 p-3 rounded-xl">
@@ -322,7 +381,7 @@ export const Dashboard: React.FC = () => {
       {getRequestStatusDisplay()}
 
       {/* Writer Access Request for Users */}
-      {isUser && !writerRequest && (
+      {isUser && !dashboardData.writerRequest && (
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-6 border border-purple-200">
           <div className="flex items-center justify-between">
             <div>
@@ -345,107 +404,105 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Category and Tag Browsing for Users */}
-      {isUser && (
-        <div className="space-y-6">
-          {/* Browse by Category */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Browse by Category
-            </h2>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {availableCategories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => handleCategorySelect(category)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    selectedCategory === category
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-blue-100"
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-            {selectedCategory && (
+      {/* Category and Tag Browsing */}
+      <div className="space-y-6">
+        {/* Browse by Category */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            Browse by Category
+          </h2>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {dashboardData.availableCategories.map((category) => (
               <button
-                onClick={() => setSelectedCategory("")}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                key={category}
+                onClick={() => handleCategorySelect(category)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedCategory === category
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-blue-100"
+                }`}
               >
-                Clear category filter
+                {category}
               </button>
-            )}
+            ))}
           </div>
-
-          {/* Browse by Tags */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Browse by Tags
-              </h2>
-              {selectedTags.length > 0 && (
-                <span className="text-sm text-purple-600 font-medium">
-                  {selectedTags.length} tag
-                  {selectedTags.length !== 1 ? "s" : ""} selected
-                </span>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {availableTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => handleTagToggle(tag)}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
-                    selectedTags.includes(tag)
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-purple-100"
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-            {selectedTags.length > 0 && (
-              <button
-                onClick={() => setSelectedTags([])}
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
-              >
-                Clear all tags
-              </button>
-            )}
-          </div>
-
-          {/* Active Filters Summary */}
-          {(selectedCategory || selectedTags.length > 0) && (
-            <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm font-medium text-blue-900">
-                    Active filters:
-                  </span>
-                  {selectedCategory && (
-                    <span className="px-2 py-1 bg-blue-200 text-blue-800 rounded text-xs">
-                      Category: {selectedCategory}
-                    </span>
-                  )}
-                  {selectedTags.length > 0 && (
-                    <span className="px-2 py-1 bg-purple-200 text-purple-800 rounded text-xs">
-                      Tags: {selectedTags.join(", ")}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={clearAllFilters}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Clear all filters
-                </button>
-              </div>
-            </div>
+          {selectedCategory && (
+            <button
+              onClick={() => setSelectedCategory("")}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Clear category filter
+            </button>
           )}
         </div>
-      )}
+
+        {/* Browse by Tags */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Browse by Tags
+            </h2>
+            {selectedTags.length > 0 && (
+              <span className="text-sm text-purple-600 font-medium">
+                {selectedTags.length} tag
+                {selectedTags.length !== 1 ? "s" : ""} selected
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {dashboardData.availableTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => handleTagToggle(tag)}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                  selectedTags.includes(tag)
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-purple-100"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+          {selectedTags.length > 0 && (
+            <button
+              onClick={() => setSelectedTags([])}
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+            >
+              Clear all tags
+            </button>
+          )}
+        </div>
+
+        {/* Active Filters Summary */}
+        {(selectedCategory || selectedTags.length > 0) && (
+          <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <span className="text-sm font-medium text-blue-900">
+                  Active filters:
+                </span>
+                {selectedCategory && (
+                  <span className="px-2 py-1 bg-blue-200 text-blue-800 rounded text-xs">
+                    Category: {selectedCategory}
+                  </span>
+                )}
+                {selectedTags.length > 0 && (
+                  <span className="px-2 py-1 bg-purple-200 text-purple-800 rounded text-xs">
+                    Tags: {selectedTags.join(", ")}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={clearAllFilters}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Clear all filters
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Quick Actions */}
       {isInfoWriter && (
@@ -492,7 +549,7 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* My Recent Articles (InfoWriter) */}
-      {isInfoWriter && myArticles.length > 0 && (
+      {isInfoWriter && dashboardData.myArticles.length > 0 && (
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-gray-900">
@@ -508,7 +565,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {myArticles.map((article) => (
+            {dashboardData.myArticles.map((article) => (
               <Link
                 key={article.id}
                 to={`/article/${article.id}`}
@@ -540,108 +597,6 @@ export const Dashboard: React.FC = () => {
               </Link>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Article Browsing for InfoWriters */}
-      {isInfoWriter && (
-        <div className="space-y-6">
-          {/* Browse by Category */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Browse Articles by Category
-            </h2>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {availableCategories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => handleCategorySelect(category)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                    selectedCategory === category
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-blue-100"
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-            {selectedCategory && (
-              <button
-                onClick={() => setSelectedCategory("")}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Clear category filter
-              </button>
-            )}
-          </div>
-
-          {/* Browse by Tags */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Browse Articles by Tags
-              </h2>
-              {selectedTags.length > 0 && (
-                <span className="text-sm text-purple-600 font-medium">
-                  {selectedTags.length} tag
-                  {selectedTags.length !== 1 ? "s" : ""} selected
-                </span>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {availableTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => handleTagToggle(tag)}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
-                    selectedTags.includes(tag)
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-purple-100"
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-            {selectedTags.length > 0 && (
-              <button
-                onClick={() => setSelectedTags([])}
-                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
-              >
-                Clear all tags
-              </button>
-            )}
-          </div>
-
-          {/* Active Filters Summary for InfoWriters */}
-          {(selectedCategory || selectedTags.length > 0) && (
-            <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm font-medium text-blue-900">
-                    Active filters:
-                  </span>
-                  {selectedCategory && (
-                    <span className="px-2 py-1 bg-blue-200 text-blue-800 rounded text-xs">
-                      Category: {selectedCategory}
-                    </span>
-                  )}
-                  {selectedTags.length > 0 && (
-                    <span className="px-2 py-1 bg-purple-200 text-purple-800 rounded text-xs">
-                      Tags: {selectedTags.join(", ")}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={clearAllFilters}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Clear all filters
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 

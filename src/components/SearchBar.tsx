@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Loader2 } from 'lucide-react';
 import { getPublishedArticles, Article } from '../lib/articles';
 import Fuse from 'fuse.js';
 import { Link } from 'react-router-dom';
@@ -14,6 +14,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [articles, setArticles] = useState<Article[]>([]);
+  const [articlesLoaded, setArticlesLoaded] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -23,13 +24,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
     includeScore: true
   });
 
+  // Load articles asynchronously when component mounts
   useEffect(() => {
     const loadArticles = async () => {
       try {
         const publishedArticles = await getPublishedArticles();
         setArticles(publishedArticles);
+        setArticlesLoaded(true);
       } catch (error) {
-        console.error('Error loading articles:', error);
+        console.error('Error loading articles for search:', error);
+        setArticlesLoaded(true); // Still mark as loaded to prevent infinite loading
       }
     };
 
@@ -47,12 +51,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSearch = (searchQuery: string) => {
+  const handleSearch = async (searchQuery: string) => {
     setQuery(searchQuery);
     
     if (searchQuery.trim() === '') {
       setResults([]);
       setIsOpen(false);
+      return;
+    }
+
+    // Don't search if articles aren't loaded yet
+    if (!articlesLoaded) {
       return;
     }
 
@@ -106,21 +115,24 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => query && setIsOpen(true)}
-          placeholder="Search articles, categories, tags..."
-          className="w-full pl-12 pr-12 py-4 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-lg"
+          placeholder={articlesLoaded ? "Search articles, categories, tags..." : "Loading search..."}
+          disabled={!articlesLoaded}
+          className="w-full pl-12 pr-12 py-4 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-lg disabled:opacity-50 disabled:cursor-not-allowed"
         />
-        {query && (
+        {!articlesLoaded ? (
+          <Loader2 className="absolute right-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+        ) : query ? (
           <button
             onClick={clearSearch}
             className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
           >
             <X className="h-4 w-4 text-gray-400" />
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Search Results Dropdown */}
-      {isOpen && (
+      {isOpen && articlesLoaded && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50">
           {loading ? (
             <div className="p-4 text-center text-gray-500">

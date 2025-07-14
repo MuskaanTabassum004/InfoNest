@@ -3,48 +3,63 @@ import {Link, useNavigate} from 'react-router-dom';
 import {getPublishedArticles, Article} from '../lib/articles';
 import {
   Search, BookOpen, ArrowRight, Users, Shield, Zap, Clock, Tag,
-  Folder, Star, TrendingUp, Eye, ChevronLeft, ChevronRight
+  Folder, Star, TrendingUp, Eye, ChevronLeft, ChevronRight, Loader2
 } from 'lucide-react';
 import {formatDistanceToNow} from 'date-fns';
 
+interface HomePageData {
+  articles: Article[];
+  featuredArticles: Article[];
+  categories: {name: string; count: number}[];
+  tags: string[];
+}
+
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [featuredArticles, setFeaturedArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<{name: string; count: number}[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
+  const [homeData, setHomeData] = useState<HomePageData | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {loadHomePageData();}, []);
-
-  const loadHomePageData = async () => {
+  const loadHomePageData = async (): Promise<void> => {
+    setLoading(true);
     try {
       const publishedArticles = await getPublishedArticles();
-      setArticles(publishedArticles);
-      setFeaturedArticles(publishedArticles.slice(0, 6));
+      const featuredArticles = publishedArticles.slice(0, 6);
+      
       const categoryMap = new Map<string, number>();
       const allTags = new Set<string>();
+      
       publishedArticles.forEach(article => {
         article.categories.forEach(cat => {
           categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
         });
         article.tags.forEach(tag => allTags.add(tag));
       });
-      setCategories(
-        Array.from(categoryMap.entries())
-          .map(([name, count]) => ({name, count}))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 8)
-      );
-      setTags(Array.from(allTags).slice(0, 20));
+      
+      const categories = Array.from(categoryMap.entries())
+        .map(([name, count]) => ({name, count}))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+      
+      const tags = Array.from(allTags).slice(0, 20);
+
+      setHomeData({
+        articles: publishedArticles,
+        featuredArticles,
+        categories,
+        tags
+      });
     } catch (error) {
       console.error('Error loading homepage data:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadHomePageData();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,12 +73,39 @@ export const HomePage: React.FC = () => {
   };
 
   const nextSlide = () => {
-    setCurrentSlide(prev => (prev + 1) % Math.ceil(featuredArticles.length / 3));
+    if (!homeData) return;
+    setCurrentSlide(prev => (prev + 1) % Math.ceil(homeData.featuredArticles.length / 3));
   };
 
   const prevSlide = () => {
-    setCurrentSlide(prev => (prev - 1 + Math.ceil(featuredArticles.length / 3)) % Math.ceil(featuredArticles.length / 3));
+    if (!homeData) return;
+    setCurrentSlide(prev => (prev - 1 + Math.ceil(homeData.featuredArticles.length / 3)) % Math.ceil(homeData.featuredArticles.length / 3));
   };
+
+  // Show loading state while data is loading
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#EFEDFA'}}>
+        <div className="text-center">
+          <Loader2 className="h-16 w-16 text-blue-600 animate-spin mx-auto mb-6" />
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Loading InfoNest</h2>
+          <p className="text-gray-600">Preparing your knowledge base...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Ensure data is loaded before rendering
+  if (!homeData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#EFEDFA'}}>
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading content...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{backgroundColor: '#EFEDFA'}}>
@@ -87,6 +129,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </header>
+      
       <section
         className="relative py-20 px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
         style={{
@@ -125,27 +168,25 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+      
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Featured Documentation</h2>
             <p className="text-gray-600 text-lg">Discover our most popular and recently updated articles</p>
           </div>
-          {loading ? (
-            <div className="flex justify-center">
-              <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full"/>
-            </div>
-          ) : featuredArticles.length > 0 ? (
+          
+          {homeData.featuredArticles.length > 0 ? (
             <div className="relative">
               <div className="overflow-hidden">
                 <div
                   className="flex transition-transform duration-500 ease-in-out"
                   style={{transform: `translateX(-${currentSlide * 100}%)`}}
                 >
-                  {Array.from({length: Math.ceil(featuredArticles.length / 3)}).map((_, slideIndex) => (
+                  {Array.from({length: Math.ceil(homeData.featuredArticles.length / 3)}).map((_, slideIndex) => (
                     <div key={slideIndex} className="w-full flex-shrink-0">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {featuredArticles.slice(slideIndex * 3, (slideIndex + 1) * 3).map(article => (
+                        {homeData.featuredArticles.slice(slideIndex * 3, (slideIndex + 1) * 3).map(article => (
                           <div
                             key={article.id}
                             onClick={handleDocumentClick}
@@ -187,7 +228,7 @@ export const HomePage: React.FC = () => {
                   ))}
                 </div>
               </div>
-              {featuredArticles.length > 3 && (
+              {homeData.featuredArticles.length > 3 && (
                 <>
                   <button
                     onClick={prevSlide}
@@ -208,6 +249,7 @@ export const HomePage: React.FC = () => {
           )}
         </div>
       </section>
+      
       <section id="categories" className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -215,7 +257,7 @@ export const HomePage: React.FC = () => {
             <p className="text-gray-600 text-lg">Explore documentation organized by topics and departments</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {categories.map(category => (
+            {homeData.categories.map(category => (
               <div
                 key={category.name}
                 onClick={handleDocumentClick}
@@ -234,6 +276,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+      
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -241,7 +284,7 @@ export const HomePage: React.FC = () => {
             <p className="text-gray-600 text-lg">Quick access to trending topics and keywords</p>
           </div>
           <div className="flex flex-wrap justify-center gap-3">
-            {tags.map(tag => (
+            {homeData.tags.map(tag => (
               <button
                 key={tag}
                 onClick={handleDocumentClick}
@@ -253,6 +296,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+      
       <section id="features" className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
@@ -284,6 +328,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+      
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
@@ -291,7 +336,7 @@ export const HomePage: React.FC = () => {
             <p className="text-gray-600 text-lg">Stay up-to-date with the latest documentation changes</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {articles.slice(0, 6).map(article => (
+            {homeData.articles.slice(0, 6).map(article => (
               <div
                 key={article.id}
                 onClick={handleDocumentClick}
@@ -323,6 +368,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+      
       <section id="about" className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-6">About InfoNest</h2>
@@ -333,11 +379,11 @@ export const HomePage: React.FC = () => {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div>
-              <div className="text-3xl font-bold text-blue-600 mb-2">{articles.length}+</div>
+              <div className="text-3xl font-bold text-blue-600 mb-2">{homeData.articles.length}+</div>
               <div className="text-gray-600">Documents Available</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-purple-600 mb-2">{categories.length}+</div>
+              <div className="text-3xl font-bold text-purple-600 mb-2">{homeData.categories.length}+</div>
               <div className="text-gray-600">Categories</div>
             </div>
             <div>
@@ -347,6 +393,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+      
       <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
