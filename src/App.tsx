@@ -16,6 +16,7 @@ import { ArticleEditor } from "./pages/ArticleEditor";
 import { ArticleView } from "./pages/ArticleView";
 import { MyArticles } from "./pages/MyArticles";
 
+import { SearchPage } from "./pages/SearchPage";
 import { AdminPanel } from "./pages/AdminPanel";
 import { WriterRequestPage } from "./pages/WriterRequestPage";
 import { SavedArticles } from "./pages/SavedArticles";
