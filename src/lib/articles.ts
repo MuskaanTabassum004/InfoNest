@@ -10,11 +10,9 @@ import {
   where,
   orderBy,
   limit,
-  Timestamp,
-  increment
+  Timestamp
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { firestore, storage } from './firebase';
+import { firestore } from './firebase';
 
 export type ArticleStatus = 'draft' | 'published' | 'archived';
 
@@ -26,8 +24,6 @@ export interface Article {
   status: ArticleStatus;
   authorId: string;
   authorName: string;
-  authorProfilePicture?: string;
-  coverImage?: string;
   categories: string[];
   tags: string[];
   createdAt: Date;
@@ -35,12 +31,6 @@ export interface Article {
   publishedAt?: Date;
   version: number;
   slug: string;
-  searchCount: number;
-  viewCount: number;
-  attachments: string[];
-  adminNote?: string;
-  deletedBy?: string;
-  deletedAt?: Date;
 }
 
 export interface ArticleVersion {
@@ -72,9 +62,6 @@ export const createArticle = async (
     id: docRef.id,
     slug,
     version: 1,
-    searchCount: 0,
-    viewCount: 0,
-    attachments: article.attachments || [],
     createdAt: new Date(),
     updatedAt: new Date()
   };
@@ -266,72 +253,4 @@ export const getArticleVersions = async (articleId: string): Promise<ArticleVers
       createdAt: data.createdAt.toDate()
     } as ArticleVersion;
   });
-};
-
-export const uploadCoverImage = async (
-  file: File,
-  articleId: string,
-  userId: string
-): Promise<string> => {
-  try {
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-      throw new Error('File must be an image');
-    }
-    
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      throw new Error('Image must be less than 5MB');
-    }
-
-    // Upload to Firebase Storage
-    const imageRef = ref(storage, `articles/${articleId}/cover-image`);
-    const snapshot = await uploadBytes(imageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-
-    return downloadURL;
-  } catch (error) {
-    console.error('Error uploading cover image:', error);
-    throw error;
-  }
-};
-
-export const addAttachment = async (
-  file: File,
-  articleId: string,
-  userId: string
-): Promise<string> => {
-  try {
-    // Validate file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      throw new Error('File must be less than 10MB');
-    }
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 8);
-    const extension = file.name.split('.').pop();
-    const fileName = `${timestamp}_${randomString}.${extension}`;
-
-    // Upload to Firebase Storage
-    const fileRef = ref(storage, `articles/${articleId}/attachments/${fileName}`);
-    const snapshot = await uploadBytes(fileRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-
-    return downloadURL;
-  } catch (error) {
-    console.error('Error uploading attachment:', error);
-    throw error;
-  }
-};
-
-export const incrementViewCount = async (articleId: string): Promise<void> => {
-  try {
-    const articleRef = doc(firestore, 'articles', articleId);
-    await updateDoc(articleRef, {
-      viewCount: increment(1)
-    });
-  } catch (error) {
-    console.error('Error incrementing view count:', error);
-    // Don't throw error for this non-critical update
-  }
 };
