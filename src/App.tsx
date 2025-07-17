@@ -15,10 +15,13 @@ import { Dashboard } from "./pages/Dashboard";
 import { ArticleEditor } from "./pages/ArticleEditor";
 import { ArticleView } from "./pages/ArticleView";
 import { MyArticles } from "./pages/MyArticles";
-import { SearchPage } from "./pages/SearchPage";
+
 import { AdminPanel } from "./pages/AdminPanel";
 import { WriterRequestPage } from "./pages/WriterRequestPage";
 import { SavedArticles } from "./pages/SavedArticles";
+import { ProfilePage } from "./pages/ProfilePage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { ChatsPage } from "./pages/ChatsPage";
 import {
   ProtectedRoute,
   AdminRoute,
@@ -64,16 +67,42 @@ function App() {
         />
 
         <Routes>
+          {/* Test Route */}
+          <Route
+            path="/test"
+            element={
+              <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+                <div className="bg-white p-8 rounded-lg shadow-lg">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                    InfoNest Test Page
+                  </h1>
+                  <p className="text-gray-600 mb-4">
+                    If you can see this, React is working!
+                  </p>
+                  <div className="space-y-2">
+                    <p>Auth Loading: {authLoading ? "Yes" : "No"}</p>
+                    <p>Is Authenticated: {isAuthenticated ? "Yes" : "No"}</p>
+                    <p>Email Verified: {emailVerified ? "Yes" : "No"}</p>
+                    <p>
+                      User Profile: {userProfile ? userProfile.email : "None"}
+                    </p>
+                  </div>
+                  <div className="mt-4">
+                    <a href="/" className="text-blue-600 hover:text-blue-800">
+                      Go to HomePage
+                    </a>
+                  </div>
+                </div>
+              </div>
+            }
+          />
+
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route
             path="/auth"
             element={
-              !isAuthenticated ? (
-                <AuthForm />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )
+              !isAuthenticated ? <AuthForm /> : <Navigate to="/" replace />
             }
           />
           <Route path="/email-verify" element={<EmailVerificationPage />} />
@@ -93,9 +122,9 @@ function App() {
               <Route
                 path="search"
                 element={
-                  <UserRoute>
+                  <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
                     <SearchPage />
-                  </UserRoute>
+                  </ProtectedRoute>
                 }
               />
               <Route
@@ -119,6 +148,30 @@ function App() {
                 element={
                   <UserRoute>
                     <SavedArticles />
+                  </UserRoute>
+                }
+              />
+              <Route
+                path="profile"
+                element={
+                  <UserRoute>
+                    <ProfilePage />
+                  </UserRoute>
+                }
+              />
+              <Route
+                path="settings"
+                element={
+                  <UserRoute>
+                    <SettingsPage />
+                  </UserRoute>
+                }
+              />
+              <Route
+                path="chats"
+                element={
+                  <UserRoute>
+                    <ChatsPage />
                   </UserRoute>
                 }
               />

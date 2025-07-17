@@ -1,27 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Loader2 } from 'lucide-react';
-import { getPublishedArticles, Article } from '../lib/articles';
-import Fuse from 'fuse.js';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from "react";
+import { Search, X, Loader2, TrendingUp, Folder } from "lucide-react";
+import { getPublishedArticles, Article } from "../lib/articles";
+import Fuse from "fuse.js";
+import { Link } from "react-router-dom";
 
 interface SearchBarProps {
   onResultClick?: () => void;
 }
 
+interface PopularCategory {
+  name: string;
+  count: number;
+  searchCount: number;
+}
+
 export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<Article[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [articles, setArticles] = useState<Article[]>([]);
   const [articlesLoaded, setArticlesLoaded] = useState(false);
+  const [popularCategories, setPopularCategories] = useState<PopularCategory[]>(
+    []
+  );
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fuse = new Fuse(articles, {
-    keys: ['title', 'content', 'excerpt', 'tags', 'categories'],
+    keys: ["title", "content", "excerpt", "tags", "categories"],
     threshold: 0.3,
-    includeScore: true
+    includeScore: true,
   });
 
   // Load articles asynchronously when component mounts
@@ -31,8 +40,38 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
         const publishedArticles = await getPublishedArticles();
         setArticles(publishedArticles);
         setArticlesLoaded(true);
+
+        // Calculate popular categories
+        const categoryMap = new Map<
+          string,
+          { count: number; searchCount: number }
+        >();
+        publishedArticles.forEach((article) => {
+          article.categories.forEach((category) => {
+            const existing = categoryMap.get(category) || {
+              count: 0,
+              searchCount: 0,
+            };
+            categoryMap.set(category, {
+              count: existing.count + 1,
+              searchCount:
+                existing.searchCount + Math.floor(Math.random() * 10), // Simulate search frequency
+            });
+          });
+        });
+
+        const popular = Array.from(categoryMap.entries())
+          .map(([name, data]) => ({
+            name,
+            count: data.count,
+            searchCount: data.searchCount,
+          }))
+          .sort((a, b) => b.count + b.searchCount - (a.count + a.searchCount))
+          .slice(0, 6);
+
+        setPopularCategories(popular);
       } catch (error) {
-        console.error('Error loading articles for search:', error);
+        console.error("Error loading articles for search:", error);
         setArticlesLoaded(true); // Still mark as loaded to prevent infinite loading
       }
     };
@@ -42,19 +81,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSearch = async (searchQuery: string) => {
     setQuery(searchQuery);
-    
-    if (searchQuery.trim() === '') {
+
+    if (searchQuery.trim() === "") {
       setResults([]);
       setIsOpen(false);
       return;
@@ -66,10 +108,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
     }
 
     setLoading(true);
-    
+
     // Simulate search delay for better UX
     setTimeout(() => {
-      const searchResults = fuse.search(searchQuery).map(result => result.item);
+      const searchResults = fuse
+        .search(searchQuery)
+        .map((result) => result.item);
       setResults(searchResults.slice(0, 8)); // Limit to 8 results
       setIsOpen(true);
       setLoading(false);
@@ -77,7 +121,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
   };
 
   const clearSearch = () => {
-    setQuery('');
+    setQuery("");
     setResults([]);
     setIsOpen(false);
     inputRef.current?.focus();
@@ -85,23 +129,25 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
 
   const handleResultClick = () => {
     setIsOpen(false);
-    setQuery('');
+    setQuery("");
     setResults([]);
     onResultClick?.();
   };
 
   const highlightText = (text: string, highlight: string) => {
     if (!highlight.trim()) return text;
-    
-    const regex = new RegExp(`(${highlight})`, 'gi');
+
+    const regex = new RegExp(`(${highlight})`, "gi");
     const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
+
+    return parts.map((part, index) =>
       regex.test(part) ? (
         <mark key={index} className="bg-yellow-200 px-0.5 rounded">
           {part}
         </mark>
-      ) : part
+      ) : (
+        part
+      )
     );
   };
 
@@ -115,7 +161,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => query && setIsOpen(true)}
-          placeholder={articlesLoaded ? "Search articles, categories, tags..." : "Loading search..."}
+          placeholder={
+            articlesLoaded
+              ? "Search articles, categories, tags..."
+              : "Loading search..."
+          }
           disabled={!articlesLoaded}
           className="w-full pl-12 pr-12 py-4 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-lg disabled:opacity-50 disabled:cursor-not-allowed"
         />
@@ -130,6 +180,38 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
           </button>
         ) : null}
       </div>
+
+      {/* Popular Categories */}
+      {!query && popularCategories.length > 0 && (
+        <div className="mt-4">
+          <div className="flex items-center space-x-2 mb-3">
+            <TrendingUp className="h-4 w-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">
+              Popular Categories
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {popularCategories.map((category) => (
+              <button
+                key={category.name}
+                onClick={() => {
+                  setQuery(category.name);
+                  handleSearch(category.name);
+                }}
+                className="flex items-center space-x-2 px-3 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all group"
+              >
+                <Folder className="h-3 w-3 text-gray-500 group-hover:text-blue-600" />
+                <span className="text-sm text-gray-700 group-hover:text-blue-700">
+                  {category.name}
+                </span>
+                <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                  {category.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Search Results Dropdown */}
       {isOpen && articlesLoaded && (

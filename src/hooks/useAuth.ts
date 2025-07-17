@@ -10,6 +10,7 @@ export interface UserProfile {
   displayName: string;
   role: "user" | "infowriter" | "admin";
   emailVerified: boolean;
+  profilePicture?: string;
   createdAt?: Date;
   updatedAt?: Date;
   requestedWriterAccess?: boolean;
@@ -23,7 +24,7 @@ export const useAuth = () => {
 
   const refreshProfile = async (): Promise<void> => {
     if (!auth.currentUser) return;
-    
+
     setProfileLoading(true);
     try {
       await auth.currentUser.reload();
@@ -39,6 +40,10 @@ export const useAuth = () => {
           displayName: currentUser.displayName || data.displayName || "",
           role: data.role || "user",
           emailVerified: currentUser.emailVerified,
+          profilePicture: data.profilePicture || "",
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+          requestedWriterAccess: data.requestedWriterAccess,
         });
       }
     } catch (error) {
@@ -62,6 +67,10 @@ export const useAuth = () => {
           displayName: firebaseUser.displayName || data.displayName || "",
           role: data.role || "user",
           emailVerified: firebaseUser.emailVerified,
+          profilePicture: data.profilePicture || "",
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+          requestedWriterAccess: data.requestedWriterAccess,
         });
       } else {
         setUserProfile(null);
@@ -76,14 +85,14 @@ export const useAuth = () => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       setUser(firebaseUser);
-      
+
       if (firebaseUser) {
         await loadUserProfile(firebaseUser);
       } else {
         setUser(null);
         setUserProfile(null);
       }
-      
+
       setLoading(false);
     });
 
@@ -117,13 +126,15 @@ export const useAuth = () => {
     return userProfile?.role === role;
   };
 
-  const hasMinimumRole = (minimumRole: "user" | "infowriter" | "admin"): boolean => {
+  const hasMinimumRole = (
+    minimumRole: "user" | "infowriter" | "admin"
+  ): boolean => {
     if (!userProfile) return false;
-    
+
     const roleHierarchy = { user: 1, infowriter: 2, admin: 3 };
     const userRoleLevel = roleHierarchy[userProfile.role];
     const requiredLevel = roleHierarchy[minimumRole];
-    
+
     return userRoleLevel >= requiredLevel;
   };
 

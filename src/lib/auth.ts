@@ -28,6 +28,7 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   displayName?: string;
+  profilePicture?: string;
   createdAt: Date;
   updatedAt: Date;
   requestedWriterAccess?: boolean;
