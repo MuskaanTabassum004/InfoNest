@@ -10,7 +10,9 @@ import { useAuth } from "./hooks/useAuth";
 import { Layout } from "./components/Layout";
 import { AuthForm } from "./components/AuthForm";
 import { EmailVerificationPage } from "./pages/EmailVerificationPage";
+import { HomePage as LandingPage } from "./pages/HomePage";
 import { HomePage } from "./pages/HomePage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { Dashboard } from "./pages/Dashboard";
 import { ArticleEditor } from "./pages/ArticleEditor";
 import { ArticleView } from "./pages/ArticleView";
@@ -65,14 +67,14 @@ function App() {
 
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route
             path="/auth"
             element={
               !isAuthenticated ? (
                 <AuthForm />
               ) : (
-                <Navigate to="/dashboard" replace />
+                <Navigate to="/home" replace />
               )
             }
           />
@@ -81,6 +83,26 @@ function App() {
           {/* Protected Routes */}
           {isAuthenticated && emailVerified ? (
             <Route path="/*" element={<Layout />}>
+              {/* Home Route - All authenticated users */}
+              <Route
+                path="home"
+                element={
+                  <UserRoute>
+                    <HomePage />
+                  </UserRoute>
+                }
+              />
+              
+              {/* Profile Route - All authenticated users */}
+              <Route
+                path="profile"
+                element={
+                  <UserRoute>
+                    <ProfilePage />
+                  </UserRoute>
+                }
+              />
+              
               {/* Routes accessible to all authenticated users */}
               <Route
                 path="dashboard"
@@ -159,7 +181,7 @@ function App() {
                 }
               />
 
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/home" replace />} />
             </Route>
           ) : isAuthenticated && !emailVerified ? (
             <Route path="*" element={<Navigate to="/email-verify" replace />} />
