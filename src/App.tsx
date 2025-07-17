@@ -80,11 +80,11 @@ function App() {
                     If you can see this, React is working!
                   </p>
                   <div className="space-y-2">
-                    <p>Auth Loading: {authLoading ? "Yes" : "No"}</p>
+                    <p>Auth Loading: {loading ? "Yes" : "No"}</p>
                     <p>Is Authenticated: {isAuthenticated ? "Yes" : "No"}</p>
                     <p>Email Verified: {emailVerified ? "Yes" : "No"}</p>
                     <p>
-                      User Profile: {userProfile ? userProfile.email : "None"}
+                      User Profile: None
                     </p>
                   </div>
                   <div className="mt-4">
