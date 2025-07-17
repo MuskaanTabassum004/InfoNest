@@ -42,6 +42,7 @@ export const AuthForm: React.FC = () => {
       await signIn(formData.email, formData.password);
       await refreshProfile();
       toast.success("Welcome back!");
+      navigate('/home'); // Redirect to home page after login
     } else {
       if (formData.password !== formData.confirmPassword) {
         toast.error('Passwords do not match');
@@ -66,6 +67,7 @@ export const AuthForm: React.FC = () => {
     await signInWithGoogle();
     await refreshProfile();
     toast.success('Signed in with Google!');
+    navigate('/home'); // Redirect to home page after Google sign-in
   } catch (error: any) {
     toast.error(error.message || 'Google sign-in failed.');
   } finally {

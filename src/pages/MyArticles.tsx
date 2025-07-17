@@ -249,7 +249,7 @@ export const MyArticles: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold text-gray-900">
             My Articles
           </h1>
           <p className="text-gray-600 mt-1">
@@ -258,7 +258,7 @@ export const MyArticles: React.FC = () => {
         </div>
         <Link
           to="/article/new"
-          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+          className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
         >
           <Plus className="h-4 w-4" />
           <span>New Article</span>
