@@ -65,7 +65,7 @@ export const EmailVerificationPage: React.FC = () => {
       await refreshProfile();
       if (user.emailVerified) {
         toast.success('Email verified! Welcome to InfoNest.');
-        navigate('/home'); // Auto-redirect to home page
+        navigate('/dashboard'); // Auto-redirect to dashboard
         clearInterval(interval);
       }
     },);

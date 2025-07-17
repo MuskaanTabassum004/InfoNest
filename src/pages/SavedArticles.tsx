@@ -75,7 +75,7 @@ export const SavedArticles: React.FC = () => {
             >
               <ArrowLeft className="h-5 w-5 text-gray-600" />
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Saved Articles
             </h1>
           </div>

@@ -150,7 +150,7 @@ export const AdminPanel: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Admin Panel
           </h1>
           <p className="text-gray-600 mt-2">
@@ -167,6 +167,9 @@ export const AdminPanel: React.FC = () => {
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </button>
+          <div className="bg-gradient-to-r from-amber-100 to-orange-100 p-3 rounded-xl">
+            <Shield className="h-8 w-8 text-amber-600" />
+          </div>
         </div>
       </div>
 

@@ -83,7 +83,7 @@ function App() {
           {/* Protected Routes */}
           {isAuthenticated && emailVerified ? (
             <Route path="/*" element={<Layout />}>
-              {/* Routes accessible to all authenticated users */}
+              {/* Home Route - All authenticated users */}
               <Route
                 path="home"
                 element={
@@ -92,19 +92,23 @@ function App() {
                   </UserRoute>
                 }
               />
-              <Route
-                path="dashboard"
-                element={
-                  <UserRoute>
-                    <Dashboard />
-                  </UserRoute>
-                }
-              />
+              
+              {/* Profile Route - All authenticated users */}
               <Route
                 path="profile"
                 element={
                   <UserRoute>
                     <ProfilePage />
+                  </UserRoute>
+                }
+              />
+              
+              {/* Routes accessible to all authenticated users */}
+              <Route
+                path="dashboard"
+                element={
+                  <UserRoute>
+                    <Dashboard />
                   </UserRoute>
                 }
               />

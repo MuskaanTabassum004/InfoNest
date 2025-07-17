@@ -54,13 +54,6 @@ export const Layout: React.FC = () => {
 
             <div className="hidden md:flex items-center space-x-6">
               <Link
-                to="/home"
-                className={getLinkClass("/home", "blue")}
-              >
-                <span>Home</span>
-              </Link>
-
-              <Link
                 to="/dashboard"
                 className={getLinkClass("/dashboard", "blue")}
               >
