@@ -66,7 +66,12 @@ interface CombinedWriterRequest {
 }
 
 export const WriterRequestPage: React.FC = () => {
-  const { userProfile, isAuthenticated, isAdmin } = useAuth();
+  const {
+    userProfile,
+    isAuthenticated,
+    isAdmin,
+    loading: authLoading,
+  } = useAuth();
   const navigate = useNavigate();
 
   // State management
@@ -81,9 +86,32 @@ export const WriterRequestPage: React.FC = () => {
 
   // Load user's current request and all requests (if admin)
   useEffect(() => {
-    if (!userProfile) return;
+    // If auth is still loading, wait
+    if (authLoading) {
+      console.log("Auth still loading, waiting...");
+      setLoading(true);
+      return;
+    }
+
+    // If not authenticated, stop loading
+    if (!isAuthenticated) {
+      console.log("Not authenticated, stopping load");
+      setLoading(false);
+      return;
+    }
+
+    // If no userProfile yet, wait
+    if (!userProfile) {
+      console.log("No userProfile yet, waiting...");
+      setLoading(true);
+      return;
+    }
 
     const loadRequests = async () => {
+      console.log("Starting loadRequests for:", {
+        userId: userProfile.uid,
+        isAdmin,
+      });
       setLoading(true);
       try {
         // Load current user's request from both systems
@@ -93,6 +121,7 @@ export const WriterRequestPage: React.FC = () => {
         if (isAdmin) {
           await loadAllRequests();
         }
+        console.log("Requests loaded successfully");
       } catch (error) {
         console.error("Error loading requests:", error);
         toast.error("Failed to load requests");
@@ -102,7 +131,7 @@ export const WriterRequestPage: React.FC = () => {
     };
 
     loadRequests();
-  }, [userProfile, isAdmin]);
+  }, [isAuthenticated, userProfile, isAdmin, authLoading]);
 
   // Real-time updates for current user's request
   useEffect(() => {
@@ -473,10 +502,18 @@ export const WriterRequestPage: React.FC = () => {
 
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              {isAdmin ? "InfoWriter Request" : "InfoWriter Application"}
+              {isAdmin ? "InfoWriter Requests" : "InfoWriter Application"}
             </h1>
           </div>
         </div>
+
+        {/* New Application Form */}
+        {!isAdmin &&
+          (!currentUserRequest || currentUserRequest.status !== "pending") && (
+            <div className="mb-8">
+              <WriterRequestForm onClose={() => navigate("/dashboard")} />
+            </div>
+          )}
 
         {/* Current User Request Status */}
         {!isAdmin && currentUserRequest && (

@@ -249,6 +249,14 @@ function App() {
                     </AdminRoute>
                   }
                 />
+                <Route
+                  path="admin/system"
+                  element={
+                    <AdminRoute>
+                      <SettingsPage />
+                    </AdminRoute>
+                  }
+                />
 
                 <Route
                   path="*"
