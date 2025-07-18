@@ -3,7 +3,19 @@ import { useAuth } from "../hooks/useAuth";
 import { updateDoc, doc } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 import { uploadFile } from "../lib/fileUpload";
-import { User, Mail, Shield, Calendar, Camera, Save, Loader2 } from "lucide-react";
+import {
+  User,
+  Mail,
+  Shield,
+  Calendar,
+  Camera,
+  Save,
+  Loader2,
+  Edit3,
+  Check,
+  X,
+  AlertCircle,
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 
@@ -23,6 +35,10 @@ export const ProfilePage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempDisplayName, setTempDisplayName] = useState("");
+  const [nameEditLoading, setNameEditLoading] = useState(false);
+  const [nameError, setNameError] = useState("");
 
   useEffect(() => {
     if (userProfile) {
@@ -31,13 +47,9 @@ export const ProfilePage: React.FC = () => {
         profilePicture: userProfile.profilePicture || "",
       });
       setPreviewUrl(userProfile.profilePicture || "");
+      setTempDisplayName(userProfile.displayName || "");
     }
   }, [userProfile]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,7 +68,7 @@ export const ProfilePage: React.FC = () => {
     }
 
     setSelectedFile(file);
-    
+
     // Create preview URL
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -78,7 +90,7 @@ export const ProfilePage: React.FC = () => {
         "profiles",
         (progress) => setUploadProgress(progress)
       );
-      
+
       toast.success("Profile picture uploaded successfully!");
       return result.url;
     } catch (error) {
@@ -118,7 +130,7 @@ export const ProfilePage: React.FC = () => {
 
       // Refresh the profile in auth context
       await refreshProfile();
-      
+
       toast.success("Profile updated successfully!");
       setSelectedFile(null);
     } catch (error) {
@@ -127,6 +139,82 @@ export const ProfilePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const validateDisplayName = (name: string): string => {
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      return "Display name cannot be empty";
+    }
+
+    if (trimmedName.length < 2) {
+      return "Display name must be at least 2 characters long";
+    }
+
+    if (trimmedName.length > 50) {
+      return "Display name cannot exceed 50 characters";
+    }
+
+    // Check for valid characters (letters, numbers, spaces, basic punctuation)
+    const validNameRegex = /^[a-zA-Z0-9\s\-_.]+$/;
+    if (!validNameRegex.test(trimmedName)) {
+      return "Display name can only contain letters, numbers, spaces, hyphens, underscores, and periods";
+    }
+
+    return "";
+  };
+
+  const handleDisplayNameEdit = async () => {
+    if (!userProfile) return;
+
+    // Validate the display name
+    const validationError = validateDisplayName(tempDisplayName);
+    if (validationError) {
+      setNameError(validationError);
+      return;
+    }
+
+    setNameEditLoading(true);
+    setNameError("");
+
+    try {
+      const userRef = doc(firestore, "users", userProfile.uid);
+      const updateData = {
+        displayName: tempDisplayName.trim(),
+        updatedAt: new Date(),
+      };
+
+      console.log("🔄 Updating Firestore profile:", {
+        userId: userProfile.uid,
+        oldName: userProfile.displayName,
+        newName: tempDisplayName.trim(),
+        updateData,
+      });
+
+      await updateDoc(userRef, updateData);
+      console.log("✅ Firestore update successful");
+
+      // Refresh the profile to ensure immediate sync across all components
+      await refreshProfile();
+      console.log("✅ Profile refresh completed");
+
+      setIsEditing(false);
+      toast.success("Name updated successfully!");
+    } catch (error) {
+      console.error("❌ Error updating name:", error);
+      setNameError("Failed to update name. Please try again.");
+      toast.error("Failed to update name");
+    } finally {
+      setNameEditLoading(false);
+    }
+  };
+
+  const cancelEdit = () => {
+    setTempDisplayName(userProfile?.displayName || "");
+    setIsEditing(false);
+    setNameError("");
+    setNameEditLoading(false);
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -151,8 +239,12 @@ export const ProfilePage: React.FC = () => {
   if (!userProfile) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Profile not found</h2>
-        <p className="text-gray-600">Unable to load your profile information.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          Profile not found
+        </h2>
+        <p className="text-gray-600">
+          Unable to load your profile information.
+        </p>
       </div>
     );
   }
@@ -163,7 +255,9 @@ export const ProfilePage: React.FC = () => {
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
           <h1 className="text-2xl font-bold text-white">My Profile</h1>
-          <p className="text-blue-100 mt-1">Manage your account information and preferences</p>
+          <p className="text-blue-100 mt-1">
+            Manage your account information and preferences
+          </p>
         </div>
 
         <div className="p-8">
@@ -185,7 +279,7 @@ export const ProfilePage: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full cursor-pointer transition-colors shadow-lg">
                     <Camera className="h-4 w-4" />
                     <input
@@ -199,11 +293,14 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Profile Picture</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Profile Picture
+                </h3>
                 <p className="text-gray-600 text-sm mb-4">
-                  Upload a profile picture to personalize your account. Supported formats: JPG, PNG, GIF, WebP (max 5MB)
+                  Upload a profile picture to personalize your account.
+                  Supported formats: JPG, PNG, GIF, WebP (max 5MB)
                 </p>
-                
+
                 {uploading && (
                   <div className="mb-4">
                     <div className="flex items-center space-x-2 text-sm text-blue-600">
@@ -229,15 +326,86 @@ export const ProfilePage: React.FC = () => {
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    name="displayName"
-                    value={formData.displayName}
-                    onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    placeholder="Enter your display name"
-                    required
-                  />
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={tempDisplayName}
+                          onChange={(e) => {
+                            setTempDisplayName(e.target.value);
+                            // Clear error when user starts typing
+                            if (nameError) setNameError("");
+                          }}
+                          className={`flex-1 pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent transition-all ${
+                            nameError
+                              ? "border-red-300 focus:ring-red-500 bg-red-50"
+                              : "border-blue-300 focus:ring-blue-500"
+                          }`}
+                          placeholder="Enter your display name"
+                          autoFocus
+                          disabled={nameEditLoading}
+                          maxLength={50}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleDisplayNameEdit}
+                          disabled={nameEditLoading || !tempDisplayName.trim()}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {nameEditLoading ? (
+                            <div className="animate-spin h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full" />
+                          ) : (
+                            <Check className="h-4 w-4" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          disabled={nameEditLoading}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {nameError && (
+                        <p className="text-red-600 text-sm pl-10 flex items-center">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          {nameError}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 pl-10">
+                        {tempDisplayName.length}/50 characters
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center">
+                        <input
+                          type="text"
+                          value={userProfile?.displayName || "Not set"}
+                          className="flex-1 pl-10 pr-12 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-700 cursor-not-allowed"
+                          disabled
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTempDisplayName(userProfile?.displayName || "");
+                            setIsEditing(true);
+                          }}
+                          className="absolute right-3 p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Click to edit your display name"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 pl-10">
+                        💡 Click the edit icon to change your display name.
+                        Changes will update across the entire application in
+                        real-time.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -254,7 +422,9 @@ export const ProfilePage: React.FC = () => {
                     disabled
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Email cannot be changed
+                </p>
               </div>
 
               <div>
@@ -264,12 +434,19 @@ export const ProfilePage: React.FC = () => {
                 <div className="relative">
                   <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <div className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 flex items-center">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeColor(userProfile.role)}`}>
-                      {userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1)}
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleBadgeColor(
+                        userProfile.role
+                      )}`}
+                    >
+                      {userProfile.role.charAt(0).toUpperCase() +
+                        userProfile.role.slice(1)}
                     </span>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Role is managed by administrators</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Role is managed by administrators
+                </p>
               </div>
 
               <div>
@@ -280,7 +457,13 @@ export const ProfilePage: React.FC = () => {
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    value={userProfile.createdAt ? formatDistanceToNow(userProfile.createdAt, { addSuffix: true }) : "Unknown"}
+                    value={
+                      userProfile.createdAt
+                        ? formatDistanceToNow(userProfile.createdAt, {
+                            addSuffix: true,
+                          })
+                        : "Unknown"
+                    }
                     className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed"
                     disabled
                   />

@@ -6,15 +6,9 @@ import {
   Search,
   BookOpen,
   ArrowRight,
-  Users,
   Shield,
   Zap,
-  Clock,
-  Tag,
-  Folder,
   Star,
-  TrendingUp,
-  Eye,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -24,9 +18,9 @@ import {
   MessageCircle,
   Bookmark,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { signOut } from "../lib/auth";
 import toast from "react-hot-toast";
+import { ArticleCard } from "../components/ArticleCard";
 
 interface HomePageData {
   articles: Article[];
@@ -177,14 +171,16 @@ export const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  InfoNest
-                </h1>
-                <p className="text-xs text-gray-500 -mt-1">
-                  Where Documentation Meets Efficiency
-                </p>
-              </div>
+              <Link to="/" className="cursor-pointer">
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    InfoNest
+                  </h1>
+                  <p className="text-xs text-gray-500 -mt-1">
+                    Where Documentation Meets Efficiency
+                  </p>
+                </div>
+              </Link>
             </div>
             <nav className="hidden md:flex items-center space-x-10 pr-8 ml-auto">
               <a
@@ -401,52 +397,19 @@ export const HomePage: React.FC = () => {
                             <div
                               key={article.id}
                               onClick={() => handleDocumentClick(article.id)}
-                              className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200 hover:border-blue-200 transition-all cursor-pointer group hover:shadow-lg"
+                              className="cursor-pointer"
                             >
-                              <div className="flex items-start justify-between mb-4">
-                                <div className="bg-gradient-to-r from-blue-100 to-purple-100 p-3 rounded-xl">
-                                  <BookOpen className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <div className="flex items-center space-x-1 text-yellow-500">
-                                  <Star className="h-4 w-4 fill-current" />
-                                  <span className="text-sm text-gray-600">
-                                    Featured
-                                  </span>
-                                </div>
-                              </div>
-                              <h3 className="font-semibold text-gray-900 group-hover:text-blue-700 mb-3 line-clamp-2">
-                                {article.title}
-                              </h3>
-                              <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                                {article.excerpt}
-                              </p>
-                              <div className="flex flex-wrap gap-1 mb-4">
-                                {article.categories
-                                  .slice(0, 2)
-                                  .map((category) => (
-                                    <span
-                                      key={category}
-                                      className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
-                                    >
-                                      {category}
-                                    </span>
-                                  ))}
-                                {article.tags.slice(0, 2).map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
-                                  >
-                                    #{tag}
-                                  </span>
-                                ))}
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-gray-500">
-                                <span>By {article.authorName}</span>
-                                <span>
-                                  {formatDistanceToNow(
-                                    article.publishedAt || article.createdAt
-                                  )}{" "}
-                                  ago
+                              <ArticleCard
+                                article={article}
+                                variant="featured"
+                                showActions={true}
+                                className="relative"
+                              />
+                              {/* Featured Badge */}
+                              <div className="absolute top-4 right-4 flex items-center space-x-1 text-yellow-500 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
+                                <Star className="h-3 w-3 fill-current" />
+                                <span className="text-xs text-gray-600 font-medium">
+                                  Featured
                                 </span>
                               </div>
                             </div>
@@ -550,37 +513,14 @@ export const HomePage: React.FC = () => {
             {homeData.articles.slice(0, 6).map((article) => (
               <div
                 key={article.id}
-                onClick={handleDocumentClick}
-                className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-200 hover:border-blue-200 transition-all cursor-pointer group"
+                onClick={() => handleDocumentClick(article.id)}
+                className="cursor-pointer"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-gray-500 flex items-center">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {formatDistanceToNow(article.updatedAt)} ago
-                  </span>
-                  <span className="text-xs text-gray-500 flex items-center">
-                    <Eye className="h-3 w-3 mr-1" />v{article.version}
-                  </span>
-                </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-blue-700 mb-2 line-clamp-2">
-                  {article.title}
-                </h3>
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                  {article.excerpt}
-                </p>
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>By {article.authorName}</span>
-                  <div className="flex space-x-1">
-                    {article.categories.slice(0, 1).map((category) => (
-                      <span
-                        key={category}
-                        className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full"
-                      >
-                        {category}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                <ArticleCard
+                  article={article}
+                  variant="default"
+                  showActions={true}
+                />
               </div>
             ))}
           </div>

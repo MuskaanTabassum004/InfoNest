@@ -9,18 +9,21 @@ import {
   where,
   orderBy,
   Timestamp,
-  deleteDoc
-} from 'firebase/firestore';
-import { firestore } from './firebase';
+} from "firebase/firestore";
+import { firestore } from "./firebase";
 
-export type RequestStatus = 'pending' | 'approved' | 'rejected';
-export type TargetAudience = 'beginners' | 'intermediate' | 'advanced' | 'all-levels';
+export type RequestStatus = "pending" | "approved" | "rejected";
+export type TargetAudience =
+  | "beginners"
+  | "intermediate"
+  | "advanced"
+  | "all-levels";
 
 export interface WriterRequest {
   id: string;
   userId: string;
-  fullName: string;
-  email: string;
+  fullName: string; // Immutable - automatically populated from authenticated user profile
+  email: string; // Immutable - automatically populated from authenticated user profile
   qualifications: string;
   areasOfInterest: string[];
   proposedTitle: string;
@@ -44,29 +47,34 @@ const generateRequestId = (): string => {
 // Sanitize input data
 const sanitizeInput = (input: string): string => {
   return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<[^>]*>/g, '')
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<[^>]*>/g, "")
     .trim();
 };
 
 export const submitWriterRequest = async (
-  requestData: Omit<WriterRequest, 'id' | 'submittedAt' | 'status' | 'requestId'>
+  requestData: Omit<
+    WriterRequest,
+    "id" | "submittedAt" | "status" | "requestId"
+  >
 ): Promise<string> => {
   // Check if user already has a pending request
   const existingRequestQuery = query(
-    collection(firestore, 'writerRequests'),
-    where('userId', '==', requestData.userId),
-    where('status', '==', 'pending')
+    collection(firestore, "writerRequests"),
+    where("userId", "==", requestData.userId),
+    where("status", "==", "pending")
   );
-  
+
   const existingRequests = await getDocs(existingRequestQuery);
   if (!existingRequests.empty) {
-    throw new Error('You already have a pending InfoWriter request. Please wait for admin review.');
+    throw new Error(
+      "You already have a pending InfoWriter request. Please wait for admin review."
+    );
   }
 
-  const docRef = doc(collection(firestore, 'writerRequests'));
+  const docRef = doc(collection(firestore, "writerRequests"));
   const requestId = generateRequestId();
-  
+
   const sanitizedRequest: WriterRequest = {
     ...requestData,
     id: docRef.id,
@@ -74,94 +82,112 @@ export const submitWriterRequest = async (
     qualifications: sanitizeInput(requestData.qualifications),
     proposedTitle: sanitizeInput(requestData.proposedTitle),
     briefDescription: sanitizeInput(requestData.briefDescription),
-    status: 'pending',
+    status: "pending",
     submittedAt: new Date(),
-    requestId
+    requestId,
   };
 
   await setDoc(docRef, {
     ...sanitizedRequest,
-    submittedAt: Timestamp.fromDate(sanitizedRequest.submittedAt)
+    submittedAt: Timestamp.fromDate(sanitizedRequest.submittedAt),
   });
 
   return requestId;
 };
 
-export const getWriterRequests = async (status?: RequestStatus): Promise<WriterRequest[]> => {
-  let q = query(collection(firestore, 'writerRequests'));
-  
+export const getWriterRequests = async (
+  status?: RequestStatus
+): Promise<WriterRequest[]> => {
+  let q = query(collection(firestore, "writerRequests"));
+
   if (status) {
-    q = query(q, where('status', '==', status));
+    q = query(q, where("status", "==", status));
+    // Don't add orderBy for filtered queries to avoid composite index requirement
+    // We'll sort in memory instead
+  } else {
+    // Only add orderBy when not filtering by status
+    q = query(q, orderBy("submittedAt", "desc"));
   }
-  
-  q = query(q, orderBy('submittedAt', 'desc'));
 
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => {
+  let requests = querySnapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       ...data,
       submittedAt: data.submittedAt.toDate(),
-      processedAt: data.processedAt?.toDate()
+      processedAt: data.processedAt?.toDate(),
     } as WriterRequest;
   });
+
+  // Sort in memory if we filtered by status
+  if (status) {
+    requests = requests.sort(
+      (a, b) => b.submittedAt.getTime() - a.submittedAt.getTime()
+    );
+  }
+
+  return requests;
 };
 
-export const getWriterRequest = async (id: string): Promise<WriterRequest | null> => {
-  const docRef = doc(firestore, 'writerRequests', id);
+export const getWriterRequest = async (
+  id: string
+): Promise<WriterRequest | null> => {
+  const docRef = doc(firestore, "writerRequests", id);
   const docSnap = await getDoc(docRef);
-  
+
   if (docSnap.exists()) {
     const data = docSnap.data();
     return {
       ...data,
       submittedAt: data.submittedAt.toDate(),
-      processedAt: data.processedAt?.toDate()
+      processedAt: data.processedAt?.toDate(),
     } as WriterRequest;
   }
-  
+
   return null;
 };
 
 export const processWriterRequest = async (
   id: string,
-  status: 'approved' | 'rejected',
+  status: "approved" | "rejected",
   adminId: string,
   adminNotes?: string
 ): Promise<void> => {
-  const requestRef = doc(firestore, 'writerRequests', id);
-  
+  const requestRef = doc(firestore, "writerRequests", id);
+
   await updateDoc(requestRef, {
     status,
     processedAt: Timestamp.fromDate(new Date()),
     processedBy: adminId,
-    adminNotes: adminNotes || ''
+    adminNotes: adminNotes || "",
   });
 };
 
-export const getUserWriterRequest = async (userId: string): Promise<WriterRequest | null> => {
+export const getUserWriterRequest = async (
+  userId: string
+): Promise<WriterRequest | null> => {
   // Modified query to avoid composite index requirement
   const q = query(
-    collection(firestore, 'writerRequests'),
-    where('userId', '==', userId)
+    collection(firestore, "writerRequests"),
+    where("userId", "==", userId)
   );
-  
+
   const querySnapshot = await getDocs(q);
   if (!querySnapshot.empty) {
     // Sort the results in memory to get the most recent
-    const requests = querySnapshot.docs.map(doc => {
+    const requests = querySnapshot.docs.map((doc) => {
       const data = doc.data();
       return {
         ...data,
         submittedAt: data.submittedAt.toDate(),
-        processedAt: data.processedAt?.toDate()
+        processedAt: data.processedAt?.toDate(),
       } as WriterRequest;
     });
-    
+
     // Sort by submittedAt in descending order and return the first (most recent)
     requests.sort((a, b) => b.submittedAt.getTime() - a.submittedAt.getTime());
     return requests[0];
   }
-  
+
   return null;
 };

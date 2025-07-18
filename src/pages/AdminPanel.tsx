@@ -12,9 +12,8 @@ import {
   getUserArticles,
   Article,
 } from "../lib/articles";
-import { WriterRequestsAdmin } from "../components/WriterRequestsAdmin";
-import { InfoWriterManagement } from "../components/InfoWriterManagement";
 
+import { InfoWriterManagement } from "../components/InfoWriterManagement";
 
 import {
   Shield,
@@ -30,6 +29,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { ArticleCard } from "../components/ArticleCard";
 import toast from "react-hot-toast";
 
 export const AdminPanel: React.FC = () => {
@@ -43,10 +43,7 @@ export const AdminPanel: React.FC = () => {
   );
   const [recentlyApprovedCount, setRecentlyApprovedCount] = useState(0);
   const [activeTab, setActiveTab] = useState<
-    | "overview"
-    | "writer-requests"
-    | "infowriter-management"
-    | "legacy-requests"
+    "overview" | "infowriter-management" | "legacy-requests"
   >("overview");
 
   useEffect(() => {
@@ -54,8 +51,6 @@ export const AdminPanel: React.FC = () => {
       loadAdminData();
     }
   }, [isAdmin]);
-
-
 
   const loadAdminData = async () => {
     setLoading(true);
@@ -74,8 +69,8 @@ export const AdminPanel: React.FC = () => {
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-      const recentlyApproved = infoWriters.filter(writer =>
-        writer.updatedAt && writer.updatedAt >= oneWeekAgo
+      const recentlyApproved = infoWriters.filter(
+        (writer) => writer.updatedAt && writer.updatedAt >= oneWeekAgo
       );
       setRecentlyApprovedCount(recentlyApproved.length);
     } catch (error: any) {
@@ -164,7 +159,7 @@ export const AdminPanel: React.FC = () => {
             disabled={loading}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             <span>Refresh</span>
           </button>
           <div className="bg-gradient-to-r from-amber-100 to-orange-100 p-3 rounded-xl">
@@ -186,16 +181,7 @@ export const AdminPanel: React.FC = () => {
           >
             Overview
           </button>
-          <button
-            onClick={() => setActiveTab("writer-requests")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              activeTab === "writer-requests"
-                ? "bg-blue-600 text-white"
-                : "text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-            }`}
-          >
-            InfoWriter Requests
-          </button>
+
           <button
             onClick={() => setActiveTab("infowriter-management")}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -206,8 +192,6 @@ export const AdminPanel: React.FC = () => {
           >
             Active InfoWriters
           </button>
-
-
         </div>
       </div>
 
@@ -290,6 +274,32 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
 
+          {/* Quick Actions */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+              <Shield className="h-5 w-5 mr-2 text-blue-500" />
+              Quick Actions
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <a
+                href="/admin/writer-requests"
+                className="flex items-center space-x-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition-colors group"
+              >
+                <div className="bg-blue-100 p-2 rounded-lg group-hover:bg-blue-200 transition-colors">
+                  <Users className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">
+                    Manage Writer Requests
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Review and process InfoWriter applications
+                  </p>
+                </div>
+              </a>
+            </div>
+          </div>
+
           {/* Recent Articles */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
@@ -308,52 +318,20 @@ export const AdminPanel: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {recentArticles.map((article) => (
-                  <div
+                  <ArticleCard
                     key={article.id}
-                    className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-200"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">
-                        {article.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {article.excerpt}
-                      </p>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
-                        <span>By {article.authorName}</span>
-                        <span>•</span>
-                        <span>
-                          {formatDistanceToNow(
-                            article.publishedAt || article.createdAt
-                          )}{" "}
-                          ago
-                        </span>
-                        <span>•</span>
-                        <span>Version {article.version}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-1 ml-4">
-                      {article.categories.slice(0, 2).map((category) => (
-                        <span
-                          key={category}
-                          className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
-                        >
-                          {category}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                    article={article}
+                    variant="compact"
+                    showActions={true}
+                  />
                 ))}
               </div>
             )}
           </div>
         </>
       )}
-
-      {activeTab === "writer-requests" && <WriterRequestsAdmin />}
 
       {activeTab === "infowriter-management" && (
         <InfoWriterManagement
@@ -364,10 +342,6 @@ export const AdminPanel: React.FC = () => {
           }}
         />
       )}
-
-
-
-
 
       {activeTab === "legacy-requests" && (
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">

@@ -112,7 +112,28 @@ export const promoteToInfoWriter = async (uid: string) => {
     throw new Error("Cannot change admin role");
   }
 
+  const previousRole = userProfile.role;
   await updateUserRole(uid, "infowriter");
+
+  // Create notification for the promoted user
+  if (previousRole === "user") {
+    try {
+      const { createInfoWriterApprovalNotification } = await import(
+        "./notifications"
+      );
+      await createInfoWriterApprovalNotification(uid, previousRole);
+      console.log(
+        "✅ InfoWriter promotion notification created for user:",
+        uid
+      );
+    } catch (error) {
+      console.error(
+        "❌ Error creating InfoWriter promotion notification:",
+        error
+      );
+      // Don't throw error to avoid breaking the promotion process
+    }
+  }
 };
 
 export const promoteToAdmin = async (
@@ -177,6 +198,18 @@ export const approveWriterRequest = async (uid: string) => {
     requestedWriterAccess: false,
     updatedAt: new Date(),
   });
+
+  // Create notification for the approved user
+  try {
+    const { createInfoWriterApprovalNotification } = await import(
+      "./notifications"
+    );
+    await createInfoWriterApprovalNotification(uid);
+    console.log("✅ InfoWriter approval notification created for user:", uid);
+  } catch (error) {
+    console.error("❌ Error creating InfoWriter approval notification:", error);
+    // Don't throw error to avoid breaking the approval process
+  }
 };
 
 export const denyWriterRequest = async (uid: string) => {

@@ -181,38 +181,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onResultClick }) => {
         ) : null}
       </div>
 
-      {/* Popular Categories */}
-      {!query && popularCategories.length > 0 && (
-        <div className="mt-4">
-          <div className="flex items-center space-x-2 mb-3">
-            <TrendingUp className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">
-              Popular Categories
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {popularCategories.map((category) => (
-              <button
-                key={category.name}
-                onClick={() => {
-                  setQuery(category.name);
-                  handleSearch(category.name);
-                }}
-                className="flex items-center space-x-2 px-3 py-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all group"
-              >
-                <Folder className="h-3 w-3 text-gray-500 group-hover:text-blue-600" />
-                <span className="text-sm text-gray-700 group-hover:text-blue-700">
-                  {category.name}
-                </span>
-                <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
-                  {category.count}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Search Results Dropdown */}
       {isOpen && articlesLoaded && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50">

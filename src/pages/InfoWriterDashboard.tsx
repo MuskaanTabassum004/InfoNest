@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { SearchBar } from "../components/SearchBar";
-import { 
-  BookOpen, 
-  PenTool, 
-  Clock, 
+import {
+  BookOpen,
+  PenTool,
+  Clock,
   TrendingUp,
   ArrowRight,
   Plus,
@@ -13,28 +12,50 @@ import {
   Eye,
   FileText,
   BarChart3,
-  Calendar
+  Calendar,
+  Search,
+  ChevronDown,
+  Tag,
+  MessageCircle,
+  Star,
 } from "lucide-react";
 import { getPublishedArticles, Article } from "../lib/articles";
 import { formatDistanceToNow } from "date-fns";
-import { onSnapshot, collection, query, where, orderBy, limit } from "firebase/firestore";
+import {
+  onSnapshot,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 
 interface InfoWriterDashboardData {
   publishedArticles: Article[];
   myArticles: Article[];
   myDrafts: Article[];
+  unpublishedArticles: Article[];
+  availableCategories: string[];
+  topTags: { tag: string; count: number }[];
   myStats: {
     totalArticles: number;
     totalViews: number;
     totalDrafts: number;
+    totalPublished: number;
+    totalUnpublished: number;
   };
 }
 
 export const InfoWriterDashboard: React.FC = () => {
   const { userProfile } = useAuth();
-  const [dashboardData, setDashboardData] = useState<InfoWriterDashboardData | null>(null);
+  const [dashboardData, setDashboardData] =
+    useState<InfoWriterDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedTag, setSelectedTag] = useState<string>("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Load InfoWriter dashboard data with real-time updates
   useEffect(() => {
@@ -43,50 +64,106 @@ export const InfoWriterDashboard: React.FC = () => {
     // Published articles subscription
     const publishedQuery = query(
       collection(firestore, "articles"),
-      where("status", "==", "published"),
-      orderBy("createdAt", "desc")
+      where("status", "==", "published")
     );
 
     const unsubscribePublished = onSnapshot(publishedQuery, (snapshot) => {
       const publishedArticles: Article[] = [];
       snapshot.forEach((doc) => {
-        publishedArticles.push({ id: doc.id, ...doc.data() } as Article);
+        const data = doc.data();
+        publishedArticles.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate(),
+          publishedAt: data.publishedAt?.toDate(),
+        } as Article);
       });
+
+      // Sort articles by createdAt in memory
+      publishedArticles.sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      );
 
       // My articles subscription
       const myArticlesQuery = query(
         collection(firestore, "articles"),
-        where("authorId", "==", userProfile.uid),
-        orderBy("createdAt", "desc")
+        where("authorId", "==", userProfile.uid)
       );
 
-      const unsubscribeMyArticles = onSnapshot(myArticlesQuery, (mySnapshot) => {
-        const myArticles: Article[] = [];
-        const myDrafts: Article[] = [];
-        let totalViews = 0;
+      const unsubscribeMyArticles = onSnapshot(
+        myArticlesQuery,
+        (mySnapshot) => {
+          const myArticles: Article[] = [];
+          const myDrafts: Article[] = [];
+          const unpublishedArticles: Article[] = [];
+          const categoriesSet = new Set<string>();
+          const tagsMap = new Map<string, number>();
+          let totalViews = 0;
 
-        mySnapshot.forEach((doc) => {
-          const article = { id: doc.id, ...doc.data() } as Article;
-          if (article.status === "published") {
-            myArticles.push(article);
-            totalViews += article.views || 0;
-          } else if (article.status === "draft") {
-            myDrafts.push(article);
-          }
-        });
+          mySnapshot.forEach((doc) => {
+            const data = doc.data();
+            const article = {
+              id: doc.id,
+              ...data,
+              createdAt: data.createdAt?.toDate() || new Date(),
+              updatedAt: data.updatedAt?.toDate(),
+              publishedAt: data.publishedAt?.toDate(),
+            } as Article;
 
-        setDashboardData({
-          publishedArticles,
-          myArticles,
-          myDrafts,
-          myStats: {
-            totalArticles: myArticles.length,
-            totalViews,
-            totalDrafts: myDrafts.length
-          }
-        });
-        setLoading(false);
-      });
+            // Collect categories and tags
+            article.categories?.forEach((cat) => categoriesSet.add(cat));
+            article.tags?.forEach((tag) => {
+              tagsMap.set(tag, (tagsMap.get(tag) || 0) + 1);
+            });
+
+            if (article.status === "published") {
+              myArticles.push(article);
+              totalViews += article.views || 0;
+            } else if (article.status === "draft") {
+              myDrafts.push(article);
+            } else {
+              unpublishedArticles.push(article);
+            }
+          });
+
+          // Sort articles by createdAt in memory
+          myArticles.sort(
+            (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+          );
+          myDrafts.sort(
+            (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+          );
+          unpublishedArticles.sort(
+            (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+          );
+
+          const availableCategories = Array.from(categoriesSet).sort();
+
+          // Get top 10 tags sorted by count
+          const topTags = Array.from(tagsMap.entries())
+            .map(([tag, count]) => ({ tag, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+          setDashboardData({
+            publishedArticles,
+            myArticles,
+            myDrafts,
+            unpublishedArticles,
+            availableCategories,
+            topTags,
+            myStats: {
+              totalArticles: myArticles.length,
+              totalViews,
+              totalDrafts: myDrafts.length,
+              totalPublished: publishedArticles.length,
+              totalUnpublished: unpublishedArticles.length,
+            },
+          });
+          setLoading(false);
+        }
+      );
 
       return () => unsubscribeMyArticles();
     });
@@ -105,7 +182,9 @@ export const InfoWriterDashboard: React.FC = () => {
   if (!dashboardData) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Unable to load writer dashboard</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          Unable to load writer dashboard
+        </h2>
         <p className="text-gray-600">Please try refreshing the page.</p>
       </div>
     );
@@ -113,97 +192,243 @@ export const InfoWriterDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Search Bar */}
-      <SearchBar />
-
-      {/* Writer Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600">My Articles</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.myStats.totalArticles}</p>
+      {/* Search Engine */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
+        <div className="space-y-4">
+          {/* Search Bar with Category Filter */}
+          <div className="flex gap-4">
+            {/* Search Input */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search articles..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
             </div>
-            <div className="bg-blue-100 p-3 rounded-xl">
-              <BookOpen className="h-6 w-6 text-blue-600" />
+
+            {/* Category Filter Dropdown */}
+            <div className="relative">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+              >
+                <option value="">All Categories</option>
+                {dashboardData.availableCategories
+                  .slice(0, 8)
+                  .map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             </div>
           </div>
-        </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-green-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-600">Total Views</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.myStats.totalViews}</p>
-            </div>
-            <div className="bg-green-100 p-3 rounded-xl">
-              <Eye className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-orange-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-orange-600">Drafts</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.myStats.totalDrafts}</p>
-            </div>
-            <div className="bg-orange-100 p-3 rounded-xl">
-              <FileText className="h-6 w-6 text-orange-600" />
-            </div>
+          {/* Top 10 Real-time Tags */}
+          <div className="flex flex-wrap gap-2">
+            {dashboardData.topTags.map(({ tag, count }) => (
+              <button
+                key={tag}
+                onClick={() => setSelectedTag(selectedTag === tag ? "" : tag)}
+                className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+                  selectedTag === tag
+                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md"
+                    : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:text-purple-700"
+                }`}
+              >
+                <Tag className="h-3 w-3" />
+                <span>{tag}</span>
+                <span className="text-xs opacity-75">({count})</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions Dropdown */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Writer Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            to="/create-article"
-            className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl hover:from-blue-100 hover:to-purple-100 transition-all group"
+        <div className="space-y-4">
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="flex items-center justify-between w-full p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl hover:from-blue-100 hover:to-purple-100 transition-all duration-200"
           >
-            <div className="bg-blue-600 p-2 rounded-lg group-hover:bg-blue-700 transition-colors">
-              <Plus className="h-5 w-5 text-white" />
+            <div className="flex items-center space-x-3">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-2 rounded-lg">
+                <BarChart3 className="h-5 w-5 text-white" />
+              </div>
+              <div className="text-left">
+                <h3 className="font-medium text-gray-900">Quick Actions</h3>
+                <p className="text-sm text-gray-600">
+                  Manage your articles and content
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-medium text-gray-900">Create Article</h3>
-              <p className="text-sm text-gray-600">Write new content</p>
-            </div>
-          </Link>
+            <ChevronDown
+              className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${
+                isDropdownOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
 
-          <Link
-            to="/my-articles"
-            className="flex items-center space-x-3 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl hover:from-purple-100 hover:to-pink-100 transition-all group"
+          {/* Accordion-style dropdown content */}
+          <div
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              isDropdownOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+            }`}
           >
-            <div className="bg-purple-600 p-2 rounded-lg group-hover:bg-purple-700 transition-colors">
-              <Edit className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-900">My Articles</h3>
-              <p className="text-sm text-gray-600">Manage your content</p>
-            </div>
-          </Link>
+            <div className="bg-gray-50 rounded-xl border border-gray-200">
+              <div className="p-3 space-y-2">
+                <Link
+                  to="/my-articles"
+                  className="flex items-center justify-between p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-blue-100 p-2 rounded-lg group-hover:bg-blue-200 transition-colors">
+                      <BookOpen className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-900 group-hover:text-blue-700">
+                        Total Articles
+                      </span>
+                      <p className="text-xs text-gray-600">
+                        View all your articles
+                      </p>
+                    </div>
+                  </div>
+                  <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {dashboardData.myStats.totalArticles}
+                  </span>
+                </Link>
 
-          <Link
-            to="/analytics"
-            className="flex items-center space-x-3 p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-xl hover:from-green-100 hover:to-teal-100 transition-all group"
-          >
-            <div className="bg-green-600 p-2 rounded-lg group-hover:bg-green-700 transition-colors">
-              <BarChart3 className="h-5 w-5 text-white" />
+                <Link
+                  to="/my-articles?status=published"
+                  className="flex items-center justify-between p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-green-100 p-2 rounded-lg group-hover:bg-green-200 transition-colors">
+                      <Eye className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-900 group-hover:text-green-700">
+                        Published
+                      </span>
+                      <p className="text-xs text-gray-600">Live articles</p>
+                    </div>
+                  </div>
+                  <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {dashboardData.myStats.totalPublished}
+                  </span>
+                </Link>
+
+                <Link
+                  to="/my-articles?status=draft"
+                  className="flex items-center justify-between p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-orange-100 p-2 rounded-lg group-hover:bg-orange-200 transition-colors">
+                      <FileText className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-900 group-hover:text-orange-700">
+                        Drafts
+                      </span>
+                      <p className="text-xs text-gray-600">Work in progress</p>
+                    </div>
+                  </div>
+                  <span className="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {dashboardData.myStats.totalDrafts}
+                  </span>
+                </Link>
+
+                <Link
+                  to="/my-articles?status=unpublished"
+                  className="flex items-center justify-between p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-red-100 p-2 rounded-lg group-hover:bg-red-200 transition-colors">
+                      <Clock className="h-4 w-4 text-red-600" />
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-900 group-hover:text-red-700">
+                        Unpublished
+                      </span>
+                      <p className="text-xs text-gray-600">Pending articles</p>
+                    </div>
+                  </div>
+                  <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {dashboardData.myStats.totalUnpublished}
+                  </span>
+                </Link>
+
+                <hr className="my-2" />
+
+                <Link
+                  to="/article/new"
+                  className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+                >
+                  <div className="bg-purple-100 p-2 rounded-lg group-hover:bg-purple-200 transition-colors">
+                    <Plus className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-900 group-hover:text-purple-700">
+                      Create New Article
+                    </span>
+                    <p className="text-xs text-gray-600">
+                      Start writing new content
+                    </p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/chats"
+                  className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+                >
+                  <div className="bg-indigo-100 p-2 rounded-lg group-hover:bg-indigo-200 transition-colors">
+                    <MessageCircle className="h-4 w-4 text-indigo-600" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-900 group-hover:text-indigo-700">
+                      Chats
+                    </span>
+                    <p className="text-xs text-gray-600">
+                      Messages from Users/Admins
+                    </p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/saved-articles"
+                  className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+                >
+                  <div className="bg-yellow-100 p-2 rounded-lg group-hover:bg-yellow-200 transition-colors">
+                    <Star className="h-4 w-4 text-yellow-600" />
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-900 group-hover:text-yellow-700">
+                      Saved Articles
+                    </span>
+                    <p className="text-xs text-gray-600">
+                      Your bookmarked content
+                    </p>
+                  </div>
+                </Link>
+              </div>
             </div>
-            <div>
-              <h3 className="font-medium text-gray-900">Analytics</h3>
-              <p className="text-sm text-gray-600">View performance</p>
-            </div>
-          </Link>
+          </div>
         </div>
       </div>
 
       {/* My Recent Articles */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">My Recent Articles</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            My Recent Articles
+          </h2>
           <Link
             to="/my-articles"
             className="text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
@@ -216,10 +441,14 @@ export const InfoWriterDashboard: React.FC = () => {
         {dashboardData.myArticles.length === 0 ? (
           <div className="text-center py-12">
             <PenTool className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No articles yet</h3>
-            <p className="text-gray-600 mb-4">Start creating content to see your articles here.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No articles yet
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Start creating content to see your articles here.
+            </p>
             <Link
-              to="/create-article"
+              to="/article/new"
               className="inline-flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="h-4 w-4" />
@@ -251,7 +480,11 @@ export const InfoWriterDashboard: React.FC = () => {
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                   <div className="flex items-center space-x-1">
                     <Clock className="h-3 w-3" />
-                    <span>{formatDistanceToNow(article.createdAt, { addSuffix: true })}</span>
+                    <span>
+                      {formatDistanceToNow(article.createdAt, {
+                        addSuffix: true,
+                      })}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Eye className="h-3 w-3" />
@@ -281,7 +514,9 @@ export const InfoWriterDashboard: React.FC = () => {
       {/* Recent Platform Articles */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">Recent Platform Articles</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            Recent Platform Articles
+          </h2>
           <div className="flex items-center space-x-2 text-sm text-gray-500">
             <TrendingUp className="h-4 w-4" />
             <span>{dashboardData.publishedArticles.length} total</span>
@@ -313,7 +548,11 @@ export const InfoWriterDashboard: React.FC = () => {
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <div className="flex items-center space-x-1">
                   <Clock className="h-3 w-3" />
-                  <span>{formatDistanceToNow(article.createdAt, { addSuffix: true })}</span>
+                  <span>
+                    {formatDistanceToNow(article.createdAt, {
+                      addSuffix: true,
+                    })}
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {article.categories?.slice(0, 2).map((category) => (

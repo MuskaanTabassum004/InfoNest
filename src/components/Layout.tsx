@@ -1,21 +1,25 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, Outlet } from "react-router-dom"; // ✅ Fix: add Outlet here
 import { useAuth } from "../hooks/useAuth";
 import { signOut } from "../lib/auth";
 import { RoleBadge, PermissionGate } from "./ProtectedRoute";
-import { User, LogOut, PenTool, Shield, Search, Bell } from "lucide-react";
+import {
+  User,
+  LogOut,
+  PenTool,
+  Shield,
+  Search,
+  Settings,
+  MessageCircle,
+  UserCog,
+} from "lucide-react";
 import toast from "react-hot-toast";
+import { NotificationDropdown } from "./NotificationDropdown";
 
 export const Layout: React.FC = () => {
-  const {
-    userProfile,
-    isAuthenticated,
-    isAdmin,
-    isInfoWriter,
-    canCreateArticles,
-    canManageUsers,
-  } = useAuth();
+  const { userProfile, isAuthenticated, isInfoWriter, isAdmin } = useAuth();
   const location = useLocation();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -29,6 +33,19 @@ export const Layout: React.FC = () => {
   const isActiveRoute = (path: string) => {
     return location.pathname === path;
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest("[data-dropdown]")) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   if (!isAuthenticated) {
     return (
@@ -45,67 +62,112 @@ export const Layout: React.FC = () => {
       <nav className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/dashboard" className="flex items-center space-x-3">
+            <Link to="/" className="flex items-center space-x-3">
               <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 InfoNest
               </span>
             </Link>
 
             <div className="hidden md:flex items-center space-x-6">
-              <Link
-                to="/dashboard"
-                className={getLinkClass("/dashboard", "blue")}
-              >
-                <span>Dashboard</span>
-              </Link>
-
-              <Link to="/search" className={getLinkClass("/search", "blue")}>
-                <Search className="h-4 w-4" />
-                <span>Search</span>
-              </Link>
-
-              <PermissionGate requiredRole="infowriter">
-                <Link
-                  to="/my-articles"
-                  className={getLinkClass("/my-articles", "purple")}
-                >
-                  <PenTool className="h-4 w-4" />
-                  <span>My Articles</span>
-                </Link>
-              </PermissionGate>
-
-              <PermissionGate requiredRole="admin">
-                <Link to="/admin" className={getLinkClass("/admin", "amber")}>
-                  <Shield className="h-4 w-4" />
-                  <span>Admin</span>
-                </Link>
-              </PermissionGate>
+              {/* Clean header for admin - no navigation items */}
             </div>
 
             <div className="flex items-center space-x-4">
-              <Bell className="h-5 w-5 text-gray-500 hover:text-gray-700 cursor-pointer" />
+              <NotificationDropdown />
 
-              <div className="flex items-center space-x-3">
-                <div className="flex flex-col items-end">
-                  <span className="text-sm font-medium text-gray-700">
-                    {userProfile?.displayName || userProfile?.email}
-                  </span>
-                  <div className="flex items-center space-x-2">
-                    {userProfile?.role && <RoleBadge role={userProfile.role} />}
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-full">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-
+              <div className="relative" data-dropdown>
                 <button
-                  onClick={handleLogout}
-                  className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Logout"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-gray-700">
+                      {userProfile?.displayName || userProfile?.email}
+                    </div>
+                    <div className="flex items-center justify-end space-x-2">
+                      {userProfile?.role && (
+                        <RoleBadge role={userProfile.role} />
+                      )}
+                    </div>
+                  </div>
+
+                  {userProfile?.profilePicture ? (
+                    <img
+                      src={userProfile.profilePicture}
+                      alt="Profile"
+                      className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-full hover:from-blue-700 hover:to-purple-700 transition-all">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                  )}
                 </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <User className="h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Shield className="h-4 w-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                    {isAdmin && (
+                      <Link
+                        to="/personal-dashboard"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <UserCog className="h-4 w-4" />
+                        <span>Personal Dashboard</span>
+                      </Link>
+                    )}
+                    {isInfoWriter && !isAdmin && (
+                      <Link
+                        to="/article/new"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <PenTool className="h-4 w-4" />
+                        <span>Create New Article</span>
+                      </Link>
+                    )}
+                    <Link
+                      to="/settings"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span>Settings</span>
+                    </Link>
+                    <Link
+                      to="/chats"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      <span>Chats</span>
+                    </Link>
+                    <hr className="my-2" />
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center space-x-3 px-4 py-2 text-red-600 hover:bg-red-50 transition-colors w-full text-left"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

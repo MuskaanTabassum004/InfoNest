@@ -26,10 +26,7 @@ service cloud.firestore {
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
     
-    // Article versions collection
-    match /articleVersions/{versionId} {
-      allow read, write: if request.auth != null;
-    }
+
     
     // Writer requests collection - users can read their own requests, admins can read all
     match /writerRequests/{requestId} {
@@ -41,15 +38,11 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Users collection - users can read their own profile, admins can read/update all
+    // Users collection - allow authenticated users to read profiles for article cards
     match /users/{userId} {
-      // Allow users to read their own profile
-      allow read: if request.auth != null && request.auth.uid == userId;
-
-      // Allow admins to read all user profiles (simplified rule)
-      allow read: if request.auth != null &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Allow authenticated users to read any user profile (for displaying author info in article cards)
+      // This enables showing author names and profile pictures throughout the application
+      allow read: if request.auth != null;
 
       // Allow user creation
       allow create: if request.auth != null && request.auth.uid == userId;
@@ -66,15 +59,45 @@ service cloud.firestore {
 
     // Saved articles collection (compound ID format: userId_articleId)
     match /savedArticles/{savedArticleId} {
-      // Users can read/write their own saved articles
-      allow read, write: if request.auth != null &&
-        request.auth.uid == resource.data.userId;
+      // Simplified approach: Allow all authenticated users to read/write documents
+      // where the document data contains their userId OR the document ID starts with their userId
+      allow read, write, create, delete: if request.auth != null && (
+        // Check if document ID starts with user's UID (for compound ID format)
+        (savedArticleId.size() > request.auth.uid.size() &&
+         savedArticleId[0:request.auth.uid.size()] == request.auth.uid &&
+         savedArticleId[request.auth.uid.size()] == '_') ||
+        // Check document data userId (for existing documents)
+        (resource != null && request.auth.uid == resource.data.userId) ||
+        // Check request data userId (for new documents)
+        (request.resource != null && request.auth.uid == request.resource.data.userId)
+      );
 
-      // Allow creation if the user ID matches the authenticated user
-      allow create: if request.auth != null &&
-        request.auth.uid == request.resource.data.userId;
+      // Allow list/query operations for authenticated users
+      // This covers queries like where('userId', '==', userId)
+      allow list: if request.auth != null;
 
       // Admins can read all saved articles
+      allow read, write, list: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Notifications collection - users can read their own notifications, admins can create notifications
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+
+      // Users can update their own notifications (mark as read, delete)
+      allow update, delete: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+
+      // Admins and system can create notifications for any user
+      allow create: if request.auth != null &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         request.auth.uid == request.resource.data.userId);
+
+      // Admins can read all notifications
       allow read: if request.auth != null &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
