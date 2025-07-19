@@ -3,7 +3,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
   getUserArticles,
-  deleteArticle,
+  hardDeleteArticle,
   updateArticle,
   Article,
 } from "../lib/articles";
@@ -152,7 +152,8 @@ export const MyArticles: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteArticle(id);
+      // Users can only delete their own articles (hard delete)
+      await hardDeleteArticle(id);
       setArticles((prev) => prev.filter((article) => article.id !== id));
       toast.success("Article deleted successfully");
     } catch (error) {
