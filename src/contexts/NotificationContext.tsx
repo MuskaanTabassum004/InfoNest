@@ -48,19 +48,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
       return;
     }
 
-    console.log(
-      "🔔 Setting up notification subscription for user:",
-      userProfile.uid
-    );
     setLoading(true);
 
     const unsubscribe = subscribeToUserNotifications(
       userProfile.uid,
       (newNotifications) => {
-        console.log(
-          "📬 Received notifications update:",
-          newNotifications.length
-        );
         setNotifications(newNotifications);
         setLoading(false);
 
@@ -132,10 +124,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   };
 
   const refreshNotifications = (): void => {
-    // The real-time listener automatically keeps notifications up to date
-    console.log(
-      "📱 Notifications are automatically updated via real-time listener"
-    );
+    // Real-time listener automatically updates notifications
   };
 
   const unreadCount = getUnreadNotificationCount(notifications);

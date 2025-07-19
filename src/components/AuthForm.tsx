@@ -134,7 +134,6 @@ export const AuthForm: React.FC = () => {
     const oobCode = queryParams.get("oobCode");
 
     if (mode === "verifyEmail" && oobCode) {
-      // Redirect to dedicated verification handler
       navigate(`/verify-email?mode=${mode}&oobCode=${oobCode}`, { replace: true });
     }
   }, [location.search, navigate]);

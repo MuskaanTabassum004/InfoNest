@@ -56,8 +56,6 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         const profile = await getUserProfile(article.authorId);
         setAuthorProfile(profile);
       } catch (error) {
-        // Silently handle profile loading errors - use fallback display
-        // This can happen if the author's profile is deleted or permissions change
         setAuthorProfile(null);
       } finally {
         setLoadingAuthor(false);

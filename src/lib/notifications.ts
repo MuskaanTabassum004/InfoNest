@@ -54,9 +54,8 @@ export const createNotification = async (
       createdAt: Timestamp.fromDate(notification.createdAt),
     });
 
-    console.log("✅ Notification created");
   } catch (error) {
-    console.error("❌ Error creating notification:", error);
+    console.error("Error creating notification:", error);
     throw new Error("Failed to create notification");
   }
 };
@@ -110,7 +109,6 @@ export const subscribeToUserNotifications = (
   userId: string,
   callback: (notifications: AppNotification[]) => void
 ): (() => void) => {
-  console.log("🔔 Setting up notifications subscription");
 
   const q = query(
     collection(firestore, "notifications"),
@@ -121,7 +119,6 @@ export const subscribeToUserNotifications = (
   return onSnapshot(
     q,
     (snapshot) => {
-      console.log("📬 Notifications updated");
       const notifications = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
@@ -135,7 +132,7 @@ export const subscribeToUserNotifications = (
       callback(notifications);
     },
     (error) => {
-      console.error("❌ Error in notifications subscription:", error);
+      console.error("Error in notifications subscription:", error);
       callback([]);
     }
   );
@@ -152,9 +149,8 @@ export const markNotificationAsRead = async (
       readAt: Timestamp.now(),
     });
 
-    console.log("✅ Notification marked as read");
   } catch (error) {
-    console.error("❌ Error marking notification as read:", error);
+    console.error("Error marking notification as read:", error);
     throw new Error("Failed to mark notification as read");
   }
 };
@@ -179,9 +175,8 @@ export const markAllNotificationsAsRead = async (
     );
 
     await Promise.all(updatePromises);
-    console.log("✅ All notifications marked as read");
   } catch (error) {
-    console.error("❌ Error marking all notifications as read:", error);
+    console.error("Error marking all notifications as read:", error);
     throw new Error("Failed to mark all notifications as read");
   }
 };
@@ -194,9 +189,8 @@ export const deleteNotification = async (
     const notificationRef = doc(firestore, "notifications", notificationId);
     await deleteDoc(notificationRef);
 
-    console.log("✅ Notification deleted");
   } catch (error) {
-    console.error("❌ Error deleting notification:", error);
+    console.error("Error deleting notification:", error);
     throw new Error("Failed to delete notification");
   }
 };

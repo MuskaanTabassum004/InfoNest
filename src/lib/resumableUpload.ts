@@ -62,24 +62,20 @@ class ResumableUploadManager {
 
   private setupNetworkListeners(): void {
     window.addEventListener('online', () => {
-      console.log('🌐 Network connection restored');
       this.isOnline = true;
       // Auto-resume paused uploads when connection is restored
       this.uploads.forEach((upload, uploadId) => {
         if (upload.state === 'paused' && upload.uploadTask) {
-          console.log(`🔄 Auto-resuming upload: ${uploadId}`);
           this.resumeUpload(uploadId);
         }
       });
     });
 
     window.addEventListener('offline', () => {
-      console.log('🌐 Network connection lost');
       this.isOnline = false;
       // Auto-pause running uploads when connection is lost
       this.uploads.forEach((upload, uploadId) => {
         if (upload.state === 'running') {
-          console.log(`⏸️ Auto-pausing upload due to offline: ${uploadId}`);
           this.pauseUpload(uploadId);
         }
       });
@@ -105,13 +101,11 @@ class ResumableUploadManager {
         this.uploads.forEach((upload, uploadId) => {
           if (upload.state === 'paused') this.resumeUpload(uploadId);
         });
-        console.log('🌐 Connectivity restored via fetch check');
       } else if (wasOnline && !this.isOnline) {
         // Connection lost - pause running uploads
         this.uploads.forEach((upload, uploadId) => {
           if (upload.state === 'running') this.pauseUpload(uploadId);
         });
-        console.log('🌐 Connectivity lost via fetch check');
       }
     } catch (error) {
       const wasOnline = this.isOnline;
@@ -121,7 +115,6 @@ class ResumableUploadManager {
         this.uploads.forEach((upload, uploadId) => {
           if (upload.state === 'running') this.pauseUpload(uploadId);
         });
-        console.log('🌐 Connectivity lost via fetch check');
       }
     }
   }
@@ -138,10 +131,9 @@ class ResumableUploadManager {
             this.uploads.set(upload.id, upload);
           }
         });
-        console.log(`📦 Loaded ${persistedUploads.length} persisted uploads`);
       }
     } catch (error) {
-      console.error('❌ Failed to load persisted uploads:', error);
+      console.error('Failed to load persisted uploads:', error);
     }
   }
 
@@ -154,7 +146,7 @@ class ResumableUploadManager {
       }));
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(uploadsArray));
     } catch (error) {
-      console.error('❌ Failed to persist uploads:', error);
+      console.error('Failed to persist uploads:', error);
     }
   }
 
@@ -214,19 +206,17 @@ class ResumableUploadManager {
     this.uploadQueue.push(uploadId);
     this.persistUploads();
 
-    console.log(`📤 Added upload to queue: ${file.name} (${uploadId})`);
     return uploadId;
   }
 
   private async startUpload(uploadId: string): Promise<void> {
     const upload = this.uploads.get(uploadId);
     if (!upload || !upload.file) {
-      console.error(`❌ Upload not found or file missing: ${uploadId}`);
+      console.error('Upload not found or file missing');
       return;
     }
 
     if (!this.isOnline) {
-      console.log(`⏸️ Upload paused due to offline status: ${uploadId}`);
       upload.state = 'paused';
       return;
     }
@@ -301,7 +291,7 @@ class ResumableUploadManager {
     const upload = this.uploads.get(uploadId);
     if (!upload) return;
 
-    console.error(`❌ Upload error for ${uploadId}:`, error);
+    console.error('Upload error:', error);
     
     upload.state = 'error';
     upload.error = error.message;
@@ -309,7 +299,6 @@ class ResumableUploadManager {
 
     // Check if it's a network error that can be retried
     if (this.isRetryableError(error)) {
-      console.log(`🔄 Retryable error detected, will retry when online: ${uploadId}`);
       upload.state = 'paused';
       
       // Add back to queue for retry
@@ -353,7 +342,6 @@ class ResumableUploadManager {
         callback(result);
       }
 
-      console.log(`✅ Upload completed: ${upload.fileName} (${uploadId})`);
       
       // Clean up after successful upload
       setTimeout(() => {
@@ -388,7 +376,6 @@ class ResumableUploadManager {
       upload.state = 'paused';
       this.activeUploads.delete(uploadId);
       this.persistUploads(); // Save state immediately
-      console.log(`⏸️ Upload paused: ${uploadId}`);
     }
   }
 
@@ -401,9 +388,6 @@ class ResumableUploadManager {
           this.uploadQueue.push(uploadId);
         }
         this.persistUploads(); // Save state immediately
-        console.log(`▶️ Upload queued for resume: ${uploadId}`);
-    } else if (!this.isOnline) {
-        console.log(`⏸️ Upload will resume when online: ${uploadId}`);
     }
   }
 
@@ -424,7 +408,6 @@ class ResumableUploadManager {
       this.uploadQueue.splice(queueIndex, 1);
     }
 
-    console.log(`❌ Upload canceled: ${uploadId}`);
     this.cleanupUpload(uploadId);
   }
 
@@ -466,7 +449,6 @@ class ResumableUploadManager {
       this.cleanupUpload(uploadId);
     });
 
-    console.log(`🧹 Cleaned up ${completedUploads.length} completed uploads`);
   }
 
   private generateUploadId(): string {

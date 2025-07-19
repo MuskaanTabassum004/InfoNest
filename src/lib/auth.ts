@@ -314,11 +314,8 @@ export const signUp = async (
 export const createUserProfileAfterVerification = async (
   firebaseUser: User
 ) => {
-  console.log("🔍 Checking user verification status");
-
   // STRICT: Only create profile for verified users - NO EXCEPTIONS
   if (!firebaseUser.emailVerified) {
-    console.log("❌ User not verified, skipping profile creation");
     
     // Force sign out unverified users
     try {
@@ -329,14 +326,11 @@ export const createUserProfileAfterVerification = async (
     return;
   }
 
-  console.log("✅ User verified, proceeding with profile creation");
-
   // Check if profile already exists
   const profileRef = doc(firestore, "users", firebaseUser.uid);
   const profileSnap = await getDoc(profileRef);
 
   if (!profileSnap.exists()) {
-    console.log("📝 Creating new user profile");
     
     const userProfile: UserProfile = {
       uid: firebaseUser.uid,
@@ -356,9 +350,8 @@ export const createUserProfileAfterVerification = async (
       updatedAt: new Date(),
     });
     
-    console.log("✅ User profile created successfully");
   } else {
-    console.log("ℹ️ User profile already exists");
+    // Profile already exists
   }
 };
 
@@ -367,7 +360,6 @@ export const signIn = async (email: string, password: string) => {
 
   // STRICT: Check if email is verified before allowing sign in
   if (!result.user.emailVerified) {
-    console.log("❌ Sign in blocked: Email not verified");
     
     // Sign out the unverified user immediately
     await firebaseSignOut(auth);
@@ -377,7 +369,6 @@ export const signIn = async (email: string, password: string) => {
     );
   }
 
-  console.log("✅ Sign in successful");
   return result;
 };
 
@@ -453,15 +444,8 @@ export const promoteToInfoWriter = async (uid: string) => {
         "./notifications"
       );
       await createInfoWriterApprovalNotification(uid, previousRole);
-      console.log(
-        "✅ InfoWriter promotion notification created for user:",
-        uid
-      );
     } catch (error) {
-      console.error(
-        "❌ Error creating InfoWriter promotion notification:",
-        error
-      );
+      console.error("Error creating InfoWriter promotion notification:", error);
       // Don't throw error to avoid breaking the promotion process
     }
   }
@@ -536,9 +520,8 @@ export const approveWriterRequest = async (uid: string) => {
       "./notifications"
     );
     await createInfoWriterApprovalNotification(uid);
-    console.log("✅ InfoWriter approval notification created for user:", uid);
   } catch (error) {
-    console.error("❌ Error creating InfoWriter approval notification:", error);
+    console.error("Error creating InfoWriter approval notification:", error);
     // Don't throw error to avoid breaking the approval process
   }
 };
@@ -646,34 +629,27 @@ export const signInWithGoogle = async () => {
 // Handle email verification from link
 export const handleEmailVerification = async (actionCode: string): Promise<boolean> => {
   try {
-    console.log("🔄 Processing email verification");
     
     // Verify the action code
     await applyActionCode(auth, actionCode);
-    console.log("✅ Email verification action code applied successfully");
     
     // Force refresh the current user to get updated emailVerified status
     if (auth.currentUser) {
-      console.log("🔄 Reloading user verification status");
       await auth.currentUser.reload();
       
-      console.log("📧 Verification status updated");
       
       // Create user profile now that email is verified (if verified)
       if (auth.currentUser.emailVerified) {
-        console.log("✅ Email verified! Creating user profile");
         await createUserProfileAfterVerification(auth.currentUser);
         return true;
       } else {
-        console.log("❌ Email verification failed");
         return false;
       }
     } else {
-      console.log("❌ No current user found");
       return false;
     }
   } catch (error) {
-    console.error("❌ Email verification failed:", error);
+    console.error("Email verification failed:", error);
     
     // Provide more specific error messages
     if (error.code === 'auth/invalid-action-code') {

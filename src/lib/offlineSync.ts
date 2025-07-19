@@ -43,10 +43,9 @@ class OfflineSyncManager {
         actions.forEach(action => {
           this.pendingActions.set(action.id, action);
         });
-        console.log(`📦 Loaded ${actions.length} pending offline actions`);
       }
     } catch (error) {
-      console.error('❌ Failed to load pending actions:', error);
+      console.error('Failed to load pending actions:', error);
     }
   }
 
@@ -55,7 +54,7 @@ class OfflineSyncManager {
       const actionsArray = Array.from(this.pendingActions.values());
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(actionsArray));
     } catch (error) {
-      console.error('❌ Failed to persist offline actions:', error);
+      console.error('Failed to persist offline actions:', error);
     }
   }
 
@@ -81,7 +80,6 @@ class OfflineSyncManager {
     this.pendingActions.set(actionId, action);
     this.persistActions();
 
-    console.log(`📝 Added offline action: ${type} (${actionId})`);
     
     // Try to process immediately if online
     if (navigator.onLine) {
@@ -95,7 +93,6 @@ class OfflineSyncManager {
     if (this.isProcessing || !navigator.onLine) return;
 
     this.isProcessing = true;
-    console.log('🔄 Processing pending offline actions');
 
     const actions = Array.from(this.pendingActions.values())
       .sort((a, b) => a.timestamp - b.timestamp);
@@ -104,13 +101,11 @@ class OfflineSyncManager {
       try {
         await this.processAction(action);
         this.pendingActions.delete(action.id);
-        console.log(`✅ Processed offline action: ${action.type} (${action.id})`);
       } catch (error) {
-        console.error(`❌ Failed to process action ${action.id}:`, error);
+        console.error(`Failed to process action:`, error);
         
         action.retryCount++;
         if (action.retryCount >= this.MAX_RETRIES) {
-          console.error(`❌ Max retries reached for action ${action.id}, removing`);
           this.pendingActions.delete(action.id);
         }
       }
@@ -147,15 +142,11 @@ class OfflineSyncManager {
   private async processArticleSaveAction(action: OfflineAction): Promise<void> {
     // Implement article save logic
     const { articleData } = action.data;
-    // This would integrate with your article save API
-    console.log('Processing article save:', articleData);
   }
 
   private async processArticlePublishAction(action: OfflineAction): Promise<void> {
     // Implement article publish logic
     const { articleId } = action.data;
-    // This would integrate with your article publish API
-    console.log('Processing article publish:', articleId);
   }
 
   public getPendingActionsCount(): number {
@@ -169,7 +160,6 @@ class OfflineSyncManager {
   public clearCompletedActions(): void {
     this.pendingActions.clear();
     this.persistActions();
-    console.log('🧹 Cleared all pending actions');
   }
 }
 

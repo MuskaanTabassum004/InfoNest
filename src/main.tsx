@@ -19,7 +19,7 @@ try {
     }
   });
 } catch (error) {
-  console.warn('Failed to clear initial auth state:', error);
+  // Silently handle initial state clearing
 }
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

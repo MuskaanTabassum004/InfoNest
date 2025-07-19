@@ -77,12 +77,11 @@ export const uploadFile = async (
   folder: "articles" | "profiles" = "articles",
   onProgress?: (progress: number) => void
 ): Promise<UploadResult> => {
-  console.log("🔄 Starting file upload");
 
   // Validate file
   const validation = validateFile(file);
   if (!validation.isValid) {
-    console.error("❌ File validation failed:", validation.error);
+    console.error("File validation failed:", validation.error);
     throw new Error(validation.error);
   }
 
@@ -90,22 +89,16 @@ export const uploadFile = async (
   const fileName = generateFileName(file.name, userId);
   const filePath = `${folder}/${fileName}`;
 
-  console.log("📁 File path generated");
 
   // Create storage reference
   const storageRef = ref(storage, filePath);
-  console.log("🔗 Storage reference created");
 
   try {
     // Upload file
-    console.log("⬆️ Starting upload to Firebase Storage");
     const snapshot = await uploadBytes(storageRef, file);
-    console.log("✅ Upload completed");
 
     // Get download URL
-    console.log("🔗 Getting download URL");
     const downloadURL = await getDownloadURL(snapshot.ref);
-    console.log("✅ Download URL obtained");
 
     const result = {
       url: downloadURL,
@@ -115,10 +108,9 @@ export const uploadFile = async (
       type: file.type,
     };
 
-    console.log("🎉 Upload successful");
     return result;
   } catch (error: any) {
-    console.error("❌ Upload failed:", error);
+    console.error("Upload failed:", error);
 
     // Provide specific error messages based on error type
     if (error.code === "storage/unauthorized") {
@@ -143,19 +135,15 @@ export const uploadFile = async (
 
 export const deleteFile = async (filePath: string): Promise<void> => {
   try {
-    console.log("🗑️ Attempting to delete file");
 
     const storageRef = ref(storage, filePath);
-    console.log("📍 Storage reference created");
 
     await deleteObject(storageRef);
-    console.log("✅ File deleted successfully");
   } catch (error: any) {
-    console.error("❌ Error deleting file:", error);
+    console.error("Error deleting file:", error);
 
     // If file doesn't exist, consider it already deleted (success)
     if (error?.code === 'storage/object-not-found') {
-      console.log("ℹ️ File already deleted or doesn't exist");
       return; // Don't throw error for already deleted files
     }
 

@@ -79,14 +79,12 @@ export const useAuth = () => {
           cachedSession &&
           Date.now() - cachedSession.lastUpdated < 5 * 60 * 1000
         ) {
-          console.log("✅ Using cached session");
           setUserProfile(cachedSession.userProfile);
           setPermissions(cachedSession.permissions);
           setProfileLoading(false);
           return;
         }
 
-        console.log("🔄 Loading fresh profile");
 
         // Load from Firestore if cache miss or needs refresh
         const profileRef = doc(firestore, "users", firebaseUser.uid);
@@ -116,9 +114,6 @@ export const useAuth = () => {
             setPermissions(session.permissions);
             setProfileLoading(false);
           } else {
-            if (firebaseUser.emailVerified) {
-              console.log("⚠️ Verified user without profile");
-            }
             setUserProfile(null);
             setPermissions(null);
             setProfileLoading(false);
@@ -140,22 +135,18 @@ export const useAuth = () => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
-        console.log("🔍 Auth state changed");
 
         // STRICT VERIFICATION CHECK: Only process verified users
         if (firebaseUser.emailVerified) {
-          console.log("✅ Processing verified user");
           await createUserProfileAfterVerification(firebaseUser);
           await loadUserProfile(firebaseUser);
         } else {
-          console.log("❌ Unverified user: Clearing data and signing out");
           
           // CRITICAL: Sign out unverified users immediately
           try {
             await firebaseSignOut(auth);
-            console.log("✅ Unverified user signed out");
           } catch (signOutError) {
-            console.error("❌ Failed to sign out unverified user");
+            console.error("Failed to sign out unverified user");
           }
           
           // Clear all user data for unverified users
@@ -164,7 +155,6 @@ export const useAuth = () => {
           authCache.clearAllSessions();
         }
       } else {
-        console.log("👤 No authenticated user");
         setUser(null);
         setUserProfile(null);
         setPermissions(null);

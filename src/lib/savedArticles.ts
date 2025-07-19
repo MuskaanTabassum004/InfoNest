@@ -59,9 +59,8 @@ export const saveArticle = async (
     };
 
     await setDoc(savedArticleRef, savedArticleData);
-    console.log("✅ Article saved");
   } catch (error) {
-    console.error("❌ Error saving article:", error);
+    console.error("Error saving article:", error);
     throw new Error("Failed to save article");
   }
 };
@@ -153,7 +152,6 @@ export const subscribeToSavedArticlesCount = (
   userId: string,
   callback: (count: number) => void
 ): (() => void) => {
-  console.log("🔔 Setting up saved articles count subscription");
 
   const q = query(
     collection(firestore, "savedArticles"),
@@ -163,11 +161,10 @@ export const subscribeToSavedArticlesCount = (
   return onSnapshot(
     q,
     (snapshot) => {
-      console.log("📊 Saved articles count updated");
       callback(snapshot.size);
     },
     (error) => {
-      console.error("❌ Error in saved articles count subscription:", error);
+      console.error("Error in saved articles count subscription:", error);
       callback(0);
     }
   );
@@ -178,7 +175,6 @@ export const subscribeToUserSavedArticles = (
   userId: string,
   callback: (articles: SavedArticle[]) => void
 ): (() => void) => {
-  console.log("🔔 Setting up saved articles subscription");
 
   // Remove orderBy to avoid index requirement - sort in JavaScript instead
   const q = query(
@@ -189,7 +185,6 @@ export const subscribeToUserSavedArticles = (
   return onSnapshot(
     q,
     (snapshot) => {
-      console.log("📚 Saved articles updated");
       const articles = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
@@ -207,7 +202,7 @@ export const subscribeToUserSavedArticles = (
       callback(articles);
     },
     (error) => {
-      console.error("❌ Error in saved articles subscription:", error);
+      console.error("Error in saved articles subscription:", error);
       callback([]);
     }
   );

@@ -106,17 +106,12 @@ export const ResumableFileUpload: React.FC<ResumableFileUploadProps> = ({
     }
 
     const file = files[0];
-    console.log("📁 File selected for resumable upload:", {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    });
 
     // Validate file
     const validation = validateFile(file);
     if (!validation.isValid) {
       const error = validation.error || "Invalid file";
-      console.error("❌ File validation failed:", error);
+      console.error("File validation failed:", error);
       toast.error(error);
       onUploadError?.(error);
       return;
@@ -139,11 +134,10 @@ export const ResumableFileUpload: React.FC<ResumableFileUploadProps> = ({
         },
         (result) => {
           if (result instanceof Error) {
-            console.error("💥 Upload failed:", result.message);
+            console.error("Upload failed:", result.message);
             toast.error(`Upload failed: ${result.message}`);
             onUploadError?.(result.message);
           } else {
-            console.log("🎉 Upload completed:", result);
             toast.success("File uploaded successfully!");
             onUploadComplete(result);
           }
@@ -161,7 +155,7 @@ export const ResumableFileUpload: React.FC<ResumableFileUploadProps> = ({
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Upload failed";
-      console.error("💥 Upload error:", errorMessage);
+      console.error("Upload error:", errorMessage);
       toast.error(errorMessage);
       onUploadError?.(errorMessage);
     }

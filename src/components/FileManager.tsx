@@ -207,7 +207,6 @@ export const useArticleFiles = (content: string): ManagedFile[] => {
       }
     });
 
-    console.log("📋 Extracted files from content");
     return files;
   }, [content]); // Only recalculate when content changes
 };

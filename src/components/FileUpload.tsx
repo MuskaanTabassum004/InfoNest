@@ -67,7 +67,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) {
-      console.log("No files selected");
       return;
     }
 
@@ -80,7 +79,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
     // Prevent duplicate uploads
     if (isUploading) {
-      console.log("⚠️ Upload already in progress, ignoring duplicate request");
       return;
     }
 
@@ -90,54 +88,40 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
     // Prevent uploading the same file twice in a row
     if (lastUploadedFile === fileId) {
-      console.log("⚠️ Same file already uploaded recently, ignoring duplicate");
       toast.error("This file was just uploaded. Please wait before uploading again.");
       return;
     }
 
     // Prevent uploading the same file multiple times (by content signature)
     if (uploadedFiles.has(fileHash)) {
-      console.log("⚠️ File with same content already uploaded, ignoring duplicate");
       toast.error("A file with the same name, size, and type has already been uploaded.");
       return;
     }
 
-    console.log("📁 File selected:", {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      lastModified: new Date(file.lastModified),
-      fileId: fileId,
-      fileHash: fileHash
-    });
 
     // Validate file
     const validation = validateFile(file);
     if (!validation.isValid) {
       const error = validation.error || "Invalid file";
-      console.error("❌ File validation failed:", error);
+      console.error("File validation failed:", error);
       toast.error(error);
       onUploadError?.(error);
       return;
     }
 
-    console.log("✅ File validation passed");
     setIsUploading(true);
     setUploadProgress(0);
 
     try {
-      console.log("🚀 Starting upload process...");
       const result = await uploadFile(
         file,
         userProfile.uid,
         folder,
         (progress) => {
-          console.log("📊 Upload progress:", progress + "%");
           setUploadProgress(progress);
         }
       );
 
-      console.log("🎉 Upload completed successfully:", result);
       setLastUploadedFile(fileId); // Track this file as uploaded
       setUploadedFiles(prev => new Set([...prev, fileHash])); // Track file content signature
 
@@ -151,7 +135,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Upload failed";
-      console.error("💥 Upload error:", errorMessage);
+      console.error("Upload error:", errorMessage);
       toast.error(errorMessage);
       onUploadError?.(errorMessage);
     } finally {
