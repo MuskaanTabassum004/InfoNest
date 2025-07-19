@@ -792,7 +792,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           useResumable={true}
         >
           <Upload className="h-4 w-4" title="Upload File" />
-        </ResumableFileUploadButton>
+        </FileUploadButton>
 
         <div className="w-px h-6 bg-gray-300 mx-1" />
 
