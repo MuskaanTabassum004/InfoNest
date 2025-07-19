@@ -101,7 +101,6 @@ export const EmailVerificationPage: React.FC = () => {
         try {
           await auth.currentUser.reload();
           if (auth.currentUser.emailVerified && !isVerified) {
-            console.log("✅ Cross-device verification detected");
             setIsVerified(true);
             toast.success("Email verified from another device! Welcome to InfoNest.");
             navigate("/auth", { replace: true });
@@ -112,7 +111,6 @@ export const EmailVerificationPage: React.FC = () => {
       }
     }, 3000); // Check every 3 seconds
     return () => {
-      console.log("🧹 Cleaning up verification listener");
       unsubscribe();
       clearInterval(checkInterval);
     };
