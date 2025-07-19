@@ -73,6 +73,7 @@ export const AuthForm: React.FC = () => {
         });
       }
     } catch (error: any) {
+      console.error("Authentication error:", error);
       toast.error(error.message || "An error occurred");
     } finally {
       setLoading(false);

@@ -274,39 +274,75 @@ export const signUp = async (
   password: string,
   displayName?: string
 ) => {
-  // Create Firebase Auth user but DO NOT create Firestore profile yet
-  const result = await createUserWithEmailAndPassword(auth, email, password);
+  try {
+    // Create Firebase Auth user but DO NOT create Firestore profile yet
+    const result = await createUserWithEmailAndPassword(auth, email, password);
 
-  // Store display name in Firebase Auth profile for later use
-  if (displayName) {
-    await updateProfile(result.user, { displayName });
+    // Store display name in Firebase Auth profile for later use
+    if (displayName) {
+      await updateProfile(result.user, { displayName });
+    }
+
+    // Send email verification immediately
+    await sendEmailVerification(result.user, {
+      url: `${window.location.origin}/verify-email`,
+      handleCodeInApp: true,
+    });
+
+    // CRITICAL: Sign out immediately to prevent authenticated state for unverified users
+    await firebaseSignOut(auth);
+
+    // Return user info for verification page display
+    return { user: result.user, email, displayName };
+  } catch (error: any) {
+    console.error("Signup error:", error);
+    
+    // If user creation failed, ensure no partial state exists
+    if (auth.currentUser) {
+      try {
+        await auth.currentUser.delete();
+      } catch (deleteError) {
+        console.error("Failed to cleanup failed user creation:", deleteError);
+      }
+    }
+    
+    throw error;
   }
-
-  // Send email verification
-  await sendEmailVerification(result.user);
-
-  // Sign out immediately to prevent authenticated state
-  await firebaseSignOut(auth);
-
-  // Return user info for verification page display
-  return { user: result.user, email, displayName };
 };
 
 // Create user profile in Firestore ONLY after email verification
 export const createUserProfileAfterVerification = async (
   firebaseUser: User
 ) => {
-  // STRICT: Only create profile for verified users
+  console.log("🔍 Checking user verification status:", {
+    uid: firebaseUser.uid,
+    email: firebaseUser.email,
+    emailVerified: firebaseUser.emailVerified,
+  });
+
+  // STRICT: Only create profile for verified users - NO EXCEPTIONS
   if (!firebaseUser.emailVerified) {
-    console.log("❌ User not verified, skipping profile creation");
+    console.log("❌ STRICT VERIFICATION: User not verified, skipping profile creation");
+    console.log("❌ User will be signed out to prevent unverified access");
+    
+    // Force sign out unverified users
+    try {
+      await firebaseSignOut(auth);
+    } catch (signOutError) {
+      console.error("Failed to sign out unverified user:", signOutError);
+    }
     return;
   }
+
+  console.log("✅ User is verified, proceeding with profile creation");
 
   // Check if profile already exists
   const profileRef = doc(firestore, "users", firebaseUser.uid);
   const profileSnap = await getDoc(profileRef);
 
   if (!profileSnap.exists()) {
+    console.log("📝 Creating new user profile for verified user");
+    
     const userProfile: UserProfile = {
       uid: firebaseUser.uid,
       email: firebaseUser.email!,
@@ -319,24 +355,38 @@ export const createUserProfileAfterVerification = async (
       emailVerified: true,
     };
 
-    await setDoc(profileRef, userProfile);
+    await setDoc(profileRef, {
+      ...userProfile,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    
     console.log(
-      "✅ User profile created after email verification:",
-      firebaseUser.uid
+      "✅ User profile created successfully for verified user:",
+      firebaseUser.uid,
+      firebaseUser.email
     );
+  } else {
+    console.log("ℹ️ User profile already exists for verified user");
   }
 };
 
 export const signIn = async (email: string, password: string) => {
   const result = await signInWithEmailAndPassword(auth, email, password);
 
-  // Check if email is verified
+  // STRICT: Check if email is verified before allowing sign in
   if (!result.user.emailVerified) {
+    console.log("❌ SIGN IN BLOCKED: User email not verified:", result.user.email);
+    
+    // Sign out the unverified user immediately
+    await firebaseSignOut(auth);
+    
     throw new Error(
       "Please verify your email address before signing in. Check your inbox for the verification link."
     );
   }
 
+  console.log("✅ SIGN IN SUCCESS: Verified user signed in:", result.user.email);
   return result;
 };
 
@@ -570,21 +620,30 @@ export const signInWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
   const result = await signInWithPopup(auth, provider);
 
-  // If new user, create profile
+  // Google users are automatically verified, so we can create profile
   const docRef = doc(firestore, "users", result.user.uid);
   const existing = await getDoc(docRef);
 
   if (!existing.exists()) {
+    // Google sign-in users are considered verified
     const newUserProfile: UserProfile = {
       uid: result.user.uid,
       email: result.user.email!,
       role: "user",
       displayName: result.user.displayName || "",
+      emailVerified: true, // Google users are automatically verified
       createdAt: new Date(),
       updatedAt: new Date(),
       requestedWriterAccess: false,
     };
-    await setDoc(docRef, newUserProfile);
+    
+    await setDoc(docRef, {
+      ...newUserProfile,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    
+    console.log("✅ Google user profile created:", result.user.email);
   }
 
   return result;
@@ -593,23 +652,44 @@ export const signInWithGoogle = async () => {
 // Handle email verification from link
 export const handleEmailVerification = async (actionCode: string): Promise<boolean> => {
   try {
+    console.log("🔄 Processing email verification with action code");
+    
     // Verify the action code
     await applyActionCode(auth, actionCode);
+    console.log("✅ Email verification action code applied successfully");
     
     // Force refresh the current user to get updated emailVerified status
     if (auth.currentUser) {
+      console.log("🔄 Reloading user to get updated verification status");
       await auth.currentUser.reload();
       
-      // Create user profile now that email is verified
+      console.log("📧 User verification status after reload:", auth.currentUser.emailVerified);
+      
+      // Create user profile now that email is verified (if verified)
       if (auth.currentUser.emailVerified) {
+        console.log("✅ Email verified! Creating user profile...");
         await createUserProfileAfterVerification(auth.currentUser);
         return true;
+      } else {
+        console.log("❌ Email still not verified after applying action code");
+        return false;
       }
+    } else {
+      console.log("❌ No current user found during verification");
+      return false;
+    }
+  } catch (error) {
+    console.error("❌ Email verification failed:", error);
+    
+    // Provide more specific error messages
+    if (error.code === 'auth/invalid-action-code') {
+      throw new Error('This verification link has expired or has already been used. Please request a new verification email.');
+    } else if (error.code === 'auth/user-disabled') {
+      throw new Error('This account has been disabled. Please contact support.');
+    } else if (error.code === 'auth/user-not-found') {
+      throw new Error('No account found for this verification link. Please sign up again.');
     }
     
-    return false;
-  } catch (error) {
-    console.error("Email verification failed:", error);
     throw error;
   }
 };

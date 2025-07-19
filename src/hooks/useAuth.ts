@@ -143,26 +143,35 @@ export const useAuth = () => {
 
       if (firebaseUser) {
         console.log(
-          "🔍 Auth state changed:",
+          "🔍 Firebase Auth state changed:",
           firebaseUser.email,
-          "Verified:",
+          "Email Verified:",
           firebaseUser.emailVerified
         );
 
-        // STRICT: Only process verified users
+        // STRICT VERIFICATION CHECK: Only process verified users
         if (firebaseUser.emailVerified) {
-          console.log("✅ Processing verified user:", firebaseUser.email);
+          console.log("✅ VERIFIED USER: Processing authenticated user:", firebaseUser.email);
           await createUserProfileAfterVerification(firebaseUser);
           await loadUserProfile(firebaseUser);
         } else {
-          console.log("⏳ User not verified yet, setting profile to null");
-          // User exists but not verified - clear all data
+          console.log("❌ UNVERIFIED USER: Clearing all data and signing out:", firebaseUser.email);
+          
+          // CRITICAL: Sign out unverified users immediately
+          try {
+            await firebaseSignOut(auth);
+            console.log("✅ Unverified user signed out successfully");
+          } catch (signOutError) {
+            console.error("❌ Failed to sign out unverified user:", signOutError);
+          }
+          
+          // Clear all user data for unverified users
           setUserProfile(null);
           setPermissions(null);
           authCache.clearAllSessions();
         }
       } else {
-        console.log("👤 No authenticated user");
+        console.log("👤 No authenticated user - clearing all data");
         setUser(null);
         setUserProfile(null);
         setPermissions(null);

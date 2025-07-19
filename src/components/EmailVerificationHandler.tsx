@@ -15,7 +15,10 @@ export const EmailVerificationHandler: React.FC = () => {
       const mode = searchParams.get('mode');
       const oobCode = searchParams.get('oobCode');
 
+      console.log("🔍 Email verification handler started:", { mode, oobCode: oobCode ? 'present' : 'missing' });
+
       if (mode !== 'verifyEmail' || !oobCode) {
+        console.log("❌ Invalid verification parameters");
         setStatus('error');
         setMessage('Invalid verification link. Please check your email for the correct link.');
         return;
@@ -24,32 +27,38 @@ export const EmailVerificationHandler: React.FC = () => {
       try {
         setStatus('loading');
         setMessage('Verifying your email address...');
+        
+        console.log("🔄 Starting email verification process...");
 
         const success = await handleEmailVerification(oobCode);
         
         if (success) {
+          console.log("✅ Email verification successful!");
           setStatus('success');
-          setMessage('Email verified successfully! You can now access your account.');
+          setMessage('Email verified successfully! Your account is now active and you can sign in.');
           toast.success('Email verified! Welcome to InfoNest.');
           
-          // Redirect to homepage after 3 seconds
+          // Redirect to auth page for sign in after 3 seconds
           setTimeout(() => {
-            navigate('/', { replace: true });
+            navigate('/auth', { replace: true });
           }, 3000);
         } else {
+          console.log("❌ Email verification returned false");
           setStatus('error');
-          setMessage('Email verification failed. Please try again or contact support.');
+          setMessage('Email verification failed. The verification link may be invalid or expired. Please try signing up again.');
         }
       } catch (error: any) {
-        console.error('Email verification error:', error);
+        console.error('❌ Email verification error:', error);
         setStatus('error');
         
         if (error.code === 'auth/invalid-action-code') {
-          setMessage('This verification link has expired or has already been used.');
+          setMessage('This verification link has expired or has already been used. Please sign up again to receive a new verification email.');
         } else if (error.code === 'auth/user-disabled') {
           setMessage('This account has been disabled. Please contact support.');
+        } else if (error.code === 'auth/user-not-found') {
+          setMessage('No account found for this verification link. Please sign up again.');
         } else {
-          setMessage('Email verification failed. Please try again or contact support.');
+          setMessage(error.message || 'Email verification failed. Please try again or contact support.');
         }
       }
     };
@@ -112,7 +121,7 @@ export const EmailVerificationHandler: React.FC = () => {
                   onClick={() => navigate('/auth', { replace: true })}
                   className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
                 >
-                  Try Signing Up Again
+                  Sign Up Again
                 </button>
                 <button
                   onClick={() => navigate('/', { replace: true })}

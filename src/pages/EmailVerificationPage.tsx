@@ -111,7 +111,7 @@ export const EmailVerificationPage: React.FC = () => {
             console.log("✅ Cross-device verification detected!");
             setIsVerified(true);
             toast.success("Email verified from another device! Welcome to InfoNest.");
-            navigate("/", { replace: true });
+            navigate("/auth", { replace: true });
           }
         } catch (error) {
           console.error("Error checking verification status:", error);
