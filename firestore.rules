@@ -13,6 +13,13 @@ service cloud.firestore {
       // Admins can read all articles (any status)
       allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
+      // LIST PERMISSIONS
+      // Allow authenticated users to list/query articles (for homepage, search, etc.)
+      allow list: if request.auth != null;
+
+      // Allow unauthenticated users to list published articles (for homepage)
+      allow list: if true;
+
       // CREATE PERMISSIONS
       // Only infowriters and admins can create articles
       allow create: if request.auth != null &&
@@ -37,6 +44,8 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.role == 'infowriter';
     }
     
+
+    
     // Writer requests collection - users can read their own requests, admins can read all
     match /writerRequests/{requestId} {
       allow read: if request.auth != null && 
@@ -53,13 +62,16 @@ service cloud.firestore {
       // This enables showing author names and profile pictures throughout the application
       allow read: if request.auth != null;
 
+      // Allow authenticated users to list/query users (needed for admin operations and article author loading)
+      allow list: if request.auth != null;
+
       // Allow user creation ONLY for verified users
-      allow create: if request.auth != null && 
-        request.auth.uid == userId && 
+      allow create: if request.auth != null &&
+        request.auth.uid == userId &&
         request.auth.token.email_verified == true;
 
       // Allow users to update their own profile (except role)
-      allow update: if request.auth != null && 
+      allow update: if request.auth != null &&
         request.auth.uid == userId &&
         request.auth.token.email_verified == true &&
         (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
