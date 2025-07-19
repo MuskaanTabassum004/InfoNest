@@ -17,7 +17,7 @@ import { SaveArticleButton } from "./SaveArticleButton";
 import { ShareButton } from "./ShareButton";
 import { getUserProfile, UserProfile } from "../lib/auth";
 import { useAuth } from "../hooks/useAuth";
-import { Article, softDeleteArticle } from "../lib/articles";
+import { Article, deleteArticleByRole } from "../lib/articles";
 import { toast } from "react-hot-toast";
 
 interface ArticleCardProps {
@@ -37,7 +37,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   variant = "default",
   className = "",
 }) => {
-  const { userProfile, isInfoWriter, isAdmin } = useAuth();
+  const { userProfile, canEditArticle, canDeleteArticle } = useAuth();
   const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
   const [loadingAuthor, setLoadingAuthor] = useState(true);
   const [profilePicError, setProfilePicError] = useState(false);
@@ -79,22 +79,36 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   };
 
   const canEdit = () => {
-    if (!isInfoWriter || !userProfile) return false;
-    return article.authorId === userProfile.uid || userProfile.role === "admin";
+    if (!userProfile) return false;
+    return canEditArticle(article.authorId);
+  };
+
+  const canDelete = () => {
+    if (!userProfile) return false;
+    return canDeleteArticle(article.authorId, authorProfile?.role);
   };
 
   const handleDelete = async () => {
-    if (!userProfile || !isAdmin) return;
+    if (!userProfile || !canDelete()) return;
 
     setDeleting(true);
     try {
-      await softDeleteArticle(
+      await deleteArticleByRole(
         article.id,
-        "admin",
+        userProfile.role,
         userProfile.uid,
-        "Article deleted by administrator"
+        article.authorId,
+        authorProfile?.role,
+        "Article removed by administrator"
       );
-      toast.success("Article deleted successfully");
+
+      // Different success messages based on deletion type
+      const isOwnArticle = userProfile.uid === article.authorId;
+      const successMessage = isOwnArticle
+        ? "Article deleted successfully"
+        : "Article unpublished successfully";
+
+      toast.success(successMessage);
       setShowDeleteConfirm(false);
       // Optionally trigger a refresh of the parent component
       window.location.reload();
@@ -295,8 +309,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             </Link>
           )}
 
-          {/* Admin Delete Button */}
-          {isAdmin && (
+          {/* Delete Button */}
+          {canDelete() && (
             <div className="relative">
               {showDeleteConfirm ? (
                 <div className="flex items-center space-x-1">
@@ -324,7 +338,11 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
                   className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Delete Article (Admin Only)"
+                  title={
+                    userProfile?.uid === article.authorId
+                      ? "Delete Article"
+                      : "Unpublish Article"
+                  }
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
