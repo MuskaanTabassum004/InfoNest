@@ -1,4 +1,9 @@
-import { ref, uploadBytesResumable, getDownloadURL, UploadTask } from "firebase/storage";
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  UploadTask,
+} from "firebase/storage";
 import { storage } from "./firebase";
 
 export interface UploadProgress {
@@ -7,7 +12,7 @@ export interface UploadProgress {
   percentage: number;
   speed: number; // bytes per second
   estimatedTimeRemaining: number; // seconds
-  state: 'running' | 'paused' | 'success' | 'error' | 'canceled';
+  state: "running" | "paused" | "success" | "error" | "canceled";
 }
 
 export interface UploadMetadata {
@@ -21,10 +26,15 @@ export interface UploadMetadata {
   lastProgressTime: number;
   bytesTransferred: number;
   totalBytes: number;
-  state: 'running' | 'paused' | 'success' | 'error' | 'canceled';
+  state: "running" | "paused" | "success" | "error" | "canceled";
   error?: string;
   downloadURL?: string;
   uploadTask?: UploadTask;
+  // Add fields for proper resumption
+  uploadSessionUrl?: string;
+  fileData?: ArrayBuffer; // Store file data for resumption
+  fileType?: string;
+  fileLastModified?: number;
 }
 
 export interface ResumableUploadResult {
@@ -39,10 +49,14 @@ export interface ResumableUploadResult {
 class ResumableUploadManager {
   private static instance: ResumableUploadManager;
   private uploads: Map<string, UploadMetadata> = new Map();
-  private progressCallbacks: Map<string, (progress: UploadProgress) => void> = new Map();
-  private completionCallbacks: Map<string, (result: ResumableUploadResult | Error) => void> = new Map();
+  private progressCallbacks: Map<string, (progress: UploadProgress) => void> =
+    new Map();
+  private completionCallbacks: Map<
+    string,
+    (result: ResumableUploadResult | Error) => void
+  > = new Map();
   private isOnline: boolean = navigator.onLine;
-  private readonly STORAGE_KEY = 'infonest_uploads';
+  private readonly STORAGE_KEY = "infonest_uploads";
   private readonly MAX_CONCURRENT_UPLOADS = 3;
   private uploadQueue: string[] = [];
   private activeUploads: Set<string> = new Set();
@@ -61,50 +75,62 @@ class ResumableUploadManager {
   }
 
   private setupNetworkListeners(): void {
-    window.addEventListener('online', () => {
+    window.addEventListener("online", () => {
       this.isOnline = true;
       // Auto-resume paused uploads when connection is restored
       this.uploads.forEach((upload, uploadId) => {
-        if (upload.state === 'paused' && upload.uploadTask) {
+        if (upload.state === "paused" && upload.uploadTask) {
           this.resumeUpload(uploadId);
         }
       });
     });
 
-    window.addEventListener('offline', () => {
+    window.addEventListener("offline", () => {
       this.isOnline = false;
       // Auto-pause running uploads when connection is lost
       this.uploads.forEach((upload, uploadId) => {
-        if (upload.state === 'running') {
+        if (upload.state === "running") {
           this.pauseUpload(uploadId);
         }
       });
     });
 
-    // Additional connectivity check using fetch
+    // Additional connectivity check using fetch - faster polling for real-time behavior
     setInterval(() => {
       this.checkConnectivity();
-    }, 5000);
+    }, 2000); // Check every 2 seconds for more responsive behavior
   }
 
   private async checkConnectivity(): Promise<void> {
     try {
-      const response = await fetch('/favicon.ico', { 
-        method: 'HEAD',
-        cache: 'no-cache'
+      const response = await fetch("/favicon.ico", {
+        method: "HEAD",
+        cache: "no-cache",
       });
       const wasOnline = this.isOnline;
       this.isOnline = response.ok;
-      
+
       if (!wasOnline && this.isOnline) {
         // Connection restored - resume paused uploads
+        console.log("🌐 Connection restored, resuming paused uploads...");
         this.uploads.forEach((upload, uploadId) => {
-          if (upload.state === 'paused') this.resumeUpload(uploadId);
+          if (upload.state === "paused") {
+            console.log(
+              `📤 Resuming upload: ${upload.fileName} (${upload.bytesTransferred}/${upload.totalBytes} bytes)`
+            );
+            this.resumeUpload(uploadId);
+          }
         });
       } else if (wasOnline && !this.isOnline) {
         // Connection lost - pause running uploads
+        console.log("🔌 Connection lost, pausing running uploads...");
         this.uploads.forEach((upload, uploadId) => {
-          if (upload.state === 'running') this.pauseUpload(uploadId);
+          if (upload.state === "running") {
+            console.log(
+              `⏸️ Pausing upload: ${upload.fileName} (${upload.bytesTransferred}/${upload.totalBytes} bytes)`
+            );
+            this.pauseUpload(uploadId);
+          }
         });
       }
     } catch (error) {
@@ -113,7 +139,7 @@ class ResumableUploadManager {
       if (wasOnline) {
         // Connection lost - pause running uploads
         this.uploads.forEach((upload, uploadId) => {
-          if (upload.state === 'running') this.pauseUpload(uploadId);
+          if (upload.state === "running") this.pauseUpload(uploadId);
         });
       }
     }
@@ -123,30 +149,63 @@ class ResumableUploadManager {
     try {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       if (stored) {
-        const persistedUploads: UploadMetadata[] = JSON.parse(stored);
-        persistedUploads.forEach(upload => {
-          if (upload.state === 'running' || upload.state === 'paused') {
+        const persistedUploads: any[] = JSON.parse(stored);
+        persistedUploads.forEach((upload) => {
+          if (upload.state === "running" || upload.state === "paused") {
             // Reset to paused state for manual resume
-            upload.state = 'paused';
+            upload.state = "paused";
+
+            // Restore file data from base64
+            if (upload.fileData && upload.fileType && upload.fileName) {
+              try {
+                const arrayBuffer = this.base64ToArrayBuffer(upload.fileData);
+                const file = new File([arrayBuffer], upload.fileName, {
+                  type: upload.fileType,
+                  lastModified: upload.fileLastModified || Date.now(),
+                });
+                upload.file = file;
+                upload.fileData = arrayBuffer; // Keep as ArrayBuffer in memory
+              } catch (fileError) {
+                console.error(
+                  "Failed to restore file for upload:",
+                  upload.id,
+                  fileError
+                );
+                return; // Skip this upload if file restoration fails
+              }
+            } else {
+              console.warn("Upload missing file data, skipping:", upload.id);
+              return; // Skip uploads without file data
+            }
+
             this.uploads.set(upload.id, upload);
+
+            // Add to queue for potential resumption
+            if (upload.state === "paused") {
+              this.uploadQueue.push(upload.id);
+            }
           }
         });
       }
     } catch (error) {
-      console.error('Failed to load persisted uploads:', error);
+      console.error("Failed to load persisted uploads:", error);
     }
   }
 
   private persistUploads(): void {
     try {
-      const uploadsArray = Array.from(this.uploads.values()).map(upload => ({
+      const uploadsArray = Array.from(this.uploads.values()).map((upload) => ({
         ...upload,
         uploadTask: undefined, // Don't persist Firebase task
-        file: undefined // Don't persist File object
+        file: undefined, // Don't persist File object
+        // Convert ArrayBuffer to base64 for storage
+        fileData: upload.fileData
+          ? this.arrayBufferToBase64(upload.fileData)
+          : undefined,
       }));
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(uploadsArray));
     } catch (error) {
-      console.error('Failed to persist uploads:', error);
+      console.error("Failed to persist uploads:", error);
     }
   }
 
@@ -159,7 +218,10 @@ class ResumableUploadManager {
   private processUploadQueue(): void {
     if (!this.isOnline) return;
 
-    while (this.activeUploads.size < this.MAX_CONCURRENT_UPLOADS && this.uploadQueue.length > 0) {
+    while (
+      this.activeUploads.size < this.MAX_CONCURRENT_UPLOADS &&
+      this.uploadQueue.length > 0
+    ) {
       const uploadId = this.uploadQueue.shift();
       if (uploadId && this.uploads.has(uploadId)) {
         this.startUpload(uploadId);
@@ -170,13 +232,16 @@ class ResumableUploadManager {
   public async addUpload(
     file: File,
     userId: string,
-    folder: string = 'articles',
+    folder: string = "articles",
     onProgress?: (progress: UploadProgress) => void,
     onComplete?: (result: ResumableUploadResult | Error) => void
   ): Promise<string> {
     const uploadId = this.generateUploadId();
     const fileName = this.generateFileName(file.name, userId);
     const filePath = `${folder}/${fileName}`;
+
+    // Convert file to ArrayBuffer for persistence
+    const fileData = await file.arrayBuffer();
 
     const uploadMetadata: UploadMetadata = {
       id: uploadId,
@@ -189,15 +254,19 @@ class ResumableUploadManager {
       lastProgressTime: Date.now(),
       bytesTransferred: 0,
       totalBytes: file.size,
-      state: 'paused'
+      state: "paused",
+      // Store file data for resumption
+      fileData,
+      fileType: file.type,
+      fileLastModified: file.lastModified,
     };
 
     this.uploads.set(uploadId, uploadMetadata);
-    
+
     if (onProgress) {
       this.progressCallbacks.set(uploadId, onProgress);
     }
-    
+
     if (onComplete) {
       this.completionCallbacks.set(uploadId, onComplete);
     }
@@ -212,26 +281,42 @@ class ResumableUploadManager {
   private async startUpload(uploadId: string): Promise<void> {
     const upload = this.uploads.get(uploadId);
     if (!upload || !upload.file) {
-      console.error('Upload not found or file missing');
+      console.error("Upload not found or file missing");
       return;
     }
 
     if (!this.isOnline) {
-      upload.state = 'paused';
+      upload.state = "paused";
+      return;
+    }
+
+    // If upload task already exists and is paused, resume it instead
+    if (upload.uploadTask && upload.state === "paused") {
+      this.resumeUpload(uploadId);
       return;
     }
 
     this.activeUploads.add(uploadId);
-    upload.state = 'running';
-    upload.startTime = Date.now();
+    upload.state = "running";
+
+    // Don't reset start time if this is a resumed upload
+    if (upload.bytesTransferred === 0) {
+      upload.startTime = Date.now();
+    }
     upload.lastProgressTime = Date.now();
 
     try {
       const storageRef = ref(storage, upload.filePath);
+
+      // Create new upload task only if one doesn't exist
       const uploadTask = uploadBytesResumable(storageRef, upload.file);
       upload.uploadTask = uploadTask;
 
-      uploadTask.on('state_changed',
+      // Store upload session URL for better tracking
+      upload.uploadSessionUrl = uploadTask.snapshot.ref.fullPath;
+
+      uploadTask.on(
+        "state_changed",
         (snapshot) => {
           this.handleUploadProgress(uploadId, snapshot);
         },
@@ -256,13 +341,13 @@ class ResumableUploadManager {
     const now = Date.now();
     const timeDiff = (now - upload.lastProgressTime) / 1000; // seconds
     const bytesDiff = snapshot.bytesTransferred - upload.bytesTransferred;
-    
+
     upload.bytesTransferred = snapshot.bytesTransferred;
     upload.lastProgressTime = now;
 
     // Calculate speed (bytes per second)
     const speed = timeDiff > 0 ? bytesDiff / timeDiff : 0;
-    
+
     // Calculate estimated time remaining
     const remainingBytes = upload.totalBytes - upload.bytesTransferred;
     const estimatedTimeRemaining = speed > 0 ? remainingBytes / speed : 0;
@@ -270,10 +355,12 @@ class ResumableUploadManager {
     const progress: UploadProgress = {
       bytesTransferred: snapshot.bytesTransferred,
       totalBytes: snapshot.totalBytes,
-      percentage: Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+      percentage: Math.round(
+        (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+      ),
       speed,
       estimatedTimeRemaining,
-      state: upload.state
+      state: upload.state,
     };
 
     const callback = this.progressCallbacks.get(uploadId);
@@ -291,16 +378,16 @@ class ResumableUploadManager {
     const upload = this.uploads.get(uploadId);
     if (!upload) return;
 
-    console.error('Upload error:', error);
-    
-    upload.state = 'error';
+    console.error("Upload error:", error);
+
+    upload.state = "error";
     upload.error = error.message;
     this.activeUploads.delete(uploadId);
 
     // Check if it's a network error that can be retried
     if (this.isRetryableError(error)) {
-      upload.state = 'paused';
-      
+      upload.state = "paused";
+
       // Add back to queue for retry
       if (!this.uploadQueue.includes(uploadId)) {
         this.uploadQueue.push(uploadId);
@@ -317,14 +404,17 @@ class ResumableUploadManager {
     this.persistUploads();
   }
 
-  private async handleUploadComplete(uploadId: string, uploadTask: UploadTask): Promise<void> {
+  private async handleUploadComplete(
+    uploadId: string,
+    uploadTask: UploadTask
+  ): Promise<void> {
     const upload = this.uploads.get(uploadId);
     if (!upload) return;
 
     try {
       const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-      
-      upload.state = 'success';
+
+      upload.state = "success";
       upload.downloadURL = downloadURL;
       this.activeUploads.delete(uploadId);
 
@@ -333,8 +423,8 @@ class ResumableUploadManager {
         path: upload.filePath,
         name: upload.fileName,
         size: upload.totalBytes,
-        type: upload.file?.type || 'application/octet-stream',
-        uploadId
+        type: upload.file?.type || "application/octet-stream",
+        uploadId,
       };
 
       const callback = this.completionCallbacks.get(uploadId);
@@ -342,12 +432,10 @@ class ResumableUploadManager {
         callback(result);
       }
 
-      
       // Clean up after successful upload
       setTimeout(() => {
         this.cleanupUpload(uploadId);
       }, 5000); // Keep for 5 seconds for UI updates
-
     } catch (error) {
       this.handleUploadError(uploadId, error as Error);
     }
@@ -355,15 +443,16 @@ class ResumableUploadManager {
 
   private isRetryableError(error: Error): boolean {
     const retryableErrors = [
-      'network-request-failed',
-      'timeout',
-      'server-file-wrong-size',
-      'unknown'
+      "network-request-failed",
+      "timeout",
+      "server-file-wrong-size",
+      "unknown",
     ];
-    
-    return retryableErrors.some(errorType => 
-      error.message.toLowerCase().includes(errorType) ||
-      error.name.toLowerCase().includes(errorType)
+
+    return retryableErrors.some(
+      (errorType) =>
+        error.message.toLowerCase().includes(errorType) ||
+        error.name.toLowerCase().includes(errorType)
     );
   }
 
@@ -371,9 +460,12 @@ class ResumableUploadManager {
     const upload = this.uploads.get(uploadId);
     if (!upload) return;
 
-    if (upload.uploadTask && upload.state === 'running') {
+    if (upload.uploadTask && upload.state === "running") {
+      console.log(
+        `⏸️ Pausing upload: ${upload.fileName} at ${upload.bytesTransferred}/${upload.totalBytes} bytes`
+      );
       upload.uploadTask.pause();
-      upload.state = 'paused';
+      upload.state = "paused";
       this.activeUploads.delete(uploadId);
       this.persistUploads(); // Save state immediately
     }
@@ -383,11 +475,52 @@ class ResumableUploadManager {
     const upload = this.uploads.get(uploadId);
     if (!upload) return;
 
-    if (upload.state === 'paused' && this.isOnline) {
-        if (!this.uploadQueue.includes(uploadId)) {
-          this.uploadQueue.push(uploadId);
+    if (upload.state === "paused" && this.isOnline) {
+      // If we have an existing upload task, resume it directly
+      if (upload.uploadTask) {
+        try {
+          console.log(
+            `▶️ Resuming existing upload task: ${upload.fileName} from ${upload.bytesTransferred}/${upload.totalBytes} bytes`
+          );
+          upload.uploadTask.resume();
+          upload.state = "running";
+          this.activeUploads.add(uploadId);
+          upload.lastProgressTime = Date.now();
+          this.persistUploads();
+          return;
+        } catch (error) {
+          console.error(
+            "Failed to resume existing upload task:",
+            uploadId,
+            error
+          );
+          // Fall through to create new task
         }
-        this.persistUploads(); // Save state immediately
+      }
+
+      // If no existing task or resume failed, create new upload task
+      // Ensure file object exists for resumption
+      if (!upload.file && upload.fileData) {
+        try {
+          upload.file = new File([upload.fileData], upload.fileName, {
+            type: upload.fileType || "application/octet-stream",
+            lastModified: upload.fileLastModified || Date.now(),
+          });
+        } catch (error) {
+          console.error(
+            "Failed to recreate file for upload resumption:",
+            uploadId,
+            error
+          );
+          return;
+        }
+      }
+
+      // Add to queue for new task creation only if no existing task
+      if (!this.uploadQueue.includes(uploadId)) {
+        this.uploadQueue.push(uploadId);
+      }
+      this.persistUploads(); // Save state immediately
     }
   }
 
@@ -399,9 +532,9 @@ class ResumableUploadManager {
       upload.uploadTask.cancel();
     }
 
-    upload.state = 'canceled';
+    upload.state = "canceled";
     this.activeUploads.delete(uploadId);
-    
+
     // Remove from queue
     const queueIndex = this.uploadQueue.indexOf(uploadId);
     if (queueIndex > -1) {
@@ -421,7 +554,7 @@ class ResumableUploadManager {
 
   public getActiveUploads(): UploadMetadata[] {
     return Array.from(this.uploads.values()).filter(
-      upload => upload.state === 'running' || upload.state === 'paused'
+      (upload) => upload.state === "running" || upload.state === "paused"
     );
   }
 
@@ -430,44 +563,64 @@ class ResumableUploadManager {
     this.progressCallbacks.delete(uploadId);
     this.completionCallbacks.delete(uploadId);
     this.activeUploads.delete(uploadId);
-    
+
     // Remove from queue
     const queueIndex = this.uploadQueue.indexOf(uploadId);
     if (queueIndex > -1) {
       this.uploadQueue.splice(queueIndex, 1);
     }
-    
+
     this.persistUploads();
   }
 
   public cleanupCompletedUploads(): void {
     const completedUploads = Array.from(this.uploads.entries()).filter(
-      ([_, upload]) => upload.state === 'success' || upload.state === 'error'
+      ([_, upload]) => upload.state === "success" || upload.state === "error"
     );
 
     completedUploads.forEach(([uploadId, _]) => {
       this.cleanupUpload(uploadId);
     });
-
   }
 
   private generateUploadId(): string {
-    return `upload_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    return `upload_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2, 15)}`;
   }
 
   private generateFileName(originalName: string, userId: string): string {
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
-    const extension = originalName.split('.').pop();
+    const extension = originalName.split(".").pop();
     return `${userId}/${timestamp}_${randomString}.${extension}`;
   }
 
   public formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  }
+
+  // Helper methods for file data persistence
+  private arrayBufferToBase64(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+
+  private base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
   }
 
   public formatSpeed(bytesPerSecond: number): string {
@@ -475,8 +628,8 @@ class ResumableUploadManager {
   }
 
   public formatTime(seconds: number): string {
-    if (seconds === Infinity || isNaN(seconds)) return 'Unknown';
-    
+    if (seconds === Infinity || isNaN(seconds)) return "Unknown";
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
