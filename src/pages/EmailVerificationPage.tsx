@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "../hooks/useAuth";
 import { auth } from "../lib/firebase";
 import {
   sendEmailVerification,
   signOut,
   onAuthStateChanged,
+  User,
 } from "firebase/auth";
 import { Mail, RefreshCw, LogOut, AlertCircle } from "lucide-react";
 import toast from "react-hot-toast";
@@ -18,6 +18,7 @@ export const EmailVerificationPage: React.FC = () => {
   const [verificationDisplayName, setVerificationDisplayName] =
     useState<string>("");
   const [isVerified, setIsVerified] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Get email and displayName from navigation state (passed from signup)
   useEffect(() => {
@@ -32,50 +33,44 @@ export const EmailVerificationPage: React.FC = () => {
   }, [location.state, navigate]);
 
   const handleResendVerification = async () => {
-    if (!verificationEmail) {
-      toast.error("No email address found. Please try signing up again.");
+    if (!currentUser) {
+      toast.error("Please sign in first to resend verification email.");
       return;
     }
+    
     setSending(true);
     try {
-      // Note: Since user is signed out, resend functionality is limited
-      // User should use the original verification email or sign up again
-      toast.info(
-        "Please check your email inbox and spam folder for the verification link. If you can't find it, try signing up again."
-      );
+      await sendEmailVerification(currentUser);
+      toast.success("Verification email sent! Please check your inbox.");
     } catch (error: any) {
-      toast.error(
-        "Please try signing up again if you can't find the verification email."
-      );
+      console.error("Error sending verification email:", error);
+      toast.error("Failed to send verification email. Please try again.");
     } finally {
       setSending(false);
     }
   };
 
-  // ✅ REMOVED: No manual check needed - real-time listener handles verification
-
   const handleSignOut = async () => {
     try {
       await signOut(auth);
       toast.success("Signed out successfully");
-      navigate("/"); // ✅ FIXED: Navigate to homepage (behave as new user)
+      navigate("/");
     } catch {
       toast.error("Sign out failed");
     }
   };
 
-  // ✅ CRITICAL FIX: Pure real-time Firebase Auth state listener (NO POLLING)
+  // Real-time Firebase Auth state listener with cross-device verification detection
   useEffect(() => {
-    if (!verificationEmail) return;
-
     console.log(
-      "🔄 Setting up real-time email verification listener for:",
-      verificationEmail
+      "🔄 Setting up real-time email verification listener"
     );
 
-    // Real-time Firebase Auth state listener - triggers instantly on verification
+    // Real-time Firebase Auth state listener
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser && firebaseUser.email === verificationEmail) {
+      setCurrentUser(firebaseUser);
+      
+      if (firebaseUser) {
         console.log(
           "🔍 Auth state changed for user:",
           firebaseUser.email,
@@ -83,6 +78,12 @@ export const EmailVerificationPage: React.FC = () => {
           firebaseUser.emailVerified
         );
 
+        // Force reload user to get latest verification status
+        try {
+          await firebaseUser.reload();
+        } catch (error) {
+          console.error("Error reloading user:", error);
+        }
         if (firebaseUser.emailVerified && !isVerified) {
           console.log("✅ Email verification detected! Processing...");
           setIsVerified(true);
@@ -90,24 +91,39 @@ export const EmailVerificationPage: React.FC = () => {
           // Show success message
           toast.success("Email verified! Welcome to InfoNest.");
 
-          // Navigate to homepage with user data
+          // Navigate to homepage
           navigate("/", {
             replace: true,
-            state: {
-              emailVerified: true,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName || verificationDisplayName,
-            },
           });
         }
+      } else {
+        // User signed out
+        setCurrentUser(null);
       }
     });
 
+    // Set up periodic check for cross-device verification
+    const checkInterval = setInterval(async () => {
+      if (auth.currentUser && !auth.currentUser.emailVerified) {
+        try {
+          await auth.currentUser.reload();
+          if (auth.currentUser.emailVerified && !isVerified) {
+            console.log("✅ Cross-device verification detected!");
+            setIsVerified(true);
+            toast.success("Email verified from another device! Welcome to InfoNest.");
+            navigate("/", { replace: true });
+          }
+        } catch (error) {
+          console.error("Error checking verification status:", error);
+        }
+      }
+    }, 3000); // Check every 3 seconds
     return () => {
       console.log("🧹 Cleaning up email verification listener");
       unsubscribe();
+      clearInterval(checkInterval);
     };
-  }, [verificationEmail, isVerified, navigate, verificationDisplayName]);
+  }, [isVerified, navigate]);
 
   return (
     <div
@@ -161,17 +177,19 @@ export const EmailVerificationPage: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="animate-pulse h-3 w-3 bg-blue-500 rounded-full"></div>
               <p className="text-blue-800 text-sm font-medium">
-                Waiting for email verification... This will happen automatically
-                when you click the link.
+                Waiting for email verification... This will happen automatically when you click the link from any device.
               </p>
             </div>
+            <p className="text-blue-700 text-xs mt-2">
+              💡 You can verify your email from any device - mobile, tablet, or computer. Once verified, this page will automatically update.
+            </p>
           </div>
 
           {/* Buttons */}
           <div className="space-y-4">
             <button
               onClick={handleResendVerification}
-              disabled={sending}
+              disabled={sending || !currentUser}
               className="w-full flex items-center justify-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-medium transition-all disabled:opacity-50"
             >
               {sending ? (
@@ -186,6 +204,14 @@ export const EmailVerificationPage: React.FC = () => {
                 </>
               )}
             </button>
+            
+            {!currentUser && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-yellow-800 text-sm">
+                  ⚠️ You've been signed out. Please sign in again to resend the verification email.
+                </p>
+              </div>
+            )}
 
             <div className="border-t border-gray-200 pt-4">
               <button
@@ -200,7 +226,7 @@ export const EmailVerificationPage: React.FC = () => {
         </div>
 
         <div className="text-center mt-8 text-sm text-gray-500">
-          <p>Having trouble? Contact support for help.</p>
+          <p>Having trouble? You can verify your email from any device. Contact support if you need help.</p>
         </div>
       </div>
     </div>

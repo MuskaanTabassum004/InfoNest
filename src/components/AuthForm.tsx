@@ -49,7 +49,7 @@ export const AuthForm: React.FC = () => {
         await signIn(formData.email, formData.password);
         await refreshProfile();
         toast.success("Welcome back!");
-        navigate("/"); // Redirect to homepage after successful login
+        navigate("/dashboard"); // Redirect to dashboard after successful login
       } else {
         if (formData.password !== formData.confirmPassword) {
           toast.error("Passwords do not match");
@@ -62,9 +62,9 @@ export const AuthForm: React.FC = () => {
           formData.displayName
         );
         toast.success(
-          "Account created! Please check your email and verify your address. You'll be redirected to complete verification."
+          "Account created! Please check your email and verify your address from any device."
         );
-        // ✅ CRITICAL FIX: Navigate to email verification page with user data
+        // Navigate to email verification page with user data
         navigate("/email-verify", {
           state: {
             email: formData.email,
@@ -85,6 +85,7 @@ export const AuthForm: React.FC = () => {
       await signInWithGoogle();
       await refreshProfile();
       toast.success("Signed in with Google!");
+      navigate("/dashboard");
     } catch (error: any) {
       toast.error(error.message || "Google sign-in failed.");
     } finally {
@@ -132,20 +133,8 @@ export const AuthForm: React.FC = () => {
     const oobCode = queryParams.get("oobCode");
 
     if (mode === "verifyEmail" && oobCode) {
-      const auth = getAuth();
-      toast.loading("Verifying your email...");
-
-      applyActionCode(auth, oobCode)
-        .then(() => {
-          toast.dismiss();
-          toast.success("Email verified successfully! You can now log in.");
-          navigate("/auth", { replace: true }); // Clean the URL
-        })
-        .catch((error) => {
-          toast.dismiss();
-          console.error("Email verification failed:", error);
-          toast.error("Invalid or expired verification link.");
-        });
+      // Redirect to dedicated verification handler
+      navigate(`/verify-email?mode=${mode}&oobCode=${oobCode}`, { replace: true });
     }
   }, [location.search, navigate]);
 
@@ -359,6 +348,19 @@ export const AuthForm: React.FC = () => {
         <div className="text-center mt-8 text-sm text-gray-500">
           <p>Secure knowledge management platform</p>
         </div>
+        
+        {!isLogin && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="text-sm font-semibold text-blue-900 mb-2">
+              📧 Email Verification Required
+            </h4>
+            <p className="text-sm text-blue-800">
+              After creating your account, you'll receive a verification email. 
+              You can verify your email from any device - the verification will work 
+              across all your devices automatically.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

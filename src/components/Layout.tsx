@@ -24,10 +24,13 @@ export const Layout: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut();
-      navigate("/"); // Redirect to homepage after logout
+      // Use force logout to ensure complete cleanup
+      const { forceLogout } = await import("../lib/auth");
+      await forceLogout();
     } catch (error) {
       console.error("Error logging out:", error);
+      // Force redirect even if logout fails
+      window.location.href = '/';
     }
   };
 

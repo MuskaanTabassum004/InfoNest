@@ -9,6 +9,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   updateProfile,
+  applyActionCode,
+  checkActionCode,
 } from "firebase/auth";
 import {
   doc,
@@ -19,6 +21,7 @@ import {
   query,
   where,
   getDocs,
+  deleteDoc,
 } from "firebase/firestore";
 import { auth, firestore } from "./firebase";
 
@@ -202,11 +205,22 @@ class AuthCacheManager {
   // Clear all sessions
   clearAllSessions(): void {
     this.cache.clear();
-    Object.keys(localStorage).forEach((key) => {
-      if (key.startsWith(this.STORAGE_KEY)) {
-        localStorage.removeItem(key);
-      }
-    });
+    try {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith(this.STORAGE_KEY) || key.startsWith('infonest_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Also clear session storage
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.startsWith(this.STORAGE_KEY) || key.startsWith('infonest_')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.warn("Failed to clear storage:", error);
+    }
   }
 
   // Persist to localStorage
@@ -260,8 +274,7 @@ export const signUp = async (
   password: string,
   displayName?: string
 ) => {
-  // ✅ CRITICAL FIX: Create Firebase Auth user but immediately sign them out
-  // This ensures email verification is enforced before any authentication state
+  // Create Firebase Auth user but DO NOT create Firestore profile yet
   const result = await createUserWithEmailAndPassword(auth, email, password);
 
   // Store display name in Firebase Auth profile for later use
@@ -272,18 +285,23 @@ export const signUp = async (
   // Send email verification
   await sendEmailVerification(result.user);
 
-  // ✅ CRITICAL: Sign out immediately to prevent authenticated state
-  // User will only be authenticated after email verification
+  // Sign out immediately to prevent authenticated state
   await firebaseSignOut(auth);
 
   // Return user info for verification page display
   return { user: result.user, email, displayName };
 };
 
-// ✅ NEW: Create user profile in Firestore after email verification
+// Create user profile in Firestore ONLY after email verification
 export const createUserProfileAfterVerification = async (
   firebaseUser: User
 ) => {
+  // STRICT: Only create profile for verified users
+  if (!firebaseUser.emailVerified) {
+    console.log("❌ User not verified, skipping profile creation");
+    return;
+  }
+
   // Check if profile already exists
   const profileRef = doc(firestore, "users", firebaseUser.uid);
   const profileSnap = await getDoc(profileRef);
@@ -298,6 +316,7 @@ export const createUserProfileAfterVerification = async (
       createdAt: new Date(),
       updatedAt: new Date(),
       requestedWriterAccess: false,
+      emailVerified: true,
     };
 
     await setDoc(profileRef, userProfile);
@@ -324,6 +343,22 @@ export const signIn = async (email: string, password: string) => {
 export const signOut = async () => {
   // Clear all cached sessions before signing out
   authCache.clearAllSessions();
+  
+  // Clear all local storage
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch (error) {
+    console.warn("Failed to clear storage:", error);
+  }
+  
+  // Clear any cookies (if using them)
+  document.cookie.split(";").forEach((c) => {
+    const eqPos = c.indexOf("=");
+    const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+    document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+  });
+  
   return await firebaseSignOut(auth);
 };
 
@@ -553,4 +588,68 @@ export const signInWithGoogle = async () => {
   }
 
   return result;
+};
+
+// Handle email verification from link
+export const handleEmailVerification = async (actionCode: string): Promise<boolean> => {
+  try {
+    // Verify the action code
+    await applyActionCode(auth, actionCode);
+    
+    // Force refresh the current user to get updated emailVerified status
+    if (auth.currentUser) {
+      await auth.currentUser.reload();
+      
+      // Create user profile now that email is verified
+      if (auth.currentUser.emailVerified) {
+        await createUserProfileAfterVerification(auth.currentUser);
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Email verification failed:", error);
+    throw error;
+  }
+};
+
+// Check if action code is valid without applying it
+export const checkEmailVerificationCode = async (actionCode: string): Promise<boolean> => {
+  try {
+    await checkActionCode(auth, actionCode);
+    return true;
+  } catch (error) {
+    console.error("Invalid verification code:", error);
+    return false;
+  }
+};
+
+// Force logout and clear all data
+export const forceLogout = async () => {
+  try {
+    // Clear all cached sessions
+    authCache.clearAllSessions();
+    
+    // Clear all storage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Clear cookies
+    document.cookie.split(";").forEach((c) => {
+      const eqPos = c.indexOf("=");
+      const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+    });
+    
+    // Sign out from Firebase
+    await firebaseSignOut(auth);
+    
+    // Force reload to clear any remaining state
+    window.location.href = '/';
+  } catch (error) {
+    console.error("Force logout failed:", error);
+    // Still redirect even if logout fails
+    window.location.href = '/';
+  }
 };

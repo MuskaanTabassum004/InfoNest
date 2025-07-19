@@ -7,6 +7,35 @@
     <title>InfoNest - Where Documentation Meets Efficiency</title>
     <meta name="description" content="Centralized knowledge management platform with role-based access control. Discover, search, and access all your important documents in one secure, organized platform." />
     <meta name="keywords" content="documentation, knowledge base, InfoNest, document management, team collaboration" />
+    <script>
+      // Clear any cached authentication data on page load
+      try {
+        // Clear auth-related data from localStorage
+        Object.keys(localStorage).forEach(key => {
+          if (key.includes('firebase') || key.includes('auth') || key.startsWith('infonest_')) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Clear auth-related data from sessionStorage
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.includes('firebase') || key.includes('auth') || key.startsWith('infonest_')) {
+            sessionStorage.removeItem(key);
+          }
+        });
+        
+        // Clear auth-related cookies
+        document.cookie.split(";").forEach(function(c) { 
+          var eqPos = c.indexOf("=");
+          var name = eqPos > -1 ? c.substr(0, eqPos) : c;
+          if (name.includes('firebase') || name.includes('auth') || name.includes('infonest')) {
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+          }
+        });
+      } catch (error) {
+        console.warn('Failed to clear cached auth data:', error);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

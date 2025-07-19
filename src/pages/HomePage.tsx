@@ -105,11 +105,16 @@ export const HomePage: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut();
+      // Use force logout to ensure complete cleanup
+      const { forceLogout } = await import("../lib/auth");
+      await forceLogout();
       setIsDropdownOpen(false);
-      // User is already on homepage, no need to navigate
+      // Force reload to ensure clean state
+      window.location.reload();
     } catch (error) {
       console.error("Error logging out:", error);
+      // Force reload even if logout fails
+      window.location.reload();
     }
   };
 

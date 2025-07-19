@@ -11,6 +11,7 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 import { Layout } from "./components/Layout";
 import { AuthForm } from "./components/AuthForm";
 import { EmailVerificationPage } from "./pages/EmailVerificationPage";
+import { EmailVerificationHandler } from "./components/EmailVerificationHandler";
 import { HomePage } from "./pages/HomePage";
 import { Dashboard } from "./pages/Dashboard";
 import { ArticleEditor } from "./pages/ArticleEditor";
@@ -76,6 +77,7 @@ function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
+            <Route path="/verify-email" element={<EmailVerificationHandler />} />
             <Route
               path="/auth"
               element={

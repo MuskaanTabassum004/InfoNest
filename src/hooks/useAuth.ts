@@ -149,15 +149,17 @@ export const useAuth = () => {
           firebaseUser.emailVerified
         );
 
-        // ✅ CRITICAL FIX: Only process verified users
+        // STRICT: Only process verified users
         if (firebaseUser.emailVerified) {
           console.log("✅ Processing verified user:", firebaseUser.email);
           await createUserProfileAfterVerification(firebaseUser);
           await loadUserProfile(firebaseUser);
         } else {
           console.log("⏳ User not verified yet, setting profile to null");
-          // User exists but not verified - don't load profile
+          // User exists but not verified - clear all data
           setUserProfile(null);
+          setPermissions(null);
+          authCache.clearAllSessions();
         }
       } else {
         console.log("👤 No authenticated user");
@@ -165,6 +167,18 @@ export const useAuth = () => {
         setUserProfile(null);
         setPermissions(null);
         authCache.clearAllSessions();
+        
+        // Clear any remaining storage
+        try {
+          localStorage.removeItem('infonest_auth_cache');
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('infonest_')) {
+              localStorage.removeItem(key);
+            }
+          });
+        } catch (error) {
+          console.warn("Failed to clear auth storage:", error);
+        }
       }
 
       setLoading(false);
