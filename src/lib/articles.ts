@@ -55,27 +55,39 @@ const generateSlug = (title: string): string => {
 export const createArticle = async (
   article: Omit<Article, "id" | "createdAt" | "updatedAt" | "slug">
 ): Promise<string> => {
-  const docRef = doc(collection(firestore, "articles"));
-  const slug = generateSlug(article.title);
+  try {
+    const docRef = doc(collection(firestore, "articles"));
+    const slug = generateSlug(article.title);
 
-  const newArticle: Article = {
-    ...article,
-    id: docRef.id,
-    slug,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+    const newArticle: Article = {
+      ...article,
+      id: docRef.id,
+      slug,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-  await setDoc(docRef, {
-    ...newArticle,
-    createdAt: Timestamp.fromDate(newArticle.createdAt),
-    updatedAt: Timestamp.fromDate(newArticle.updatedAt),
-    publishedAt: newArticle.publishedAt
-      ? Timestamp.fromDate(newArticle.publishedAt)
-      : null,
-  });
+    // Prepare data for Firestore, handling undefined values
+    const firestoreData: any = {
+      ...newArticle,
+      createdAt: Timestamp.fromDate(newArticle.createdAt),
+      updatedAt: Timestamp.fromDate(newArticle.updatedAt),
+    };
 
-  return docRef.id;
+    // Only include publishedAt if it exists, otherwise set to null
+    if (newArticle.publishedAt) {
+      firestoreData.publishedAt = Timestamp.fromDate(newArticle.publishedAt);
+    } else {
+      firestoreData.publishedAt = null;
+    }
+
+    await setDoc(docRef, firestoreData);
+
+    return docRef.id;
+  } catch (error) {
+    console.error("Error in createArticle:", error);
+    throw error;
+  }
 };
 
 export const updateArticle = async (
@@ -91,14 +103,26 @@ export const updateArticle = async (
 
   const currentData = currentDoc.data();
 
-  const updatedData = {
-    ...updates,
+  // Prepare update data, filtering out undefined values
+  const updatedData: any = {
     updatedAt: Timestamp.fromDate(new Date()),
     slug: updates.title ? generateSlug(updates.title) : currentData.slug,
   };
 
+  // Only include defined fields from updates
+  Object.keys(updates).forEach((key) => {
+    if (updates[key as keyof typeof updates] !== undefined) {
+      updatedData[key] = updates[key as keyof typeof updates];
+    }
+  });
+
+  // Handle publishedAt specifically
   if (updates.status === "published" && currentData.status !== "published") {
     updatedData.publishedAt = Timestamp.fromDate(new Date());
+  } else if (updates.publishedAt) {
+    updatedData.publishedAt = Timestamp.fromDate(updates.publishedAt);
+  } else if (updates.publishedAt === null) {
+    updatedData.publishedAt = null;
   }
 
   await updateDoc(articleRef, updatedData);
