@@ -92,11 +92,7 @@ export const WriterRequestForm: React.FC<WriterRequestFormProps> = ({
           prev.fullName !== newDisplayName ||
           prev.email !== userProfile.email
         ) {
-          console.log("🔄 Syncing profile data to InfoWriter request form:", {
-            oldName: prev.fullName,
-            newName: newDisplayName,
-            email: userProfile.email,
-          });
+          console.log("🔄 Syncing profile data to request form");
 
           // Show visual indicator that name was updated
           if (prev.fullName !== newDisplayName && prev.fullName !== "") {

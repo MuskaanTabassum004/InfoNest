@@ -15,10 +15,10 @@ export const EmailVerificationHandler: React.FC = () => {
       const mode = searchParams.get('mode');
       const oobCode = searchParams.get('oobCode');
 
-      console.log("🔍 Email verification handler started:", { mode, oobCode: oobCode ? 'present' : 'missing' });
+      console.log("🔍 Email verification handler started");
 
       if (mode !== 'verifyEmail' || !oobCode) {
-        console.log("❌ Invalid verification parameters");
+        console.log("❌ Invalid verification link");
         setStatus('error');
         setMessage('Invalid verification link. Please check your email for the correct link.');
         return;
@@ -28,12 +28,12 @@ export const EmailVerificationHandler: React.FC = () => {
         setStatus('loading');
         setMessage('Verifying your email address...');
         
-        console.log("🔄 Starting email verification process...");
+        console.log("🔄 Starting verification process");
 
         const success = await handleEmailVerification(oobCode);
         
         if (success) {
-          console.log("✅ Email verification successful!");
+          console.log("✅ Email verification successful");
           setStatus('success');
           setMessage('Email verified successfully! Your account is now active and you can sign in.');
           toast.success('Email verified! Welcome to InfoNest.');
@@ -43,12 +43,12 @@ export const EmailVerificationHandler: React.FC = () => {
             navigate('/auth', { replace: true });
           }, 3000);
         } else {
-          console.log("❌ Email verification returned false");
+          console.log("❌ Email verification failed");
           setStatus('error');
           setMessage('Email verification failed. The verification link may be invalid or expired. Please try signing up again.');
         }
       } catch (error: any) {
-        console.error('❌ Email verification error:', error);
+        console.error('❌ Email verification error:', error.code || 'Unknown error');
         setStatus('error');
         
         if (error.code === 'auth/invalid-action-code') {

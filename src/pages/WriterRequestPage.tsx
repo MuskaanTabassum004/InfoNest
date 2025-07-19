@@ -76,12 +76,7 @@ export const WriterRequestPage: React.FC = () => {
 
   // Debug logging
   useEffect(() => {
-    console.log("WriterRequestPage mounted", {
-      isAuthenticated,
-      isAdmin,
-      userProfile: userProfile?.email,
-      authLoading,
-    });
+    console.log("WriterRequestPage mounted");
   }, [isAuthenticated, isAdmin, userProfile, authLoading]);
 
   // State management
@@ -98,30 +93,27 @@ export const WriterRequestPage: React.FC = () => {
   useEffect(() => {
     // If auth is still loading, wait
     if (authLoading) {
-      console.log("Auth still loading, waiting...");
+      console.log("Auth loading");
       setLoading(true);
       return;
     }
 
     // If not authenticated, stop loading
     if (!isAuthenticated) {
-      console.log("Not authenticated, stopping load");
+      console.log("Not authenticated");
       setLoading(false);
       return;
     }
 
     // If no userProfile yet, wait
     if (!userProfile) {
-      console.log("No userProfile yet, waiting...");
+      console.log("No userProfile yet");
       setLoading(true);
       return;
     }
 
     const loadRequests = async () => {
-      console.log("Starting loadRequests for:", {
-        userId: userProfile.uid,
-        isAdmin,
-      });
+      console.log("Loading requests");
       setLoading(true);
       try {
         // Load current user's request from both systems
@@ -131,7 +123,7 @@ export const WriterRequestPage: React.FC = () => {
         if (isAdmin) {
           await loadAllRequests();
         }
-        console.log("Requests loaded successfully");
+        console.log("Requests loaded");
       } catch (error) {
         console.error("Error loading requests:", error);
         toast.error("Failed to load requests");
@@ -191,10 +183,7 @@ export const WriterRequestPage: React.FC = () => {
     const newSystemQuery = query(collection(firestore, "writerRequests"));
 
     const unsubscribeNew = onSnapshot(newSystemQuery, async (snapshot) => {
-      console.log(
-        "Real-time update: New system requests changed",
-        snapshot.size
-      );
+      console.log("Real-time update: New system requests changed");
       await loadAllRequests();
     });
 
@@ -205,10 +194,7 @@ export const WriterRequestPage: React.FC = () => {
     );
 
     const unsubscribeLegacy = onSnapshot(legacyQuery, async (snapshot) => {
-      console.log(
-        "Real-time update: Legacy system requests changed",
-        snapshot.size
-      );
+      console.log("Real-time update: Legacy system requests changed");
       await loadAllRequests();
     });
 

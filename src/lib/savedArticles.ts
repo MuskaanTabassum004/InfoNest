@@ -36,9 +36,7 @@ export const saveArticle = async (
 ): Promise<void> => {
   try {
     const docId = `${userId}_${article.id}`;
-    console.log("💾 Saving article with ID:", docId);
-    console.log("👤 User ID:", userId);
-    console.log("📄 Article:", article.title);
+    console.log("💾 Saving article");
 
     const savedArticleRef = doc(firestore, "savedArticles", docId);
 
@@ -60,9 +58,8 @@ export const saveArticle = async (
       savedAt: Timestamp.now(),
     };
 
-    console.log("📝 Saving data:", savedArticleData);
     await setDoc(savedArticleRef, savedArticleData);
-    console.log("✅ Article saved successfully");
+    console.log("✅ Article saved");
   } catch (error) {
     console.error("❌ Error saving article:", error);
     throw new Error("Failed to save article");
@@ -156,10 +153,7 @@ export const subscribeToSavedArticlesCount = (
   userId: string,
   callback: (count: number) => void
 ): (() => void) => {
-  console.log(
-    "🔔 Setting up saved articles count subscription for user:",
-    userId
-  );
+  console.log("🔔 Setting up saved articles count subscription");
 
   const q = query(
     collection(firestore, "savedArticles"),
@@ -169,13 +163,11 @@ export const subscribeToSavedArticlesCount = (
   return onSnapshot(
     q,
     (snapshot) => {
-      console.log("📊 Saved articles count updated:", snapshot.size);
+      console.log("📊 Saved articles count updated");
       callback(snapshot.size);
     },
     (error) => {
       console.error("❌ Error in saved articles count subscription:", error);
-      console.error("🔍 User ID:", userId);
-      console.error("🔍 Error details:", error.code, error.message);
       callback(0);
     }
   );
@@ -186,7 +178,7 @@ export const subscribeToUserSavedArticles = (
   userId: string,
   callback: (articles: SavedArticle[]) => void
 ): (() => void) => {
-  console.log("🔔 Setting up saved articles subscription for user:", userId);
+  console.log("🔔 Setting up saved articles subscription");
 
   // Remove orderBy to avoid index requirement - sort in JavaScript instead
   const q = query(
@@ -197,10 +189,9 @@ export const subscribeToUserSavedArticles = (
   return onSnapshot(
     q,
     (snapshot) => {
-      console.log("📚 Saved articles updated, count:", snapshot.size);
+      console.log("📚 Saved articles updated");
       const articles = snapshot.docs.map((doc) => {
         const data = doc.data();
-        console.log("📄 Saved article data:", data);
         return {
           ...data,
           savedAt: data.savedAt.toDate(),
@@ -217,8 +208,6 @@ export const subscribeToUserSavedArticles = (
     },
     (error) => {
       console.error("❌ Error in saved articles subscription:", error);
-      console.error("🔍 User ID:", userId);
-      console.error("🔍 Error details:", error.code, error.message);
       callback([]);
     }
   );

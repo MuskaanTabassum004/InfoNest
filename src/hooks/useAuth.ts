@@ -79,14 +79,14 @@ export const useAuth = () => {
           cachedSession &&
           Date.now() - cachedSession.lastUpdated < 5 * 60 * 1000
         ) {
-          console.log("✅ Using cached user session");
+          console.log("✅ Using cached session");
           setUserProfile(cachedSession.userProfile);
           setPermissions(cachedSession.permissions);
           setProfileLoading(false);
           return;
         }
 
-        console.log("🔄 Loading fresh user profile");
+        console.log("🔄 Loading fresh profile");
 
         // Load from Firestore if cache miss or needs refresh
         const profileRef = doc(firestore, "users", firebaseUser.uid);
@@ -117,9 +117,7 @@ export const useAuth = () => {
             setProfileLoading(false);
           } else {
             if (firebaseUser.emailVerified) {
-              console.log(
-                "⚠️ Verified user without profile, this shouldn't happen"
-              );
+              console.log("⚠️ Verified user without profile");
             }
             setUserProfile(null);
             setPermissions(null);
@@ -142,27 +140,22 @@ export const useAuth = () => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
-        console.log(
-          "🔍 Firebase Auth state changed:",
-          firebaseUser.email,
-          "Email Verified:",
-          firebaseUser.emailVerified
-        );
+        console.log("🔍 Auth state changed");
 
         // STRICT VERIFICATION CHECK: Only process verified users
         if (firebaseUser.emailVerified) {
-          console.log("✅ VERIFIED USER: Processing authenticated user:", firebaseUser.email);
+          console.log("✅ Processing verified user");
           await createUserProfileAfterVerification(firebaseUser);
           await loadUserProfile(firebaseUser);
         } else {
-          console.log("❌ UNVERIFIED USER: Clearing all data and signing out:", firebaseUser.email);
+          console.log("❌ Unverified user: Clearing data and signing out");
           
           // CRITICAL: Sign out unverified users immediately
           try {
             await firebaseSignOut(auth);
-            console.log("✅ Unverified user signed out successfully");
+            console.log("✅ Unverified user signed out");
           } catch (signOutError) {
-            console.error("❌ Failed to sign out unverified user:", signOutError);
+            console.error("❌ Failed to sign out unverified user");
           }
           
           // Clear all user data for unverified users
@@ -171,7 +164,7 @@ export const useAuth = () => {
           authCache.clearAllSessions();
         }
       } else {
-        console.log("👤 No authenticated user - clearing all data");
+        console.log("👤 No authenticated user");
         setUser(null);
         setUserProfile(null);
         setPermissions(null);

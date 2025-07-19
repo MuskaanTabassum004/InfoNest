@@ -166,7 +166,7 @@ export const useArticleFiles = (content: string): ManagedFile[] => {
         }
         return '';
       } catch (error) {
-        console.error("❌ Error parsing URL:", url, error);
+        console.error("❌ Error parsing URL:", error);
         return '';
       }
     };
@@ -207,7 +207,7 @@ export const useArticleFiles = (content: string): ManagedFile[] => {
       }
     });
 
-    console.log("📋 Extracted files from content:", files.length, "files found");
+    console.log("📋 Extracted files from content");
     return files;
   }, [content]); // Only recalculate when content changes
 };

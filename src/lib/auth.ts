@@ -314,16 +314,11 @@ export const signUp = async (
 export const createUserProfileAfterVerification = async (
   firebaseUser: User
 ) => {
-  console.log("🔍 Checking user verification status:", {
-    uid: firebaseUser.uid,
-    email: firebaseUser.email,
-    emailVerified: firebaseUser.emailVerified,
-  });
+  console.log("🔍 Checking user verification status");
 
   // STRICT: Only create profile for verified users - NO EXCEPTIONS
   if (!firebaseUser.emailVerified) {
-    console.log("❌ STRICT VERIFICATION: User not verified, skipping profile creation");
-    console.log("❌ User will be signed out to prevent unverified access");
+    console.log("❌ User not verified, skipping profile creation");
     
     // Force sign out unverified users
     try {
@@ -334,14 +329,14 @@ export const createUserProfileAfterVerification = async (
     return;
   }
 
-  console.log("✅ User is verified, proceeding with profile creation");
+  console.log("✅ User verified, proceeding with profile creation");
 
   // Check if profile already exists
   const profileRef = doc(firestore, "users", firebaseUser.uid);
   const profileSnap = await getDoc(profileRef);
 
   if (!profileSnap.exists()) {
-    console.log("📝 Creating new user profile for verified user");
+    console.log("📝 Creating new user profile");
     
     const userProfile: UserProfile = {
       uid: firebaseUser.uid,
@@ -361,13 +356,9 @@ export const createUserProfileAfterVerification = async (
       updatedAt: new Date(),
     });
     
-    console.log(
-      "✅ User profile created successfully for verified user:",
-      firebaseUser.uid,
-      firebaseUser.email
-    );
+    console.log("✅ User profile created successfully");
   } else {
-    console.log("ℹ️ User profile already exists for verified user");
+    console.log("ℹ️ User profile already exists");
   }
 };
 
@@ -376,7 +367,7 @@ export const signIn = async (email: string, password: string) => {
 
   // STRICT: Check if email is verified before allowing sign in
   if (!result.user.emailVerified) {
-    console.log("❌ SIGN IN BLOCKED: User email not verified:", result.user.email);
+    console.log("❌ Sign in blocked: Email not verified");
     
     // Sign out the unverified user immediately
     await firebaseSignOut(auth);
@@ -386,7 +377,7 @@ export const signIn = async (email: string, password: string) => {
     );
   }
 
-  console.log("✅ SIGN IN SUCCESS: Verified user signed in:", result.user.email);
+  console.log("✅ Sign in successful");
   return result;
 };
 
@@ -643,7 +634,7 @@ export const signInWithGoogle = async () => {
       updatedAt: new Date(),
     });
     
-    console.log("✅ Google user profile created:", result.user.email);
+    console.log("✅ Google user profile created");
   }
 
   return result;
@@ -652,7 +643,7 @@ export const signInWithGoogle = async () => {
 // Handle email verification from link
 export const handleEmailVerification = async (actionCode: string): Promise<boolean> => {
   try {
-    console.log("🔄 Processing email verification with action code");
+    console.log("🔄 Processing email verification");
     
     // Verify the action code
     await applyActionCode(auth, actionCode);
@@ -660,22 +651,22 @@ export const handleEmailVerification = async (actionCode: string): Promise<boole
     
     // Force refresh the current user to get updated emailVerified status
     if (auth.currentUser) {
-      console.log("🔄 Reloading user to get updated verification status");
+      console.log("🔄 Reloading user verification status");
       await auth.currentUser.reload();
       
-      console.log("📧 User verification status after reload:", auth.currentUser.emailVerified);
+      console.log("📧 Verification status updated");
       
       // Create user profile now that email is verified (if verified)
       if (auth.currentUser.emailVerified) {
-        console.log("✅ Email verified! Creating user profile...");
+        console.log("✅ Email verified! Creating user profile");
         await createUserProfileAfterVerification(auth.currentUser);
         return true;
       } else {
-        console.log("❌ Email still not verified after applying action code");
+        console.log("❌ Email verification failed");
         return false;
       }
     } else {
-      console.log("❌ No current user found during verification");
+      console.log("❌ No current user found");
       return false;
     }
   } catch (error) {

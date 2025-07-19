@@ -62,21 +62,14 @@ export const EmailVerificationPage: React.FC = () => {
 
   // Real-time Firebase Auth state listener with cross-device verification detection
   useEffect(() => {
-    console.log(
-      "🔄 Setting up real-time email verification listener"
-    );
+    console.log("🔄 Setting up verification listener");
 
     // Real-time Firebase Auth state listener
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setCurrentUser(firebaseUser);
       
       if (firebaseUser) {
-        console.log(
-          "🔍 Auth state changed for user:",
-          firebaseUser.email,
-          "Verified:",
-          firebaseUser.emailVerified
-        );
+        console.log("🔍 Auth state changed");
 
         // Force reload user to get latest verification status
         try {
@@ -85,7 +78,7 @@ export const EmailVerificationPage: React.FC = () => {
           console.error("Error reloading user:", error);
         }
         if (firebaseUser.emailVerified && !isVerified) {
-          console.log("✅ Email verification detected! Processing...");
+          console.log("✅ Email verification detected");
           setIsVerified(true);
 
           // Show success message
@@ -108,7 +101,7 @@ export const EmailVerificationPage: React.FC = () => {
         try {
           await auth.currentUser.reload();
           if (auth.currentUser.emailVerified && !isVerified) {
-            console.log("✅ Cross-device verification detected!");
+            console.log("✅ Cross-device verification detected");
             setIsVerified(true);
             toast.success("Email verified from another device! Welcome to InfoNest.");
             navigate("/auth", { replace: true });
@@ -119,7 +112,7 @@ export const EmailVerificationPage: React.FC = () => {
       }
     }, 3000); // Check every 3 seconds
     return () => {
-      console.log("🧹 Cleaning up email verification listener");
+      console.log("🧹 Cleaning up verification listener");
       unsubscribe();
       clearInterval(checkInterval);
     };
