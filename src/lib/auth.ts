@@ -696,32 +696,3 @@ export const checkEmailVerificationCode = async (
     return false;
   }
 };
-
-// Force logout and clear all data
-export const forceLogout = async () => {
-  try {
-    // Clear all cached sessions
-    authCache.clearAllSessions();
-
-    // Clear all storage
-    localStorage.clear();
-    sessionStorage.clear();
-
-    // Clear cookies
-    document.cookie.split(";").forEach((c) => {
-      const eqPos = c.indexOf("=");
-      const name = eqPos > -1 ? c.substr(0, eqPos) : c;
-      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-    });
-
-    // Sign out from Firebase
-    await firebaseSignOut(auth);
-
-    // Force reload to clear any remaining state
-    window.location.href = "/";
-  } catch (error) {
-    console.error("Force logout failed:", error);
-    // Still redirect even if logout fails
-    window.location.href = "/";
-  }
-};
