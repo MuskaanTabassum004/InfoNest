@@ -191,14 +191,14 @@ export const useAuth = () => {
 
   // Real-time profile updates - always call useEffect but conditionally set up listener
   useEffect(() => {
-    if (!user) return;
+    if (!user || !user.emailVerified) return;
 
     const profileRef = doc(firestore, "users", user.uid);
     const unsubscribe = onSnapshot(profileRef, (doc) => {
       if (doc.exists()) {
         const data = doc.data();
 
-        setUserProfile({
+        const updatedProfile = {
           uid: user.uid,
           email: user.email || "",
           // Prioritize Firestore displayName over Firebase Auth displayName
@@ -213,7 +213,14 @@ export const useAuth = () => {
           createdAt: data.createdAt?.toDate(),
           updatedAt: data.updatedAt?.toDate(),
           requestedWriterAccess: data.requestedWriterAccess,
-        });
+        };
+
+        setUserProfile(updatedProfile);
+        
+        // Update cached permissions when profile changes
+        if (updatedProfile) {
+          authCache.cacheUserSession(updatedProfile);
+        }
       }
     });
 

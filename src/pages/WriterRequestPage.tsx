@@ -526,7 +526,7 @@ export const WriterRequestPage: React.FC = () => {
           )}
 
         {/* Current User Request Status */}
-        {!isAdmin && currentUserRequest && (
+        {!isAdmin && currentUserRequest && userProfile?.role !== 'infowriter' && (
           <div className="mb-8">
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
               <div className="flex items-center justify-between mb-4">

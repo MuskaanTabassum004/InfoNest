@@ -110,7 +110,7 @@ export const ArticleView: React.FC = () => {
 
   const canEdit = (article: Article): boolean => {
     if (!isInfoWriter || !userProfile) return false;
-    return article.authorId === userProfile.uid || userProfile.role === "admin";
+    return article.authorId === userProfile.uid || isAdmin;
   };
 
   if (loading) {

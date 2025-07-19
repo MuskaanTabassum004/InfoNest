@@ -64,13 +64,25 @@ class ResumableUploadManager {
     window.addEventListener('online', () => {
       console.log('🌐 Network connection restored');
       this.isOnline = true;
-      this.resumeAllUploads();
+      // Auto-resume paused uploads when connection is restored
+      this.uploads.forEach((upload, uploadId) => {
+        if (upload.state === 'paused' && upload.uploadTask) {
+          console.log(`🔄 Auto-resuming upload: ${uploadId}`);
+          this.resumeUpload(uploadId);
+        }
+      });
     });
 
     window.addEventListener('offline', () => {
       console.log('🌐 Network connection lost');
       this.isOnline = false;
-      this.pauseAllUploads();
+      // Auto-pause running uploads when connection is lost
+      this.uploads.forEach((upload, uploadId) => {
+        if (upload.state === 'running') {
+          console.log(`⏸️ Auto-pausing upload due to offline: ${uploadId}`);
+          this.pauseUpload(uploadId);
+        }
+      });
     });
 
     // Additional connectivity check using fetch
@@ -89,18 +101,27 @@ class ResumableUploadManager {
       this.isOnline = response.ok;
       
       if (!wasOnline && this.isOnline) {
+        // Connection restored - resume paused uploads
+        this.uploads.forEach((upload, uploadId) => {
+          if (upload.state === 'paused') this.resumeUpload(uploadId);
+        });
         console.log('🌐 Connectivity restored via fetch check');
-        this.resumeAllUploads();
       } else if (wasOnline && !this.isOnline) {
+        // Connection lost - pause running uploads
+        this.uploads.forEach((upload, uploadId) => {
+          if (upload.state === 'running') this.pauseUpload(uploadId);
+        });
         console.log('🌐 Connectivity lost via fetch check');
-        this.pauseAllUploads();
       }
     } catch (error) {
       const wasOnline = this.isOnline;
       this.isOnline = false;
       if (wasOnline) {
+        // Connection lost - pause running uploads
+        this.uploads.forEach((upload, uploadId) => {
+          if (upload.state === 'running') this.pauseUpload(uploadId);
+        });
         console.log('🌐 Connectivity lost via fetch check');
-        this.pauseAllUploads();
       }
     }
   }
@@ -366,8 +387,8 @@ class ResumableUploadManager {
       upload.uploadTask.pause();
       upload.state = 'paused';
       this.activeUploads.delete(uploadId);
+      this.persistUploads(); // Save state immediately
       console.log(`⏸️ Upload paused: ${uploadId}`);
-      this.persistUploads();
     }
   }
 
@@ -375,15 +396,14 @@ class ResumableUploadManager {
     const upload = this.uploads.get(uploadId);
     if (!upload) return;
 
-    if (upload.state === 'paused') {
-      if (this.isOnline) {
+    if (upload.state === 'paused' && this.isOnline) {
         if (!this.uploadQueue.includes(uploadId)) {
           this.uploadQueue.push(uploadId);
         }
+        this.persistUploads(); // Save state immediately
         console.log(`▶️ Upload queued for resume: ${uploadId}`);
-      } else {
+    } else if (!this.isOnline) {
         console.log(`⏸️ Upload will resume when online: ${uploadId}`);
-      }
     }
   }
 
@@ -406,22 +426,6 @@ class ResumableUploadManager {
 
     console.log(`❌ Upload canceled: ${uploadId}`);
     this.cleanupUpload(uploadId);
-  }
-
-  private pauseAllUploads(): void {
-    this.uploads.forEach((upload, uploadId) => {
-      if (upload.state === 'running') {
-        this.pauseUpload(uploadId);
-      }
-    });
-  }
-
-  private resumeAllUploads(): void {
-    this.uploads.forEach((upload, uploadId) => {
-      if (upload.state === 'paused') {
-        this.resumeUpload(uploadId);
-      }
-    });
   }
 
   public getUploadStatus(uploadId: string): UploadMetadata | null {

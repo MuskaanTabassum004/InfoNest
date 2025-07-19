@@ -83,13 +83,9 @@ export const SettingsPage: React.FC = () => {
 
   const handleSignOut = async () => {
     try {
-      // Use force logout to ensure complete cleanup
-      const { forceLogout } = await import("../lib/auth");
-      await forceLogout();
+      await signOut();
     } catch (error) {
       console.error("Failed to sign out:", error);
-      // Force redirect even if logout fails
-      window.location.href = '/';
     }
   };
 

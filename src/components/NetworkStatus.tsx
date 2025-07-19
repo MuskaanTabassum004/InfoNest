@@ -4,15 +4,22 @@ import { Wifi, WifiOff, AlertTriangle, CheckCircle } from "lucide-react";
 interface NetworkStatusProps {
   className?: string;
   showDetails?: boolean;
+  hideFromUI?: boolean;
 }
 
 export const NetworkStatus: React.FC<NetworkStatusProps> = ({
   className = "",
-  showDetails = false
+  showDetails = false,
+  hideFromUI = true
 }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [connectionQuality, setConnectionQuality] = useState<'good' | 'poor' | 'offline'>('good');
   const [lastOnlineTime, setLastOnlineTime] = useState<Date | null>(null);
+
+  // Hide from UI but keep functionality
+  if (hideFromUI) {
+    return null;
+  }
 
   useEffect(() => {
     const handleOnline = () => {

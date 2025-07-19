@@ -233,7 +233,7 @@ export const WriterRequestForm: React.FC<WriterRequestFormProps> = ({
   }
 
   // Show existing request status
-  if (existingRequest && existingRequest.status === "pending") {
+  if (existingRequest && existingRequest.status === "pending" && userProfile?.role !== 'infowriter') {
     return (
       <div className="max-w-2xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl p-8 border border-gray-200">
         <div className="text-center">
@@ -260,6 +260,31 @@ export const WriterRequestForm: React.FC<WriterRequestFormProps> = ({
             className="bg-gray-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-gray-700 transition-all"
           >
             Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't show form if user is already an infowriter
+  if (userProfile?.role === 'infowriter') {
+    return (
+      <div className="max-w-2xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl p-8 border border-gray-200">
+        <div className="text-center">
+          <div className="bg-green-100 p-4 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Already an InfoWriter
+          </h2>
+          <p className="text-gray-600 mb-4">
+            You already have InfoWriter privileges and can create articles.
+          </p>
+          <button
+            onClick={onClose}
+            className="bg-blue-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-700 transition-all"
+          >
+            Go to Dashboard
           </button>
         </div>
       </div>

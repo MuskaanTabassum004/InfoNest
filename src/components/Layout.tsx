@@ -51,8 +51,6 @@ export const Layout: React.FC = () => {
       await forceLogout();
     } catch (error) {
       console.error("Error logging out:", error);
-      // Force redirect even if logout fails
-      window.location.href = '/';
     }
   };
 
@@ -100,9 +98,6 @@ export const Layout: React.FC = () => {
 
             <div className="flex items-center space-x-4">
               <NotificationDropdown />
-              
-              {/* Network Status */}
-              <NetworkStatus />
               
               {/* Upload Manager Toggle */}
               {hasActiveUploads && (

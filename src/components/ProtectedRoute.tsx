@@ -82,7 +82,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (!hasRequiredRole || !hasCurrentRoutePermission) {
     if (showError) {
       const roleText = requiredRole || requiredRoles?.join(" or ");
-      toast.error(`You need ${roleText} privileges to access this page`);
+      // Only show error for actual permission issues, not for article viewing
+      if (location.pathname.includes('/article/') && requiredRoles?.includes('user')) {
+        // Don't show error for article viewing - let component handle it
+      } else {
+        toast.error(`You need ${roleText} privileges to access this page`);
+      }
     }
     return <Navigate to={fallbackPath} replace />;
   }

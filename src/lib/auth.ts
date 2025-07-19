@@ -400,7 +400,10 @@ export const signOut = async () => {
     document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
   });
   
-  return await firebaseSignOut(auth);
+  await firebaseSignOut(auth);
+  
+  // Navigate to homepage after logout
+  window.location.href = '/';
 };
 
 export const getUserProfile = async (
