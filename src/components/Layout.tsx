@@ -12,6 +12,7 @@ import {
   Settings,
   MessageCircle,
   UserCog,
+  Upload,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
