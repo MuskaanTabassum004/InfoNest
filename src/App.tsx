@@ -30,6 +30,7 @@ import { ActiveWritersPage } from "./pages/ActiveWritersPage";
 import { RemovedWritersPage } from "./pages/RemovedWritersPage";
 import { PersonalDashboard } from "./pages/PersonalDashboard";
 import { OfflineIndicator } from "./components/OfflineIndicator";
+import { GlobalUploadNotifications } from "./components/GlobalUploadNotifications";
 import {
   ProtectedRoute,
   AdminRoute,
@@ -100,6 +101,9 @@ function AppContent({
 
       {/* Global Offline Indicator */}
       <OfflineIndicator />
+
+      {/* Global Upload Notifications */}
+      <GlobalUploadNotifications />
 
       <Routes>
         {/* Public Routes */}
