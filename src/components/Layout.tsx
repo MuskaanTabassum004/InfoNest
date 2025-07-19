@@ -34,7 +34,7 @@ export const Layout: React.FC = () => {
       const activeUploads = resumableUploadManager.getActiveUploads();
       const hasActive = activeUploads.length > 0;
       setHasActiveUploads(hasActive);
-      
+
       // Auto-show upload manager when uploads are active
       if (hasActive && !showUploadManager) {
         setShowUploadManager(true);
@@ -46,9 +46,8 @@ export const Layout: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      // Use force logout to ensure complete cleanup
-      const { forceLogout } = await import("../lib/auth");
-      await forceLogout();
+      // Use regular signOut function
+      await signOut();
     } catch (error) {
       console.error("Error logging out:", error);
     }
@@ -98,7 +97,7 @@ export const Layout: React.FC = () => {
 
             <div className="flex items-center space-x-4">
               <NotificationDropdown />
-              
+
               {/* Upload Manager Toggle */}
               {hasActiveUploads && (
                 <button
@@ -216,7 +215,7 @@ export const Layout: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet /> {/* ✅ Main place where nested pages render */}
       </main>
-      
+
       {/* Global Upload Manager */}
       <UploadManager
         isOpen={showUploadManager}
