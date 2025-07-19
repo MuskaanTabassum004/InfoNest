@@ -38,220 +38,235 @@ import {
 
 function App() {
   // Main application component with notification system integrated
-  const { loading, isAuthenticated, emailVerified } = useAuth();
-
-  if (loading) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: "#EFEDFA" }}
-      >
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <Router>
-      <NotificationProvider>
-        <div
-          className="App"
-          style={{ backgroundColor: "#EFEDFA", minHeight: "100vh" }}
-        >
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: "#fff",
-                color: "#374151",
-                borderRadius: "12px",
-                border: "1px solid #e5e7eb",
-                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-              },
-            }}
-          />
-          
-          {/* Global Offline Indicator */}
-          <OfflineIndicator />
+      <AppWithAuth />
+    </Router>
+  );
+}
 
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/verify-email" element={<EmailVerificationHandler />} />
+// Component that handles auth state and provides it to the rest of the app
+function AppWithAuth() {
+  const { loading, isAuthenticated, emailVerified } = useAuth();
+
+  return (
+    <NotificationProvider>
+      {loading ? (
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{ backgroundColor: "#EFEDFA" }}
+        >
+          <div className="text-center">
+            <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
+            <p className="text-gray-600">Loading...</p>
+          </div>
+        </div>
+      ) : (
+        <AppContent
+          isAuthenticated={isAuthenticated}
+          emailVerified={emailVerified}
+        />
+      )}
+    </NotificationProvider>
+  );
+}
+
+// Separate component for the main app content
+function AppContent({
+  isAuthenticated,
+  emailVerified,
+}: {
+  isAuthenticated: boolean;
+  emailVerified: boolean;
+}) {
+  return (
+    <div
+      className="App"
+      style={{ backgroundColor: "#EFEDFA", minHeight: "100vh" }}
+    >
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: "#fff",
+            color: "#374151",
+            borderRadius: "12px",
+            border: "1px solid #e5e7eb",
+            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+          },
+        }}
+      />
+
+      {/* Global Offline Indicator */}
+      <OfflineIndicator />
+
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/verify-email" element={<EmailVerificationHandler />} />
+        <Route
+          path="/auth"
+          element={
+            !isAuthenticated ? <AuthForm /> : <Navigate to="/" replace />
+          }
+        />
+        <Route path="/email-verify" element={<EmailVerificationPage />} />
+
+        {/* Protected Routes */}
+        {isAuthenticated && emailVerified ? (
+          <Route path="/*" element={<Layout />}>
+            {/* Routes accessible to all authenticated users */}
             <Route
-              path="/auth"
+              path="dashboard"
               element={
-                !isAuthenticated ? <AuthForm /> : <Navigate to="/" replace />
+                <UserRoute>
+                  <Dashboard />
+                </UserRoute>
               }
             />
-            <Route path="/email-verify" element={<EmailVerificationPage />} />
+            <Route
+              path="article/:id"
+              element={
+                <UserRoute>
+                  <ArticleView />
+                </UserRoute>
+              }
+            />
+            <Route
+              path="writer-request"
+              element={
+                <UserRoute>
+                  <WriterRequestPage />
+                </UserRoute>
+              }
+            />
+            <Route
+              path="saved-articles"
+              element={
+                <UserRoute>
+                  <SavedArticles />
+                </UserRoute>
+              }
+            />
+            <Route
+              path="profile"
+              element={
+                <UserRoute>
+                  <ProfilePage />
+                </UserRoute>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <UserRoute>
+                  <SettingsPage />
+                </UserRoute>
+              }
+            />
+            <Route
+              path="chats"
+              element={
+                <UserRoute>
+                  <ChatsPage />
+                </UserRoute>
+              }
+            />
 
-            {/* Protected Routes */}
-            {isAuthenticated && emailVerified ? (
-              <Route path="/*" element={<Layout />}>
-                {/* Routes accessible to all authenticated users */}
-                <Route
-                  path="dashboard"
-                  element={
-                    <UserRoute>
-                      <Dashboard />
-                    </UserRoute>
-                  }
-                />
-                <Route
-                  path="article/:id"
-                  element={
-                    <UserRoute>
-                      <ArticleView />
-                    </UserRoute>
-                  }
-                />
-                <Route
-                  path="writer-request"
-                  element={
-                    <UserRoute>
-                      <WriterRequestPage />
-                    </UserRoute>
-                  }
-                />
-                <Route
-                  path="saved-articles"
-                  element={
-                    <UserRoute>
-                      <SavedArticles />
-                    </UserRoute>
-                  }
-                />
-                <Route
-                  path="profile"
-                  element={
-                    <UserRoute>
-                      <ProfilePage />
-                    </UserRoute>
-                  }
-                />
-                <Route
-                  path="settings"
-                  element={
-                    <UserRoute>
-                      <SettingsPage />
-                    </UserRoute>
-                  }
-                />
-                <Route
-                  path="chats"
-                  element={
-                    <UserRoute>
-                      <ChatsPage />
-                    </UserRoute>
-                  }
-                />
+            {/* InfoWriter and Admin only routes */}
+            <Route
+              path="search"
+              element={
+                <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
+                  <SearchPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="article/new"
+              element={
+                <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
+                  <ArticleEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="article/edit/:id"
+              element={
+                <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
+                  <ArticleEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="my-articles"
+              element={
+                <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
+                  <MyArticles />
+                </ProtectedRoute>
+              }
+            />
 
-                {/* InfoWriter and Admin only routes */}
-                <Route
-                  path="search"
-                  element={
-                    <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
-                      <SearchPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="article/new"
-                  element={
-                    <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
-                      <ArticleEditor />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="article/edit/:id"
-                  element={
-                    <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
-                      <ArticleEditor />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="my-articles"
-                  element={
-                    <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
-                      <MyArticles />
-                    </ProtectedRoute>
-                  }
-                />
+            {/* Admin only routes */}
+            <Route
+              path="personal-dashboard"
+              element={
+                <AdminRoute>
+                  <PersonalDashboard />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin"
+              element={
+                <AdminRoute>
+                  <AdminPanel />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin/writer-requests"
+              element={
+                <AdminRoute>
+                  <WriterRequestPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin/active-writers"
+              element={
+                <AdminRoute>
+                  <ActiveWritersPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin/removed-writers"
+              element={
+                <AdminRoute>
+                  <RemovedWritersPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="admin/system"
+              element={
+                <AdminRoute>
+                  <SettingsPage />
+                </AdminRoute>
+              }
+            />
 
-                {/* Admin only routes */}
-                <Route
-                  path="personal-dashboard"
-                  element={
-                    <AdminRoute>
-                      <PersonalDashboard />
-                    </AdminRoute>
-                  }
-                />
-                <Route
-                  path="admin"
-                  element={
-                    <AdminRoute>
-                      <AdminPanel />
-                    </AdminRoute>
-                  }
-                />
-                <Route
-                  path="admin/writer-requests"
-                  element={
-                    <AdminRoute>
-                      <WriterRequestPage />
-                    </AdminRoute>
-                  }
-                />
-                <Route
-                  path="admin/active-writers"
-                  element={
-                    <AdminRoute>
-                      <ActiveWritersPage />
-                    </AdminRoute>
-                  }
-                />
-                <Route
-                  path="admin/removed-writers"
-                  element={
-                    <AdminRoute>
-                      <RemovedWritersPage />
-                    </AdminRoute>
-                  }
-                />
-                <Route
-                  path="admin/system"
-                  element={
-                    <AdminRoute>
-                      <SettingsPage />
-                    </AdminRoute>
-                  }
-                />
-
-                <Route
-                  path="*"
-                  element={<Navigate to="/dashboard" replace />}
-                />
-              </Route>
-            ) : isAuthenticated && !emailVerified ? (
-              <Route
-                path="*"
-                element={<Navigate to="/email-verify" replace />}
-              />
-            ) : (
-              <Route path="*" element={<Navigate to="/auth" replace />} />
-            )}
-          </Routes>
-        </div>
-      </NotificationProvider>
-    </Router>
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Route>
+        ) : isAuthenticated && !emailVerified ? (
+          <Route path="*" element={<Navigate to="/email-verify" replace />} />
+        ) : (
+          <Route path="*" element={<Navigate to="/auth" replace />} />
+        )}
+      </Routes>
+    </div>
   );
 }
 
