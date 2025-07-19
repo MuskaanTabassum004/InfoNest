@@ -108,27 +108,56 @@ export const deleteArticle = async (id: string): Promise<void> => {
   await deleteDoc(doc(firestore, "articles", id));
 };
 
+// Hard delete - permanently removes article from database
+export const hardDeleteArticle = async (id: string): Promise<void> => {
+  await deleteDoc(doc(firestore, "articles", id));
+};
+
+// Soft delete - changes status to unpublished (for admin moderation)
 export const softDeleteArticle = async (
   articleId: string,
-  deletedBy: "admin" | "infowriter",
+  deletedBy: "admin",
   deletedByUserId: string,
   deleteReason?: string
 ): Promise<void> => {
   try {
     const articleRef = doc(firestore, "articles", articleId);
     await updateDoc(articleRef, {
-      status: "deleted",
-      isDeleted: true,
+      status: "unpublished", // Change to unpublished instead of deleted
       deletedAt: new Date(),
       deletedBy,
       deletedByUserId,
-      deleteReason: deleteReason || "",
+      deleteReason: deleteReason || "Article unpublished by administrator",
       updatedAt: new Date(),
     });
   } catch (error) {
     console.error("Error soft deleting article:", error);
     throw error;
   }
+};
+
+// Smart delete function that chooses between hard and soft delete
+export const deleteArticleByRole = async (
+  articleId: string,
+  userRole: string,
+  userId: string,
+  authorId: string,
+  authorRole?: string,
+  deleteReason?: string
+): Promise<void> => {
+  // Self-deletion (hard delete)
+  if (userId === authorId) {
+    await hardDeleteArticle(articleId);
+    return;
+  }
+
+  // Admin deleting infowriter article (soft delete to unpublished)
+  if (userRole === "admin" && authorRole === "infowriter") {
+    await softDeleteArticle(articleId, "admin", userId, deleteReason);
+    return;
+  }
+
+  throw new Error("Unauthorized deletion attempt");
 };
 
 export const restoreArticle = async (
@@ -197,24 +226,24 @@ export const getArticles = async (
     q = query(q, where(field as string, operator as any, value));
   });
 
-  // Apply appropriate orderBy based on filters
-  if (options.status === "published") {
-    q = query(q, orderBy("publishedAt", "desc"));
-  } else if (options.status) {
-    q = query(q, orderBy("updatedAt", "desc"));
-  } else if (options.authorId) {
-    q = query(q, orderBy("createdAt", "desc"));
+  // For queries with authorId or status filter, we need to handle ordering differently
+  // to avoid composite index requirements
+  if (options.authorId || options.status) {
+    // Don't add orderBy for filtered queries to avoid composite index requirement
+    // We'll sort in memory instead
+    if (options.limit) {
+      q = query(q, limit(options.limit * 2)); // Get more to account for sorting
+    }
   } else {
+    // Only add orderBy when not filtering by authorId or status
     q = query(q, orderBy("updatedAt", "desc"));
-  }
-
-  // Apply limit directly to the query
-  if (options.limit) {
-    q = query(q, limit(options.limit));
+    if (options.limit) {
+      q = query(q, limit(options.limit));
+    }
   }
 
   const querySnapshot = await getDocs(q);
-  const articles = querySnapshot.docs.map((doc) => {
+  let articles = querySnapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       ...data,
@@ -223,6 +252,16 @@ export const getArticles = async (
       publishedAt: data.publishedAt?.toDate(),
     } as Article;
   });
+
+  // Sort in memory if we filtered by authorId or status
+  if (options.authorId || options.status) {
+    articles = articles.sort(
+      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+    );
+    if (options.limit) {
+      articles = articles.slice(0, options.limit);
+    }
+  }
 
   return articles;
 };
