@@ -197,24 +197,24 @@ export const getArticles = async (
     q = query(q, where(field as string, operator as any, value));
   });
 
-  // For queries with authorId or status filter, we need to handle ordering differently
-  // to avoid composite index requirements
-  if (options.authorId || options.status) {
-    // Don't add orderBy for filtered queries to avoid composite index requirement
-    // We'll sort in memory instead
-    if (options.limit) {
-      q = query(q, limit(options.limit * 2)); // Get more to account for sorting
-    }
-  } else {
-    // Only add orderBy when not filtering by authorId or status
+  // Apply appropriate orderBy based on filters
+  if (options.status === "published") {
+    q = query(q, orderBy("publishedAt", "desc"));
+  } else if (options.status) {
     q = query(q, orderBy("updatedAt", "desc"));
-    if (options.limit) {
-      q = query(q, limit(options.limit));
-    }
+  } else if (options.authorId) {
+    q = query(q, orderBy("createdAt", "desc"));
+  } else {
+    q = query(q, orderBy("updatedAt", "desc"));
+  }
+
+  // Apply limit directly to the query
+  if (options.limit) {
+    q = query(q, limit(options.limit));
   }
 
   const querySnapshot = await getDocs(q);
-  let articles = querySnapshot.docs.map((doc) => {
+  const articles = querySnapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       ...data,
@@ -223,16 +223,6 @@ export const getArticles = async (
       publishedAt: data.publishedAt?.toDate(),
     } as Article;
   });
-
-  // Sort in memory if we filtered by authorId or status
-  if (options.authorId || options.status) {
-    articles = articles.sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
-    );
-    if (options.limit) {
-      articles = articles.slice(0, options.limit);
-    }
-  }
 
   return articles;
 };
