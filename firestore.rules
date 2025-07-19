@@ -1,32 +1,42 @@
+```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Articles collection - allow reading published articles publicly
+    // Articles collection - role-based permissions
     match /articles/{articleId} {
-      // Anyone can read published articles (public access)
+      // READ PERMISSIONS
+      // All users (authenticated or unauthenticated) can read published articles
       allow read: if resource.data.status == 'published';
-      
-      // Allow authenticated users to read their own articles (any status)
-      // and admins to read all articles
-      allow read: if request.auth != null && 
-        (request.auth.uid == resource.data.authorId || 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      
-      // Create and update require authentication and proper role
+
+      // Authors can read their own articles (any status)
+      allow read: if request.auth != null && request.auth.uid == resource.data.authorId;
+
+      // Admins can read all articles (any status)
+      allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+      // CREATE PERMISSIONS
+      // Only infowriters and admins can create articles
       allow create: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['infowriter', 'admin'] &&
         request.auth.uid == request.resource.data.authorId;
-      allow update: if request.auth != null &&
-        (request.auth.uid == resource.data.authorId ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      
-      // Delete requires authentication and ownership or admin role
-      allow delete: if request.auth != null && 
-        (request.auth.uid == resource.data.authorId || 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-    }
-    
 
+      // UPDATE PERMISSIONS
+      // Authors can update their own articles
+      allow update: if request.auth != null && request.auth.uid == resource.data.authorId;
+
+      // Admins can update any article (including their own and infowriter articles)
+      allow update: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+      // DELETE PERMISSIONS (Hard Delete)
+      // Authors can delete their own articles
+      allow delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+
+      // Admins can delete infowriter articles (but not other admins' articles)
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+        get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.role == 'infowriter';
+    }
     
     // Writer requests collection - users can read their own requests, admins can read all
     match /writerRequests/{requestId} {
@@ -117,3 +127,4 @@ service cloud.firestore {
     }
   }
 }
+```
