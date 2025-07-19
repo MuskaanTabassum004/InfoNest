@@ -1,6 +1,10 @@
 // useAuth.ts - Enhanced with proper async loading and email verification flow
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { User, onAuthStateChanged } from "firebase/auth";
+import {
+  User,
+  onAuthStateChanged,
+  signOut as firebaseSignOut,
+} from "firebase/auth";
 import { auth, firestore } from "../lib/firebase";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import {
@@ -85,7 +89,6 @@ export const useAuth = () => {
           return;
         }
 
-
         // Load from Firestore if cache miss or needs refresh
         const profileRef = doc(firestore, "users", firebaseUser.uid);
         onSnapshot(profileRef, (doc) => {
@@ -135,20 +138,18 @@ export const useAuth = () => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
-
         // STRICT VERIFICATION CHECK: Only process verified users
         if (firebaseUser.emailVerified) {
           await createUserProfileAfterVerification(firebaseUser);
           await loadUserProfile(firebaseUser);
         } else {
-          
           // CRITICAL: Sign out unverified users immediately
           try {
             await firebaseSignOut(auth);
           } catch (signOutError) {
             console.error("Failed to sign out unverified user");
           }
-          
+
           // Clear all user data for unverified users
           setUserProfile(null);
           setPermissions(null);
@@ -159,12 +160,12 @@ export const useAuth = () => {
         setUserProfile(null);
         setPermissions(null);
         authCache.clearAllSessions();
-        
+
         // Clear any remaining storage
         try {
-          localStorage.removeItem('infonest_auth_cache');
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('infonest_')) {
+          localStorage.removeItem("infonest_auth_cache");
+          Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith("infonest_")) {
               localStorage.removeItem(key);
             }
           });
@@ -206,7 +207,7 @@ export const useAuth = () => {
         };
 
         setUserProfile(updatedProfile);
-        
+
         // Update cached permissions when profile changes
         if (updatedProfile) {
           authCache.cacheUserSession(updatedProfile);
@@ -243,7 +244,48 @@ export const useAuth = () => {
   const canEditArticle = useCallback(
     (authorId: string): boolean => {
       if (!userProfile) return false;
-      return userProfile.uid === authorId || userProfile.role === "admin";
+      // Users can only edit their own articles
+      return userProfile.uid === authorId;
+    },
+    [userProfile]
+  );
+
+  const canDeleteArticle = useCallback(
+    (authorId: string, authorRole?: string): boolean => {
+      if (!userProfile || !permissions) return false;
+
+      // Users can delete their own articles
+      if (userProfile.uid === authorId) {
+        return permissions.canDeleteOwnArticles;
+      }
+
+      // Admins can delete infowriter articles (but not other admin articles)
+      if (userProfile.role === "admin" && authorRole === "infowriter") {
+        return permissions.canDeleteInfowriterArticles;
+      }
+
+      return false;
+    },
+    [userProfile, permissions]
+  );
+
+  const canReadArticle = useCallback(
+    (articleStatus: string, authorId: string): boolean => {
+      // Anyone can read published articles (matches Firebase rules)
+      if (articleStatus === "published") {
+        return true;
+      }
+
+      // Must be authenticated to read non-published articles
+      if (!userProfile) return false;
+
+      // Can read own articles (any status)
+      if (userProfile.uid === authorId) {
+        return true;
+      }
+
+      // No other access allowed (admins cannot read other users' private articles)
+      return false;
     },
     [userProfile]
   );
@@ -296,6 +338,8 @@ export const useAuth = () => {
     canCreateArticles,
     canManageUsers,
     canEditArticle,
+    canDeleteArticle,
+    canReadArticle,
     hasRoutePermission,
     getDashboardRoute,
     refreshProfile,
