@@ -42,42 +42,9 @@ export const HomePage: React.FC = () => {
     setLoading(true);
     try {
       const publishedArticles = await getPublishedArticles();
-      
-      // Enhanced featured articles selection with priority system
-      const articlesWithPriority = publishedArticles.map(article => {
-        // Calculate popularity score based on views and shares
-        const popularityScore = (article.views || 0) * 1 + (article.shareCount || 0) * 2;
-        
-        // Assign priority group based on category and cover image
-        let priorityGroup: number;
-        const hasCategory = article.categories && article.categories.length > 0;
-        const hasCoverImage = article.coverImage && article.coverImage.trim() !== '';
-        
-        if (hasCategory && hasCoverImage) {
-          priorityGroup = 0; // Highest priority: has both category and cover image
-        } else if (hasCategory && !hasCoverImage) {
-          priorityGroup = 1; // Medium priority: has category but no cover image
-        } else {
-          priorityGroup = 2; // Lowest priority: no category assignment
-        }
-        
-        return {
-          ...article,
-          popularityScore,
-          priorityGroup
-        };
-      });
-      
-      // Sort by priority group first (ascending), then by popularity score (descending)
-      const sortedArticles = articlesWithPriority.sort((a, b) => {
-        if (a.priorityGroup !== b.priorityGroup) {
-          return a.priorityGroup - b.priorityGroup; // Lower priority group number = higher priority
-        }
-        return b.popularityScore - a.popularityScore; // Higher popularity score = higher priority
-      });
-      
-      // Select top 6 articles as featured
-      const featuredArticles = sortedArticles.slice(0, 6);
+
+      // Enhanced Featured Articles Selection with Priority System
+      const featuredArticles = selectFeaturedArticles(publishedArticles);
 
       const categoryMap = new Map<string, number>();
       const allTags = new Set<string>();
@@ -107,6 +74,78 @@ export const HomePage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Enhanced Featured Articles Selection Function
+  const selectFeaturedArticles = (articles: Article[]): Article[] => {
+    // Calculate category frequency for priority ranking
+    const categoryFrequency = new Map<string, number>();
+    articles.forEach((article) => {
+      article.categories.forEach((category) => {
+        categoryFrequency.set(
+          category,
+          (categoryFrequency.get(category) || 0) + 1
+        );
+      });
+    });
+
+    // Sort categories by frequency (most frequent = higher priority)
+    const sortedCategories = Array.from(categoryFrequency.entries())
+      .sort(([, a], [, b]) => b - a)
+      .map(([category]) => category);
+
+    // Priority scoring function
+    const calculatePriority = (article: Article): number => {
+      let score = 0;
+
+      // Primary criteria: Category assignment + Cover image (highest priority)
+      if (article.categories.length > 0 && article.coverImage) {
+        score += 1000;
+      }
+      // Secondary criteria: Category assignment without cover image (medium priority)
+      else if (article.categories.length > 0) {
+        score += 500;
+      }
+      // Tertiary criteria: Articles from less frequent categories (lowest priority)
+      else {
+        score += 100;
+      }
+
+      // Bonus points for popularity metrics
+      if (article.views) {
+        score += Math.min(article.views * 0.1, 100); // Cap at 100 bonus points
+      }
+
+      // Bonus points for category popularity (higher for more popular categories)
+      article.categories.forEach((category) => {
+        const categoryIndex = sortedCategories.indexOf(category);
+        if (categoryIndex !== -1) {
+          // More popular categories get higher scores
+          score += Math.max(50 - categoryIndex * 2, 10);
+        }
+      });
+
+      // Bonus for recent articles (recency factor)
+      if (article.publishedAt) {
+        const daysSincePublished =
+          (Date.now() - article.publishedAt.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSincePublished < 30) {
+          score += Math.max(20 - daysSincePublished * 0.5, 0);
+        }
+      }
+
+      return score;
+    };
+
+    // Sort articles by priority score and select top 6
+    return articles
+      .map((article) => ({
+        article,
+        priority: calculatePriority(article),
+      }))
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, 6)
+      .map(({ article }) => article);
   };
 
   useEffect(() => {
@@ -144,7 +183,7 @@ export const HomePage: React.FC = () => {
       setIsDropdownOpen(false);
     } catch (error) {
       console.error("Error logging out:", error);
-      window.location.href = '/';
+      window.location.href = "/";
     }
   };
 
@@ -410,7 +449,7 @@ export const HomePage: React.FC = () => {
               Featured Documentation
             </h2>
             <p className="text-gray-600 text-lg">
-              Discover our most popular and recently updated articles
+              Discover our most popular and high-quality documentation
             </p>
           </div>
 
