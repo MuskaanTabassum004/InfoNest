@@ -1,11 +1,10 @@
-```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Articles collection - role-based permissions
     match /articles/{articleId} {
       // READ PERMISSIONS
-      // All users (authenticated or unauthenticated) can read published articles
+      // Anyone can read published articles (including unauthenticated users)
       allow read: if resource.data.status == 'published';
 
       // Authors can read their own articles (any status)
@@ -25,14 +24,14 @@ service cloud.firestore {
       allow update: if request.auth != null && request.auth.uid == resource.data.authorId;
 
       // Admins can update any article (including their own and infowriter articles)
-      allow update: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
-      // DELETE PERMISSIONS (Hard Delete)
-      // Authors can delete their own articles
+      // DELETE PERMISSIONS
+      // Authors can delete their own articles (hard delete)
       allow delete: if request.auth != null && request.auth.uid == resource.data.authorId;
 
-      // Admins can delete infowriter articles (but not other admins' articles)
+      // Admins can delete infowriter articles (but this will be handled as soft delete in app logic)
+      // Admins cannot delete other admin articles
       allow delete: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
         get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.role == 'infowriter';
@@ -127,4 +126,3 @@ service cloud.firestore {
     }
   }
 }
-```
