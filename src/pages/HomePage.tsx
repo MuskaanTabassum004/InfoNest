@@ -42,7 +42,42 @@ export const HomePage: React.FC = () => {
     setLoading(true);
     try {
       const publishedArticles = await getPublishedArticles();
-      const featuredArticles = publishedArticles.slice(0, 6);
+      
+      // Enhanced featured articles selection with priority system
+      const articlesWithPriority = publishedArticles.map(article => {
+        // Calculate popularity score based on views and shares
+        const popularityScore = (article.views || 0) * 1 + (article.shareCount || 0) * 2;
+        
+        // Assign priority group based on category and cover image
+        let priorityGroup: number;
+        const hasCategory = article.categories && article.categories.length > 0;
+        const hasCoverImage = article.coverImage && article.coverImage.trim() !== '';
+        
+        if (hasCategory && hasCoverImage) {
+          priorityGroup = 0; // Highest priority: has both category and cover image
+        } else if (hasCategory && !hasCoverImage) {
+          priorityGroup = 1; // Medium priority: has category but no cover image
+        } else {
+          priorityGroup = 2; // Lowest priority: no category assignment
+        }
+        
+        return {
+          ...article,
+          popularityScore,
+          priorityGroup
+        };
+      });
+      
+      // Sort by priority group first (ascending), then by popularity score (descending)
+      const sortedArticles = articlesWithPriority.sort((a, b) => {
+        if (a.priorityGroup !== b.priorityGroup) {
+          return a.priorityGroup - b.priorityGroup; // Lower priority group number = higher priority
+        }
+        return b.popularityScore - a.popularityScore; // Higher popularity score = higher priority
+      });
+      
+      // Select top 6 articles as featured
+      const featuredArticles = sortedArticles.slice(0, 6);
 
       const categoryMap = new Map<string, number>();
       const allTags = new Set<string>();
@@ -495,34 +530,6 @@ export const HomePage: React.FC = () => {
                 notifications when content changes.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Recently Updated
-            </h2>
-            <p className="text-gray-600 text-lg">
-              Stay up-to-date with the latest documentation changes
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {homeData.articles.slice(0, 6).map((article) => (
-              <div
-                key={article.id}
-                onClick={() => handleDocumentClick(article.id)}
-                className="cursor-pointer"
-              >
-                <ArticleCard
-                  article={article}
-                  variant="default"
-                  showActions={true}
-                />
-              </div>
-            ))}
           </div>
         </div>
       </section>
