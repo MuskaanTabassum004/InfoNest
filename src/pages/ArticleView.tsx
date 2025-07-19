@@ -26,7 +26,7 @@ import { firestore } from "../lib/firebase";
 export const ArticleView: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile, isInfoWriter } = useAuth();
+  const { userProfile, canEditArticle, canReadArticle } = useAuth();
   const [article, setArticle] = useState<Article | null>(null);
   const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,12 +43,8 @@ export const ArticleView: React.FC = () => {
     try {
       const loadedArticle = await getArticle(articleId);
       if (loadedArticle) {
-        // Check if article is published or user owns it
-        if (
-          loadedArticle.status !== "published" &&
-          loadedArticle.authorId !== userProfile?.uid &&
-          userProfile?.role !== "admin"
-        ) {
+        // Check if user can read this article
+        if (!canReadArticle(loadedArticle.status, loadedArticle.authorId)) {
           toast.error("Article not found or not accessible");
           navigate("/dashboard");
           return;
@@ -109,8 +105,8 @@ export const ArticleView: React.FC = () => {
   }, [id]);
 
   const canEdit = (article: Article): boolean => {
-    if (!isInfoWriter || !userProfile) return false;
-    return article.authorId === userProfile.uid || isAdmin;
+    if (!userProfile) return false;
+    return canEditArticle(article.authorId);
   };
 
   if (loading) {
