@@ -37,7 +37,7 @@ export const EmailVerificationPage: React.FC = () => {
       toast.error("Please sign in first to resend verification email.");
       return;
     }
-    
+
     setSending(true);
     try {
       await sendEmailVerification(currentUser);
@@ -67,7 +67,7 @@ export const EmailVerificationPage: React.FC = () => {
     // Real-time Firebase Auth state listener
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setCurrentUser(firebaseUser);
-      
+
       if (firebaseUser) {
         console.log("🔍 Auth state changed");
 
@@ -102,8 +102,10 @@ export const EmailVerificationPage: React.FC = () => {
           await auth.currentUser.reload();
           if (auth.currentUser.emailVerified && !isVerified) {
             setIsVerified(true);
-            toast.success("Email verified from another device! Welcome to InfoNest.");
-            navigate("/auth", { replace: true });
+            toast.success(
+              "Email verified from another device! Welcome to InfoNest."
+            );
+            navigate("/", { replace: true }); // Navigate to homepage after verification
           }
         } catch (error) {
           console.error("Error checking verification status:", error);
@@ -168,11 +170,13 @@ export const EmailVerificationPage: React.FC = () => {
             <div className="flex items-center space-x-2">
               <div className="animate-pulse h-3 w-3 bg-blue-500 rounded-full"></div>
               <p className="text-blue-800 text-sm font-medium">
-                Waiting for email verification... This will happen automatically when you click the link from any device.
+                Waiting for email verification... This will happen automatically
+                when you click the link from any device.
               </p>
             </div>
             <p className="text-blue-700 text-xs mt-2">
-              💡 You can verify your email from any device - mobile, tablet, or computer. Once verified, this page will automatically update.
+              💡 You can verify your email from any device - mobile, tablet, or
+              computer. Once verified, this page will automatically update.
             </p>
           </div>
 
@@ -195,11 +199,12 @@ export const EmailVerificationPage: React.FC = () => {
                 </>
               )}
             </button>
-            
+
             {!currentUser && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-yellow-800 text-sm">
-                  ⚠️ You've been signed out. Please sign in again to resend the verification email.
+                  ⚠️ You've been signed out. Please sign in again to resend the
+                  verification email.
                 </p>
               </div>
             )}
@@ -217,7 +222,10 @@ export const EmailVerificationPage: React.FC = () => {
         </div>
 
         <div className="text-center mt-8 text-sm text-gray-500">
-          <p>Having trouble? You can verify your email from any device. Contact support if you need help.</p>
+          <p>
+            Having trouble? You can verify your email from any device. Contact
+            support if you need help.
+          </p>
         </div>
       </div>
     </div>
