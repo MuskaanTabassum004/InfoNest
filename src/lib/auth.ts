@@ -46,6 +46,11 @@ export interface UserPermissions {
   canEditAnyArticle: boolean;
   canAccessAdmin: boolean;
   canAccessInfoWriter: boolean;
+  canDeleteOwnArticles: boolean;
+  canDeleteInfowriterArticles: boolean; // Admin can delete infowriter articles
+  canReadPublishedArticles: boolean;
+  canReadOwnArticles: boolean;
+  canReadAllArticles: boolean; // Admin can read all articles
   allowedRoutes: string[];
   dashboardRoute: string;
 }
@@ -82,6 +87,11 @@ class AuthCacheManager {
       canEditAnyArticle: false,
       canAccessAdmin: false,
       canAccessInfoWriter: false,
+      canDeleteOwnArticles: false,
+      canDeleteInfowriterArticles: false,
+      canReadPublishedArticles: true, // All authenticated users can read published articles
+      canReadOwnArticles: true, // All users can read their own articles
+      canReadAllArticles: false,
       allowedRoutes: ["/", "/dashboard", "/profile", "/settings", "/chats"],
       dashboardRoute: "/dashboard",
     };
@@ -92,9 +102,12 @@ class AuthCacheManager {
           ...basePermissions,
           canCreateArticles: true,
           canManageUsers: true,
-          canEditAnyArticle: true,
+          canEditAnyArticle: false, // Admins can only edit their own articles
           canAccessAdmin: true,
           canAccessInfoWriter: true,
+          canDeleteOwnArticles: true, // Admins can hard delete their own articles
+          canDeleteInfowriterArticles: true, // Admins can soft delete infowriter articles
+          canReadAllArticles: false, // Admins can only read published articles and their own articles
           allowedRoutes: [
             ...basePermissions.allowedRoutes,
             "/admin",
@@ -105,6 +118,7 @@ class AuthCacheManager {
             "/personal-dashboard",
             "/article/new",
             "/article/edit/:id",
+            "/article/:id", // Allow viewing articles
             "/my-articles",
             "/search",
             "/writer-request",
@@ -117,10 +131,13 @@ class AuthCacheManager {
           ...basePermissions,
           canCreateArticles: true,
           canAccessInfoWriter: true,
+          canDeleteOwnArticles: true, // Infowriters can hard delete their own articles
+          canDeleteInfowriterArticles: false, // Cannot delete other infowriters' articles
           allowedRoutes: [
             ...basePermissions.allowedRoutes,
             "/article/new",
             "/article/edit/:id",
+            "/article/:id", // Allow viewing articles
             "/my-articles",
             "/search",
             "/writer-request",
@@ -134,6 +151,7 @@ class AuthCacheManager {
           ...basePermissions,
           allowedRoutes: [
             ...basePermissions.allowedRoutes,
+            "/article/:id", // Allow users to view articles
             "/writer-request",
             "/saved-articles",
           ],
@@ -207,14 +225,14 @@ class AuthCacheManager {
     this.cache.clear();
     try {
       Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith(this.STORAGE_KEY) || key.startsWith('infonest_')) {
+        if (key.startsWith(this.STORAGE_KEY) || key.startsWith("infonest_")) {
           localStorage.removeItem(key);
         }
       });
-      
+
       // Also clear session storage
       Object.keys(sessionStorage).forEach((key) => {
-        if (key.startsWith(this.STORAGE_KEY) || key.startsWith('infonest_')) {
+        if (key.startsWith(this.STORAGE_KEY) || key.startsWith("infonest_")) {
           sessionStorage.removeItem(key);
         }
       });
@@ -296,7 +314,7 @@ export const signUp = async (
     return { user: result.user, email, displayName };
   } catch (error: any) {
     console.error("Signup error:", error);
-    
+
     // If user creation failed, ensure no partial state exists
     if (auth.currentUser) {
       try {
@@ -305,7 +323,7 @@ export const signUp = async (
         console.error("Failed to cleanup failed user creation:", deleteError);
       }
     }
-    
+
     throw error;
   }
 };
@@ -316,7 +334,6 @@ export const createUserProfileAfterVerification = async (
 ) => {
   // STRICT: Only create profile for verified users - NO EXCEPTIONS
   if (!firebaseUser.emailVerified) {
-    
     // Force sign out unverified users
     try {
       await firebaseSignOut(auth);
@@ -331,7 +348,6 @@ export const createUserProfileAfterVerification = async (
   const profileSnap = await getDoc(profileRef);
 
   if (!profileSnap.exists()) {
-    
     const userProfile: UserProfile = {
       uid: firebaseUser.uid,
       email: firebaseUser.email!,
@@ -349,7 +365,6 @@ export const createUserProfileAfterVerification = async (
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    
   } else {
     // Profile already exists
   }
@@ -360,10 +375,9 @@ export const signIn = async (email: string, password: string) => {
 
   // STRICT: Check if email is verified before allowing sign in
   if (!result.user.emailVerified) {
-    
     // Sign out the unverified user immediately
     await firebaseSignOut(auth);
-    
+
     throw new Error(
       "Please verify your email address before signing in. Check your inbox for the verification link."
     );
@@ -375,7 +389,7 @@ export const signIn = async (email: string, password: string) => {
 export const signOut = async () => {
   // Clear all cached sessions before signing out
   authCache.clearAllSessions();
-  
+
   // Clear all local storage
   try {
     localStorage.clear();
@@ -383,18 +397,18 @@ export const signOut = async () => {
   } catch (error) {
     console.warn("Failed to clear storage:", error);
   }
-  
+
   // Clear any cookies (if using them)
   document.cookie.split(";").forEach((c) => {
     const eqPos = c.indexOf("=");
     const name = eqPos > -1 ? c.substr(0, eqPos) : c;
     document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
   });
-  
+
   await firebaseSignOut(auth);
-  
+
   // Navigate to homepage after logout
-  window.location.href = '/';
+  window.location.href = "/";
 };
 
 export const getUserProfile = async (
@@ -613,13 +627,13 @@ export const signInWithGoogle = async () => {
       updatedAt: new Date(),
       requestedWriterAccess: false,
     };
-    
+
     await setDoc(docRef, {
       ...newUserProfile,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    
+
     console.log("✅ Google user profile created");
   }
 
@@ -627,17 +641,17 @@ export const signInWithGoogle = async () => {
 };
 
 // Handle email verification from link
-export const handleEmailVerification = async (actionCode: string): Promise<boolean> => {
+export const handleEmailVerification = async (
+  actionCode: string
+): Promise<boolean> => {
   try {
-    
     // Verify the action code
     await applyActionCode(auth, actionCode);
-    
+
     // Force refresh the current user to get updated emailVerified status
     if (auth.currentUser) {
       await auth.currentUser.reload();
-      
-      
+
       // Create user profile now that email is verified (if verified)
       if (auth.currentUser.emailVerified) {
         await createUserProfileAfterVerification(auth.currentUser);
@@ -650,22 +664,30 @@ export const handleEmailVerification = async (actionCode: string): Promise<boole
     }
   } catch (error) {
     console.error("Email verification failed:", error);
-    
+
     // Provide more specific error messages
-    if (error.code === 'auth/invalid-action-code') {
-      throw new Error('This verification link has expired or has already been used. Please request a new verification email.');
-    } else if (error.code === 'auth/user-disabled') {
-      throw new Error('This account has been disabled. Please contact support.');
-    } else if (error.code === 'auth/user-not-found') {
-      throw new Error('No account found for this verification link. Please sign up again.');
+    if (error.code === "auth/invalid-action-code") {
+      throw new Error(
+        "This verification link has expired or has already been used. Please request a new verification email."
+      );
+    } else if (error.code === "auth/user-disabled") {
+      throw new Error(
+        "This account has been disabled. Please contact support."
+      );
+    } else if (error.code === "auth/user-not-found") {
+      throw new Error(
+        "No account found for this verification link. Please sign up again."
+      );
     }
-    
+
     throw error;
   }
 };
 
 // Check if action code is valid without applying it
-export const checkEmailVerificationCode = async (actionCode: string): Promise<boolean> => {
+export const checkEmailVerificationCode = async (
+  actionCode: string
+): Promise<boolean> => {
   try {
     await checkActionCode(auth, actionCode);
     return true;
@@ -680,26 +702,26 @@ export const forceLogout = async () => {
   try {
     // Clear all cached sessions
     authCache.clearAllSessions();
-    
+
     // Clear all storage
     localStorage.clear();
     sessionStorage.clear();
-    
+
     // Clear cookies
     document.cookie.split(";").forEach((c) => {
       const eqPos = c.indexOf("=");
       const name = eqPos > -1 ? c.substr(0, eqPos) : c;
       document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
     });
-    
+
     // Sign out from Firebase
     await firebaseSignOut(auth);
-    
+
     // Force reload to clear any remaining state
-    window.location.href = '/';
+    window.location.href = "/";
   } catch (error) {
     console.error("Force logout failed:", error);
     // Still redirect even if logout fails
-    window.location.href = '/';
+    window.location.href = "/";
   }
 };
