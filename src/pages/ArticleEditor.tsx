@@ -176,6 +176,62 @@ export const ArticleEditor: React.FC = () => {
     return () => clearInterval(interval);
   }, [showUploadManager]);
 
+  // Handle cross-page upload completion
+  useEffect(() => {
+    const handleCoverUploadCompleted = (event: CustomEvent) => {
+      const { url, context } = event.detail;
+      if (context?.type === "cover" && context?.articleId === id) {
+        setArticle((prev) => ({
+          ...prev,
+          coverImage: url,
+        }));
+        toast.success("Cover image uploaded successfully");
+      }
+    };
+
+    // Check for completed uploads on page load
+    const checkCompletedUploads = () => {
+      const completedCoverUpload = localStorage.getItem(
+        "completed_cover_upload"
+      );
+      if (completedCoverUpload) {
+        try {
+          const data = JSON.parse(completedCoverUpload);
+          if (
+            data.context?.articleId === id &&
+            Date.now() - data.timestamp < 300000
+          ) {
+            // 5 minutes
+            setArticle((prev) => ({
+              ...prev,
+              coverImage: data.url,
+            }));
+            toast.success("Cover image uploaded successfully");
+            localStorage.removeItem("completed_cover_upload");
+          }
+        } catch (error) {
+          console.error("Error processing completed cover upload:", error);
+        }
+      }
+    };
+
+    // Check on component mount
+    checkCompletedUploads();
+
+    // Listen for real-time completion events
+    window.addEventListener(
+      "coverUploadCompleted",
+      handleCoverUploadCompleted as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "coverUploadCompleted",
+        handleCoverUploadCompleted as EventListener
+      );
+    };
+  }, [id]);
+
   const handleCoverImageUrl = () => {
     if (coverImageUrl.trim()) {
       setArticle((prev) => ({
