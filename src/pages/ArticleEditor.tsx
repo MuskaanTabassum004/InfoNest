@@ -215,8 +215,11 @@ export const ArticleEditor: React.FC = () => {
     // Wait for user profile to load before checking permissions
     if (!userProfile) return;
 
-    if (!isInfoWriter) {
-      toast.error("You need InfoWriter privileges to create or edit articles");
+    // Check if user can create articles (both infowriters and admins can create articles)
+    if (!isInfoWriter && !isAdmin) {
+      toast.error(
+        "You need InfoWriter or Admin privileges to create or edit articles"
+      );
       navigate("/dashboard");
       return;
     }
@@ -224,7 +227,7 @@ export const ArticleEditor: React.FC = () => {
     if (isEditing && id) {
       loadArticle(id);
     }
-  }, [id, isEditing, isInfoWriter, navigate, userProfile]);
+  }, [id, isEditing, isInfoWriter, isAdmin, navigate, userProfile]);
 
   const loadArticle = async (articleId: string) => {
     setLoading(true);
@@ -268,6 +271,17 @@ export const ArticleEditor: React.FC = () => {
       return;
     }
 
+    // Additional validation for admin users
+    if (!userProfile.uid) {
+      toast.error("User authentication error. Please refresh and try again.");
+      return;
+    }
+
+    if (!userProfile.displayName && !userProfile.email) {
+      toast.error("User profile incomplete. Please update your profile.");
+      return;
+    }
+
     setSaving(true);
     try {
       const articleData = {
@@ -303,7 +317,8 @@ export const ArticleEditor: React.FC = () => {
 
       setArticle((prev) => ({ ...prev, status }));
     } catch (error) {
-      toast.error("Error saving article");
+      console.error("Error saving article:", error);
+      toast.error("Error saving article. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -432,11 +447,11 @@ export const ArticleEditor: React.FC = () => {
         )}
 
         {/* Article Header */}
-      {/* Upload Manager */}
-      <UploadManager
-        isOpen={showUploadManager}
-        onClose={() => setShowUploadManager(false)}
-      />
+        {/* Upload Manager */}
+        <UploadManager
+          isOpen={showUploadManager}
+          onClose={() => setShowUploadManager(false)}
+        />
 
         <div className="p-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
