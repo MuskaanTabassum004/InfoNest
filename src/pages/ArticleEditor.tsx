@@ -14,6 +14,8 @@ import {
   useArticleFiles,
   ManagedFile,
 } from "../components/FileManager";
+import { UploadManager } from "../components/UploadManager";
+import { resumableUploadManager } from "../lib/resumableUpload";
 import {
   Save,
   Eye,
@@ -61,6 +63,7 @@ export const ArticleEditor: React.FC = () => {
   );
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const [showUploadManager, setShowUploadManager] = useState(false);
 
   // Available categories (you may want to fetch these from a backend)
   const availableCategories = [
@@ -160,6 +163,18 @@ export const ArticleEditor: React.FC = () => {
     setCoverImageUploading(false);
     toast.success("Cover image uploaded successfully");
   };
+
+  // Monitor active uploads to show manager
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const activeUploads = resumableUploadManager.getActiveUploads();
+      if (activeUploads.length > 0 && !showUploadManager) {
+        setShowUploadManager(true);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [showUploadManager]);
 
   const handleCoverImageUrl = () => {
     if (coverImageUrl.trim()) {
@@ -417,6 +432,12 @@ export const ArticleEditor: React.FC = () => {
         )}
 
         {/* Article Header */}
+      {/* Upload Manager */}
+      <UploadManager
+        isOpen={showUploadManager}
+        onClose={() => setShowUploadManager(false)}
+      />
+
         <div className="p-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             {article.title || "Untitled Article"}
@@ -626,6 +647,7 @@ export const ArticleEditor: React.FC = () => {
                       onUploadComplete={handleCoverImageUpload}
                       onUploadError={(error) => toast.error(error)}
                       accept="image/*"
+                      useResumable={true}
                       className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors"
                     >
                       <div className="flex flex-col items-center">
@@ -824,6 +846,7 @@ export const ArticleEditor: React.FC = () => {
                 onUploadComplete={handleAttachmentUpload}
                 onUploadError={(error) => toast.error(error)}
                 accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx"
+                useResumable={true}
                 className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors"
               >
                 <div className="flex flex-col items-center">

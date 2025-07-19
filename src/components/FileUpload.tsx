@@ -9,6 +9,8 @@ import {
 } from "../lib/fileUpload";
 import { useAuth } from "../hooks/useAuth";
 import toast from "react-hot-toast";
+import { ResumableFileUpload, ResumableFileUploadButton } from "./ResumableFileUpload";
+import { ResumableUploadResult } from "../lib/resumableUpload";
 
 interface FileUploadProps {
   onUploadComplete: (result: UploadResult) => void;
@@ -18,6 +20,7 @@ interface FileUploadProps {
   folder?: "articles" | "profiles";
   className?: string;
   children?: React.ReactNode;
+  useResumable?: boolean;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
@@ -27,6 +30,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   folder = "articles",
   className = "",
   children,
+  useResumable = true,
 }) => {
   const { userProfile } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
@@ -35,6 +39,31 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const [lastUploadedFile, setLastUploadedFile] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use resumable upload by default
+  if (useResumable) {
+    return (
+      <ResumableFileUpload
+        onUploadComplete={(result: ResumableUploadResult) => {
+          // Convert ResumableUploadResult to UploadResult for compatibility
+          const compatibleResult: UploadResult = {
+            url: result.url,
+            path: result.path,
+            name: result.name,
+            size: result.size,
+            type: result.type
+          };
+          onUploadComplete(compatibleResult);
+        }}
+        onUploadError={onUploadError}
+        accept={accept}
+        folder={folder}
+        className={className}
+      >
+        {children}
+      </ResumableFileUpload>
+    );
+  }
 
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) {
@@ -268,8 +297,15 @@ export const FileUploadButton: React.FC<{
   folder?: "articles" | "profiles";
   className?: string;
   children: React.ReactNode;
+  useResumable?: boolean;
 }> = ({ children, ...props }) => {
-  return <FileUpload {...props}>{children}</FileUpload>;
+  const { useResumable = true, ...otherProps } = props;
+  
+  if (useResumable) {
+    return <ResumableFileUploadButton {...otherProps}>{children}</ResumableFileUploadButton>;
+  }
+  
+  return <FileUpload useResumable={false} {...otherProps}>{children}</FileUpload>;
 };
 
 // File preview component

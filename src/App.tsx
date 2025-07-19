@@ -29,6 +29,7 @@ import { ChatsPage } from "./pages/ChatsPage";
 import { ActiveWritersPage } from "./pages/ActiveWritersPage";
 import { RemovedWritersPage } from "./pages/RemovedWritersPage";
 import { PersonalDashboard } from "./pages/PersonalDashboard";
+import { OfflineIndicator } from "./components/OfflineIndicator";
 import {
   ProtectedRoute,
   AdminRoute,
@@ -73,6 +74,9 @@ function App() {
               },
             }}
           />
+          
+          {/* Global Offline Indicator */}
+          <OfflineIndicator />
 
           <Routes>
             {/* Public Routes */}

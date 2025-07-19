@@ -15,12 +15,33 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
+import { NetworkStatus } from "./NetworkStatus";
+import { UploadManager } from "./UploadManager";
+import { resumableUploadManager } from "../lib/resumableUpload";
 
 export const Layout: React.FC = () => {
   const { userProfile, isAuthenticated, isInfoWriter, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showUploadManager, setShowUploadManager] = useState(false);
+  const [hasActiveUploads, setHasActiveUploads] = useState(false);
+
+  // Monitor active uploads
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const activeUploads = resumableUploadManager.getActiveUploads();
+      const hasActive = activeUploads.length > 0;
+      setHasActiveUploads(hasActive);
+      
+      // Auto-show upload manager when uploads are active
+      if (hasActive && !showUploadManager) {
+        setShowUploadManager(true);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [showUploadManager]);
 
   const handleLogout = async () => {
     try {
@@ -78,6 +99,23 @@ export const Layout: React.FC = () => {
 
             <div className="flex items-center space-x-4">
               <NotificationDropdown />
+              
+              {/* Network Status */}
+              <NetworkStatus />
+              
+              {/* Upload Manager Toggle */}
+              {hasActiveUploads && (
+                <button
+                  onClick={() => setShowUploadManager(!showUploadManager)}
+                  className="relative p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Upload Manager"
+                >
+                  <Upload className="h-5 w-5" />
+                  <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                    {resumableUploadManager.getActiveUploads().length}
+                  </span>
+                </button>
+              )}
 
               <div className="relative" data-dropdown>
                 <button
@@ -182,6 +220,12 @@ export const Layout: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet /> {/* ✅ Main place where nested pages render */}
       </main>
+      
+      {/* Global Upload Manager */}
+      <UploadManager
+        isOpen={showUploadManager}
+        onClose={() => setShowUploadManager(false)}
+      />
     </div>
   );
 

@@ -29,6 +29,7 @@ import { FileUploadButton } from "./FileUpload";
 import { useAuth } from "../hooks/useAuth";
 import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
+import { ResumableFileUploadButton } from "./ResumableFileUpload";
 
 const lowlight = createLowlight();
 
@@ -788,9 +789,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           accept="image/*,.pdf,.txt,.doc,.docx"
           folder="articles"
           className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+          useResumable={true}
         >
           <Upload className="h-4 w-4" title="Upload File" />
-        </FileUploadButton>
+        </ResumableFileUploadButton>
 
         <div className="w-px h-6 bg-gray-300 mx-1" />
 
