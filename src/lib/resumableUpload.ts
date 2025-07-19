@@ -15,6 +15,15 @@ export interface UploadProgress {
   state: "running" | "paused" | "success" | "error" | "canceled";
 }
 
+export interface UploadContext {
+  type: "article" | "profile" | "attachment" | "cover";
+  articleId?: string; // For article-related uploads
+  targetField?: string; // Which field to update (coverImage, content, etc.)
+  pageUrl?: string; // Original page URL for navigation back
+  autoSave?: boolean; // Whether to auto-save when upload completes
+  metadata?: Record<string, any>; // Additional context data
+}
+
 export interface UploadMetadata {
   id: string;
   file: File;
@@ -35,6 +44,10 @@ export interface UploadMetadata {
   fileData?: ArrayBuffer; // Store file data for resumption
   fileType?: string;
   fileLastModified?: number;
+  // Add context for cross-page upload handling
+  context?: UploadContext;
+  completedAt?: number; // Timestamp when upload completed
+  needsProcessing?: boolean; // Whether upload needs post-processing
 }
 
 export interface ResumableUploadResult {
@@ -234,7 +247,8 @@ class ResumableUploadManager {
     userId: string,
     folder: string = "articles",
     onProgress?: (progress: UploadProgress) => void,
-    onComplete?: (result: ResumableUploadResult | Error) => void
+    onComplete?: (result: ResumableUploadResult | Error) => void,
+    context?: UploadContext
   ): Promise<string> {
     const uploadId = this.generateUploadId();
     const fileName = this.generateFileName(file.name, userId);
@@ -259,6 +273,13 @@ class ResumableUploadManager {
       fileData,
       fileType: file.type,
       fileLastModified: file.lastModified,
+      // Store context for cross-page handling
+      context: context || {
+        type: "attachment",
+        pageUrl: window.location.href,
+        autoSave: false,
+      },
+      needsProcessing: false,
     };
 
     this.uploads.set(uploadId, uploadMetadata);
@@ -416,6 +437,7 @@ class ResumableUploadManager {
 
       upload.state = "success";
       upload.downloadURL = downloadURL;
+      upload.completedAt = Date.now();
       this.activeUploads.delete(uploadId);
 
       const result: ResumableUploadResult = {
@@ -427,15 +449,25 @@ class ResumableUploadManager {
         uploadId,
       };
 
+      // Handle cross-page upload completion
+      await this.handleCrossPageCompletion(upload, result);
+
       const callback = this.completionCallbacks.get(uploadId);
       if (callback) {
         callback(result);
+      } else {
+        // If no callback (user navigated away), mark for processing
+        upload.needsProcessing = true;
+        this.persistUploads();
+
+        // Show global notification
+        this.showGlobalNotification(upload, result);
       }
 
-      // Clean up after successful upload
+      // Clean up after successful upload (extended time for cross-page handling)
       setTimeout(() => {
         this.cleanupUpload(uploadId);
-      }, 5000); // Keep for 5 seconds for UI updates
+      }, 30000); // Keep for 30 seconds for cross-page processing
     } catch (error) {
       this.handleUploadError(uploadId, error as Error);
     }
@@ -641,6 +673,189 @@ class ResumableUploadManager {
     } else {
       return `${secs}s`;
     }
+  }
+
+  // Handle cross-page upload completion
+  private async handleCrossPageCompletion(
+    upload: UploadMetadata,
+    result: ResumableUploadResult
+  ): Promise<void> {
+    if (!upload.context) return;
+
+    try {
+      switch (upload.context.type) {
+        case "article":
+          await this.handleArticleUploadCompletion(upload, result);
+          break;
+        case "profile":
+          await this.handleProfileUploadCompletion(upload, result);
+          break;
+        case "cover":
+          await this.handleCoverImageCompletion(upload, result);
+          break;
+        default:
+          // Generic attachment handling
+          break;
+      }
+    } catch (error) {
+      console.error("Error handling cross-page upload completion:", error);
+    }
+  }
+
+  // Handle article-related upload completion
+  private async handleArticleUploadCompletion(
+    upload: UploadMetadata,
+    result: ResumableUploadResult
+  ): Promise<void> {
+    const context = upload.context;
+    if (!context?.articleId) return;
+
+    try {
+      // Import article functions dynamically to avoid circular dependencies
+      const { updateArticle, getArticle } = await import("./articles");
+
+      if (context.targetField === "coverImage") {
+        // Update article cover image
+        await updateArticle(context.articleId, {
+          coverImage: result.url,
+        });
+      } else if (context.autoSave) {
+        // Auto-save article as draft with attachment
+        const currentArticle = await getArticle(context.articleId);
+        if (currentArticle) {
+          const updatedAttachments = [
+            ...(currentArticle.attachments || []),
+            result.url,
+          ];
+          await updateArticle(context.articleId, {
+            attachments: updatedAttachments,
+            status: "draft",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error updating article with upload:", error);
+    }
+  }
+
+  // Handle profile upload completion
+  private async handleProfileUploadCompletion(
+    upload: UploadMetadata,
+    result: ResumableUploadResult
+  ): Promise<void> {
+    try {
+      // Import Firestore functions dynamically
+      const { doc, updateDoc } = await import("firebase/firestore");
+      const { firestore } = await import("./firebase");
+
+      const userRef = doc(firestore, "users", upload.userId);
+      await updateDoc(userRef, {
+        profilePicture: result.url,
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      console.error("Error updating profile with upload:", error);
+    }
+  }
+
+  // Handle cover image completion
+  private async handleCoverImageCompletion(
+    upload: UploadMetadata,
+    result: ResumableUploadResult
+  ): Promise<void> {
+    // Store in localStorage for the page to pick up
+    const coverImageData = {
+      uploadId: upload.id,
+      url: result.url,
+      timestamp: Date.now(),
+      context: upload.context,
+    };
+
+    localStorage.setItem(
+      "completed_cover_upload",
+      JSON.stringify(coverImageData)
+    );
+
+    // Dispatch custom event for real-time updates
+    window.dispatchEvent(
+      new CustomEvent("coverUploadCompleted", {
+        detail: coverImageData,
+      })
+    );
+  }
+
+  // Show global notification for completed uploads
+  private showGlobalNotification(
+    upload: UploadMetadata,
+    result: ResumableUploadResult
+  ): void {
+    // Create a global notification that persists across pages
+    const notification = {
+      id: upload.id,
+      type: "upload_complete",
+      title: "Upload Completed",
+      message: `${upload.fileName} has been uploaded successfully`,
+      url: result.url,
+      context: upload.context,
+      timestamp: Date.now(),
+    };
+
+    // Store in localStorage for global access
+    const existingNotifications = JSON.parse(
+      localStorage.getItem("upload_notifications") || "[]"
+    );
+    existingNotifications.push(notification);
+
+    // Keep only last 10 notifications
+    if (existingNotifications.length > 10) {
+      existingNotifications.splice(0, existingNotifications.length - 10);
+    }
+
+    localStorage.setItem(
+      "upload_notifications",
+      JSON.stringify(existingNotifications)
+    );
+
+    // Dispatch global event
+    window.dispatchEvent(
+      new CustomEvent("globalUploadComplete", {
+        detail: notification,
+      })
+    );
+
+    // Show browser notification if permission granted
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Upload Completed", {
+        body: notification.message,
+        icon: "/favicon.ico",
+      });
+    }
+  }
+
+  // Get completed uploads that need processing
+  public getCompletedUploads(): UploadMetadata[] {
+    return Array.from(this.uploads.values()).filter(
+      (upload) => upload.state === "success" && upload.needsProcessing
+    );
+  }
+
+  // Mark upload as processed
+  public markAsProcessed(uploadId: string): void {
+    const upload = this.uploads.get(uploadId);
+    if (upload) {
+      upload.needsProcessing = false;
+      this.persistUploads();
+    }
+  }
+
+  // Get upload notifications
+  public getUploadNotifications(): any[] {
+    return JSON.parse(localStorage.getItem("upload_notifications") || "[]");
+  }
+
+  // Clear upload notifications
+  public clearUploadNotifications(): void {
+    localStorage.removeItem("upload_notifications");
   }
 }
 
