@@ -31,7 +31,8 @@ interface DashboardData {
 export const UserDashboard: React.FC = () => {
   const { userProfile } = useAuth();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(
-    null
+      </div>
+    </div>
   );
   const [loading, setLoading] = useState(true);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
