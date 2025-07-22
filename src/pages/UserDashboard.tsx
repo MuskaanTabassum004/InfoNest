@@ -34,11 +34,9 @@ export const UserDashboard: React.FC = () => {
     null
   );
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedTag, setSelectedTag] = useState<string>("");
 
   // Load dashboard data with real-time updates
   useEffect(() => {
@@ -113,22 +111,9 @@ export const UserDashboard: React.FC = () => {
       );
     }
 
-    // Filter by category
-    if (selectedCategory) {
-      filtered = filtered.filter((article) =>
-        article.categories?.includes(selectedCategory)
-      );
-    }
-
-    // Filter by tag
-    if (selectedTag) {
-      filtered = filtered.filter((article) =>
-        article.tags?.includes(selectedTag)
-      );
-    }
 
     setFilteredArticles(filtered.slice(0, 6));
-  }, [dashboardData, selectedCategory, searchQuery, selectedTag]);
+  }, [dashboardData, searchQuery]);
 
   if (loading) {
     return (
@@ -240,12 +225,8 @@ export const UserDashboard: React.FC = () => {
                     <span className="font-medium text-gray-900 group-hover:text-green-700">
                       Chats
                     </span>
-                    <p className="text-xs text-gray-600">
-                      Connect with other users
-                    </p>
-                  </div>
-                </Link>
-              </div>
+            Recent Articles
+              Be the first to contribute to the knowledge base!
             </div>
           </div>
         </div>
@@ -253,45 +234,5 @@ export const UserDashboard: React.FC = () => {
 
       {/* Recent Articles */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {selectedCategory
-              ? `Articles in "${selectedCategory}"`
-              : "Recent Articles"}
-          </h2>
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
-            <TrendingUp className="h-4 w-4" />
-            <span>{filteredArticles.length} articles</span>
-          </div>
-        </div>
-
-        {filteredArticles.length === 0 ? (
-          <div className="text-center py-12">
-            <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {selectedCategory
-                ? "No articles in this category"
-                : "No articles yet"}
-            </h3>
-            <p className="text-gray-600">
-              {selectedCategory
-                ? "Try selecting a different category or clear the filter."
-                : "Be the first to contribute to the knowledge base!"}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredArticles.map((article) => (
-              <ArticleCard
-                key={article.id}
-                article={article}
-                variant="default"
-                showActions={true}
-              />
-            ))}
-          </div>
-        )}
-      </div>
     </div>
-  );
-};
+              No articles yet
