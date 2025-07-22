@@ -133,18 +133,18 @@ export const SearchModal: React.FC<SearchModalProps> = ({
        // Check if all words are present and where they are matched
        for (const word of words) {
          const wordRegex = new RegExp(`\\b${word}\\b`, 'i');
-        let wordFound = false;
+         let wordFound = false;
  
          if (wordRegex.test(article.title)) {
            wordFound = true;
            matchedInTitle = true;
          } else if (article.categories.some(cat => wordRegex.test(cat))) {
            wordFound = true;
-          matchedInCategory = true;
+           matchedInCategory = true;
          } else if (article.tags.some(tag => wordRegex.test(tag))) {
            wordFound = true;
            matchedInTag = true;
-        } else if (wordRegex.test(article.content)) {
+         } else if (wordRegex.test(article.content)) {
            wordFound = true;
            matchedInContent = true;
          }
@@ -166,10 +166,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({
        return { article, score };
      });
 
-      setResults(filteredResults.slice(0, 8));
-      setLoading(false);
-    }, 500),
-    [articles]
+      const filteredAndScored = scoredArticles.filter(item => item.score >0);
+      filteredAndScored.sort((a, b) => b.score - a.score || (b.article.publishedAt?.getTime() || 0) - (a.article.publishedAt?.getTime() || 0));
+      
+
+      setResults(filteredAndScored.map(item => item.article).slice(0, 8)); // Limit to top 8 results
+       setLoading(false);
+     }, 500),
+     [articles]
   );
 
   // Handle search input change
