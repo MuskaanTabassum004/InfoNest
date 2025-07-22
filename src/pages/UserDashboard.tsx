@@ -241,3 +241,5 @@ export const UserDashboard: React.FC = () => {
 
       {/* Recent Articles */}
     </div>
+  )
+}
