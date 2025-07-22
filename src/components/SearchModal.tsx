@@ -121,18 +121,50 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       // Split query into words and search
       const words = searchQuery.toLowerCase().trim().split(/\s+/);
       
-      const filteredResults = articles.filter(article => {
-        return words.every(word => { 
-          const wordRegex = new RegExp(`\\b${word}\\b`, 'i'); // '\\b' for word boundary, 'i' for case-insensitive
-          return wordRegex.test(article.title) ||
-            wordRegex.test(article.excerpt) ||
-            wordRegex.test(article.content) ||
-            wordRegex.test(article.authorName) ||
-            article.categories.some(cat => wordRegex.test(cat)) ||
-            article.tags.some(tag => wordRegex.test(tag));
-        }
-                           );
-      });
+       const scoredArticles = articles.map(article => {
+       let score = 0;
+       let allWordsPresent = true;
+ 
+       let matchedInTitle = false;
+       let matchedInCategory = false;
+       let matchedInTag = false;
+       let matchedInContent = false;
+ 
+       // Check if all words are present and where they are matched
+       for (const word of words) {
+         const wordRegex = new RegExp(`\\b${word}\\b`, 'i');
+        let wordFound = false;
+ 
+         if (wordRegex.test(article.title)) {
+           wordFound = true;
+           matchedInTitle = true;
+         } else if (article.categories.some(cat => wordRegex.test(cat))) {
+           wordFound = true;
+          matchedInCategory = true;
+         } else if (article.tags.some(tag => wordRegex.test(tag))) {
+           wordFound = true;
+           matchedInTag = true;
+        } else if (wordRegex.test(article.content)) {
+           wordFound = true;
+           matchedInContent = true;
+         }
+ 
+         if (!wordFound) {
+           allWordsPresent = false;
+           break; // If any word is not found, this article doesn't match
+         }
+       }
+ 
+       if (allWordsPresent) {
+         // Assign score based on the highest priority match type
+         if (matchedInTitle) score = 4;
+         else if (matchedInCategory) score = 3;
+         else if (matchedInTag) score = 2;
+         else if (matchedInContent) score = 1;
+       }
+ 
+       return { article, score };
+     });
 
       setResults(filteredResults.slice(0, 8));
       setLoading(false);
