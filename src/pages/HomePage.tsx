@@ -428,7 +428,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
       {/* Hero Search Bar */}
-          <div className="max-w-2xl mx-auto mb-8">
+          <div className="max-w-2xl mx-auto mb-8 mt-10 mb-16">
             <SearchBar
               variant="hero"
               placeholder="Search articles, guides, documentation..."
