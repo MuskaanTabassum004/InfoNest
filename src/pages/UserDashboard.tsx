@@ -241,7 +241,44 @@ export const UserDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Recent Articles */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {selectedCategory
+              ? `Articles in "${selectedCategory}"`
+              : "Recent Articles"}
+          </h2>
+          <div className="flex items-center space-x-2 text-sm text-gray-500">
+            <TrendingUp className="h-4 w-4" />
+            <span>{filteredArticles.length} articles</span>
+          </div>
+        </div>
+
+        {filteredArticles.length === 0 ? (
+          <div className="text-center py-12">
+            <BookOpen className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {selectedCategory
+                ? "No articles in this category"
+                : "No articles yet"}
+            </h3>
+            <p className="text-gray-600">
+              {selectedCategory
+                ? "Try selecting a different category or clear the filter."
+                : "Be the first to contribute to the knowledge base!"}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredArticles.map((article) => (
+              <ArticleCard
+                key={article.id}
+                article={article}
+                variant="default"
+                showActions={true}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-  )
-}
