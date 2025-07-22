@@ -403,6 +403,15 @@ export const HomePage: React.FC = () => {
             secure, organized platform.
           </p>
           
+          {/* Hero Search Bar */}
+          <div className="max-w-2xl mx-auto mb-8">
+            <SearchBar
+              variant="hero"
+              placeholder="Search articles, guides, documentation..."
+              onResultClick={() => {}}
+            />
+          </div>
+          
           <div className="mt-8">
             {isAuthenticated ? (
               <Link
@@ -424,24 +433,6 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
-      <form onSubmit={handleSearch} className="max-w-2xl mx-auto mt-10 mb-16">
-            <div className="relative">
-              <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 h-6 w-6 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search articles, guides, documentation..."
-                className="w-full pl-16 pr-6 py-5 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl shadow-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-lg"
-              />
-              <button
-                type="submit"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all"
-              >
-                Search
-              </button>
-            </div>
-          </form>
 
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">

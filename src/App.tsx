@@ -37,8 +37,26 @@ import {
   UserRoute,
 } from "./components/ProtectedRoute";
 
+// Global keyboard shortcut for search
+const useGlobalSearchShortcut = () => {
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        // Trigger search modal open
+        const event = new CustomEvent('openGlobalSearch');
+        window.dispatchEvent(event);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+};
 function App() {
   // Main application component with notification system integrated
+  useGlobalSearchShortcut();
+  
   return (
     <Router>
       <AppWithAuth />

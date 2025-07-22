@@ -3,6 +3,7 @@ import { Link, useLocation, Outlet, useNavigate } from "react-router-dom"; // âœ
 import { useAuth } from "../hooks/useAuth";
 import { signOut } from "../lib/auth";
 import { RoleBadge, PermissionGate } from "./ProtectedRoute";
+import { SearchBar } from "./SearchBar";
 import {
   User,
   LogOut,
@@ -91,8 +92,14 @@ export const Layout: React.FC = () => {
               </span>
             </Link>
 
-            <div className="hidden md:flex items-center space-x-6">
-              {/* Clean header for admin - no navigation items */}
+            <div className="hidden md:flex items-center space-x-6 flex-1 max-w-md mx-8">
+              {/* Header Search Bar */}
+              <SearchBar
+                variant="minimal"
+                placeholder="Search..."
+                onResultClick={() => {}}
+                className="w-full"
+              />
             </div>
 
             <div className="flex items-center space-x-4">

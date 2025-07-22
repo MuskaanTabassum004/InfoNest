@@ -410,6 +410,13 @@ export const PersonalDashboard: React.FC = () => {
               <Clock className="h-5 w-5 mr-2 text-gray-500" />
               Recent Articles
             </h2>
+            <div className="max-w-md">
+              <SearchBar
+                variant="minimal"
+                placeholder="Search my articles..."
+                onResultClick={() => {}}
+              />
+            </div>
             <Link
               to="/my-articles"
               className="text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"

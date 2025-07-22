@@ -153,21 +153,15 @@ export const UserDashboard: React.FC = () => {
       {/* Search Engine */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
         <div className="space-y-4">
-          {/* Search Bar with Category Filter */}
-          <div className="flex gap-4">
-            {/* Search Input */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search articles..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              />
-            </div>
+          {/* Modern Search Bar */}
+          <SearchBar
+            variant="default"
+            placeholder="Search articles..."
+            onResultClick={() => {}}
+          />
 
-            {/* Category Filter Dropdown */}
+          {/* Category Filter */}
+          <div className="flex gap-4">
             <div className="relative">
               <select
                 value={selectedCategory}

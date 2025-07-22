@@ -140,7 +140,13 @@ export const SearchPage: React.FC = () => {
       </div>
 
       {/* Search Bar */}
-      <SearchBar />
+      <div className="max-w-2xl mx-auto">
+        <SearchBar
+          variant="default"
+          placeholder="Search articles, categories, tags..."
+          onResultClick={() => {}}
+        />
+      </div>
 
       {/* Stats - Hidden for regular users */}
       {!isUser && (
