@@ -404,14 +404,7 @@ export const HomePage: React.FC = () => {
             secure, organized platform.
           </p>
           
-          {/* Hero Search Bar */}
-          <div className="max-w-2xl mx-auto mb-8">
-            <SearchBar
-              variant="hero"
-              placeholder="Search articles, guides, documentation..."
-              onResultClick={() => {}}
-            />
-          </div>
+          
           
           <div className="mt-8">
             {isAuthenticated ? (
@@ -434,6 +427,14 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
+      {/* Hero Search Bar */}
+          <div className="max-w-2xl mx-auto mb-8">
+            <SearchBar
+              variant="hero"
+              placeholder="Search articles, guides, documentation..."
+              onResultClick={() => {}}
+            />
+          </div>
 
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">
