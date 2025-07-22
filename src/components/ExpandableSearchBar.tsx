@@ -4,6 +4,8 @@ import { getPublishedArticles, Article } from "../lib/articles";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
+import Fuse from "fuse.js";
+import { stripHtmlTags, createFuseQuery, highlightSearchTerms } from "../utils/searchUtils";
 
 interface ExpandableSearchBarProps {
   placeholder?: string;
@@ -38,6 +40,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
   const [loading, setLoading] = useState(false);
   const [articles, setArticles] = useState<Article[]>([]);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  const [fuse, setFuse] = useState<Fuse<Article> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +50,35 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
       try {
         const publishedArticles = await getPublishedArticles();
         setArticles(publishedArticles);
+        
+        // Initialize Fuse.js with fuzzy search configuration
+        const fuseInstance = new Fuse(publishedArticles, {
+          keys: [
+            { name: 'title', weight: 0.4 },
+            { name: 'categories', weight: 0.3 },
+            { name: 'tags', weight: 0.2 },
+            { name: 'authorName', weight: 0.15 },
+            { 
+              name: 'excerpt', 
+              weight: 0.1,
+              getFn: (article) => stripHtmlTags(article.excerpt || '')
+            },
+            { 
+              name: 'content', 
+              weight: 0.05,
+              getFn: (article) => stripHtmlTags(article.content || '')
+            }
+          ],
+          includeScore: true,
+          includeMatches: true,
+          threshold: 0.3,
+          ignoreLocation: true,
+          minMatchCharLength: 1,
+          useExtendedSearch: true,
+          shouldSort: true
+        });
+        
+        setFuse(fuseInstance);
       } catch (error) {
         console.error("Error loading articles:", error);
       }
@@ -88,7 +120,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
   // Debounced search function
   const debouncedSearch = useCallback(
     debounce((searchQuery: string) => {
-      if (!searchQuery.trim()) {
+      if (!searchQuery.trim() || !fuse) {
         setResults([]);
         setLoading(false);
         return;
@@ -96,24 +128,28 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
 
       setLoading(true);
       
-      // Split query into words and search
-      const words = searchQuery.toLowerCase().trim().split(/\s+/);
+      try {
+        // Create Fuse.js query with exact and fuzzy matching
+        const fuseQuery = createFuseQuery(searchQuery);
+        
+        // Perform fuzzy search
+        const searchResults = fuse.search(fuseQuery);
+        
+        // Extract articles and sort by score (lower score = better match)
+        const sortedResults = searchResults
+          .sort((a, b) => (a.score || 0) - (b.score || 0))
+          .map(result => result.item)
+          .slice(0, 6); // Limit to top 6 results
+        
+        setResults(sortedResults);
+      } catch (error) {
+        console.error('Search error:', error);
+        setResults([]);
+      }
       
-      const filteredResults = articles.filter(article => {
-        return words.every(word => 
-          article.title.toLowerCase().includes(word) ||
-          article.excerpt.toLowerCase().includes(word) ||
-          article.content.toLowerCase().includes(word) ||
-          article.authorName.toLowerCase().includes(word) ||
-          article.categories.some(cat => cat.toLowerCase().includes(word)) ||
-          article.tags.some(tag => tag.toLowerCase().includes(word))
-        );
-      });
-
-      setResults(filteredResults.slice(0, 6));
       setLoading(false);
     }, 300),
-    [articles]
+    [fuse]
   );
 
   // Handle search input change
@@ -371,10 +407,10 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
                         )}
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors line-clamp-1">
-                            {highlightText(article.title, query)}
+                            {highlightSearchTerms(article.title, query)}
                           </h3>
                           <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                            {highlightText(article.excerpt, query)}
+                            {highlightSearchTerms(article.excerpt, query)}
                           </p>
                           <div className="flex items-center space-x-3 mt-2 text-xs text-gray-500">
                             <span>By {article.authorName}</span>
@@ -389,7 +425,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
                                   key={tag}
                                   className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full"
                                 >
-                                  {highlightText(tag, query)}
+                                  {highlightSearchTerms(tag, query)}
                                 </span>
                               ))}
                             </div>
@@ -417,21 +453,6 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
       </div>
     </div>
   );
-};
-
-// Utility function to highlight search terms
-const highlightText = (text: string, highlight: string) => {
-  if (!highlight.trim()) return text;
-
-  const words = highlight.toLowerCase().trim().split(/\s+/);
-  let highlightedText = text;
-
-  words.forEach(word => {
-    const regex = new RegExp(`(${word})`, "gi");
-    highlightedText = highlightedText.replace(regex, '<mark class="bg-yellow-200 px-0.5 rounded">$1</mark>');
-  });
-
-  return <span dangerouslySetInnerHTML={{ __html: highlightedText }} />;
 };
 
 // Debounce utility function
