@@ -21,6 +21,7 @@ import {
 import { signOut } from "../lib/auth";
 import toast from "react-hot-toast";
 import { ArticleCard } from "../components/ArticleCard";
+import { SearchBar } from "../components/SearchBar";
 
 interface HomePageData {
   articles: Article[];

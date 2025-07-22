@@ -30,6 +30,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
+import { SearchBar } from "../components/SearchBar";
 
 interface InfoWriterDashboardData {
   publishedArticles: Article[];

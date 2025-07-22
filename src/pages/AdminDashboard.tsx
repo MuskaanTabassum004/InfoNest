@@ -18,6 +18,7 @@ import { Article } from "../lib/articles";
 import { ArticleCard } from "../components/ArticleCard";
 import { onSnapshot, collection, query, where } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
+import { SearchBar } from "../components/SearchBar";
 
 interface AdminDashboardData {
   publishedArticles: Article[];
