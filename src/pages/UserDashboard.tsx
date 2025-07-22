@@ -162,47 +162,7 @@ export const UserDashboard: React.FC = () => {
           />
 
           {/* Category Filter */}
-          <div className="flex gap-4">
-            <div className="relative">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-              >
-                <option value="">All Categories</option>
-                {dashboardData.availableCategories
-                  .slice(0, 8)
-                  .map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Top 10 Real-time Tags */}
-          <div className="flex flex-wrap gap-2">
-            {dashboardData.topTags.map(({ tag, count }) => (
-              <button
-                key={tag}
-                onClick={() => setSelectedTag(selectedTag === tag ? "" : tag)}
-                className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-                  selectedTag === tag
-                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md"
-                    : "bg-gray-100 text-gray-700 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 hover:text-purple-700"
-                }`}
-              >
-                <Tag className="h-3 w-3" />
-                <span>{tag}</span>
-                <span className="text-xs opacity-75">({count})</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
+          
       {/* Dashboard Dropdown */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
         <div className="space-y-4">
