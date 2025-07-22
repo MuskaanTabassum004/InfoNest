@@ -321,7 +321,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
 
               {/* Recommended Tags */}
               <div>
-                
+                Wh
                 <div className="flex flex-wrap gap-2">
                   {RECOMMENDED_TAGS.map((tag) => (
                     <button
