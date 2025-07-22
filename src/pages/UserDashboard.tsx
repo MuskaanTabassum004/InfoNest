@@ -238,6 +238,6 @@ export const UserDashboard: React.FC = () => {
 
       {/* Recent Articles */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-        
       </div>
+          
   
