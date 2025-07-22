@@ -255,7 +255,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
           onChange={handleSearchChange}
           placeholder={placeholder}
           className="flex-1 bg-transparent outline-none text-gray-700 placeholder-gray-500"
-          onClick={(e) => e.stopPropagation()}
+          
         />
         {query && (
           <button
