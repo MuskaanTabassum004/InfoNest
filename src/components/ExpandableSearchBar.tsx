@@ -129,7 +129,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
       const stored = localStorage.getItem(`recent_searches_${userProfile?.uid || 'anonymous'}`);
       if (stored) {
         const searches: RecentSearch[] = JSON.parse(stored);
-        setRecentSearches(searches.slice(0, 3));
+        setRecentSearches(searches.slice(0, 4));
       }
     } catch (error) {
       console.error("Error loading recent searches:", error);
@@ -155,7 +155,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
       });
       
       // Keep only last 3 searches
-      searches = searches.slice(0, 3);
+      searches = searches.slice(0, 4);
       
       localStorage.setItem(`recent_searches_${userId}`, JSON.stringify(searches));
       setRecentSearches(searches);
