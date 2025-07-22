@@ -34,11 +34,9 @@ export const UserDashboard: React.FC = () => {
     null
   );
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedTag, setSelectedTag] = useState<string>("");
 
   // Load dashboard data with real-time updates
   useEffect(() => {
@@ -113,22 +111,9 @@ export const UserDashboard: React.FC = () => {
       );
     }
 
-    // Filter by category
-    if (selectedCategory) {
-      filtered = filtered.filter((article) =>
-        article.categories?.includes(selectedCategory)
-      );
-    }
-
-    // Filter by tag
-    if (selectedTag) {
-      filtered = filtered.filter((article) =>
-        article.tags?.includes(selectedTag)
-      );
-    }
 
     setFilteredArticles(filtered.slice(0, 6));
-  }, [dashboardData, selectedCategory, searchQuery, selectedTag]);
+  }, [dashboardData, searchQuery]);
 
   if (loading) {
     return (
