@@ -424,7 +424,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </section>
-      <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-16">
+      <form onSubmit={handleSearch} className="max-w-2xl mx-auto mt-10 mb-16">
             <div className="relative">
               <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 h-6 w-6 text-gray-400" />
               <input
