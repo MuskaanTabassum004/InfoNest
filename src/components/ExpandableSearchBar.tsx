@@ -63,6 +63,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
         searchInputRef.current?.focus();
       }, 150); // Wait for animation to start
     }
+    loadRecentSearches();
   }, [isExpanded]);
 
   // Handle clicks outside to collapse
@@ -321,7 +322,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
 
               {/* Recommended Tags */}
               <div>
-                Wh
+                
                 <div className="flex flex-wrap gap-2">
                   {RECOMMENDED_TAGS.map((tag) => (
                     <button
