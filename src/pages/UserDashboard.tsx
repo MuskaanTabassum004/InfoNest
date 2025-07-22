@@ -269,7 +269,7 @@ export const UserDashboard: React.FC = () => {
                 : "Be the first to contribute to the knowledge base!"}
             </p>
           </div>
-        ) : (
+        
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredArticles.map((article) => (
               <ArticleCard
