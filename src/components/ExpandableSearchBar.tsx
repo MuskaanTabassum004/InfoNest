@@ -270,8 +270,8 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
         )}
         {!isExpanded && (
           <div className="hidden md:flex items-center space-x-1 text-xs text-gray-400 flex-shrink-0">
-            <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">⌘</kbd>
-            <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">K</kbd>
+            <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs"></kbd>
+            <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs"></kbd>
           </div>
         )}
       </div>
@@ -321,7 +321,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
 
               {/* Recommended Tags */}
               <div>
-                <div className="text-sm font-medium text-gray-700 mb-3">Popular Topics</div>
+                
                 <div className="flex flex-wrap gap-2">
                   {RECOMMENDED_TAGS.map((tag) => (
                     <button
