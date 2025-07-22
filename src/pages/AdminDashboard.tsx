@@ -18,7 +18,7 @@ import { Article } from "../lib/articles";
 import { ArticleCard } from "../components/ArticleCard";
 import { onSnapshot, collection, query, where } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
-import { SearchBar } from "../components/SearchBar";
+import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
 
 interface AdminDashboardData {
   publishedArticles: Article[];
@@ -213,7 +213,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
         <div className="space-y-4">
           {/* Modern Search Bar */}
-          <SearchBar
+          <ExpandableSearchBar
             variant="default"
             placeholder="Search articles..."
             onResultClick={() => {}}

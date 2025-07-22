@@ -365,7 +365,7 @@ export const MyArticles: React.FC = () => {
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
           <div className="flex-1">
-            <SearchBar
+            <ExpandableSearchBar
               variant="minimal"
               placeholder="Search my articles..."
               onResultClick={() => {}}

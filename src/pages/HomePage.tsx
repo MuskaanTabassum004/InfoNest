@@ -21,7 +21,7 @@ import {
 import { signOut } from "../lib/auth";
 import toast from "react-hot-toast";
 import { ArticleCard } from "../components/ArticleCard";
-import { SearchBar } from "../components/SearchBar";
+import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
 
 interface HomePageData {
   articles: Article[];
@@ -428,13 +428,13 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
       {/* Hero Search Bar */}
-          <div className="max-w-2xl mx-auto mb-8 mt-10 mb-16">
-            <SearchBar
-              variant="hero"
-              placeholder="Search articles, guides, documentation..."
-              onResultClick={() => {}}
-            />
-          </div>
+      <div className="max-w-2xl mx-auto mb-8 mt-10 mb-16">
+        <ExpandableSearchBar
+          variant="hero"
+          placeholder="Search articles, guides, documentation..."
+          onResultClick={() => {}}
+        />
+      </div>
 
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">

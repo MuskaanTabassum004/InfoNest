@@ -204,7 +204,7 @@ export const SavedArticles: React.FC = () => {
           {/* Search Bar */}
           {savedArticles.length > 0 && (
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
-              <SearchBar
+              <ExpandableSearchBar
                 variant="default"
                 placeholder="Search saved articles by title, author, category, or tag..."
                 onResultClick={() => {}}

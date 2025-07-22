@@ -411,7 +411,7 @@ export const PersonalDashboard: React.FC = () => {
               Recent Articles
             </h2>
             <div className="max-w-md">
-              <SearchBar
+              <ExpandableSearchBar
                 variant="minimal"
                 placeholder="Search my articles..."
                 onResultClick={() => {}}

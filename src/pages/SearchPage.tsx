@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getPublishedArticles, Article } from "../lib/articles";
-import { SearchBar } from "../components/SearchBar";
+import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
 import { useAuth } from "../hooks/useAuth";
 import { BookOpen, Loader2, ArrowLeft, FileText, Plus } from "lucide-react";
 import toast from "react-hot-toast";
@@ -141,7 +141,7 @@ export const SearchPage: React.FC = () => {
 
       {/* Search Bar */}
       <div className="max-w-2xl mx-auto">
-        <SearchBar
+        <ExpandableSearchBar
           variant="default"
           placeholder="Search articles, categories, tags..."
           onResultClick={() => {}}
