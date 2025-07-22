@@ -240,6 +240,8 @@ export const UserDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
+    
 
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
         <div className="flex items-center justify-between mb-6">
