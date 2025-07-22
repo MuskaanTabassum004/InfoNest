@@ -122,14 +122,16 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       const words = searchQuery.toLowerCase().trim().split(/\s+/);
       
       const filteredResults = articles.filter(article => {
-        return words.every(word => 
-          article.title.toLowerCase().includes(word) ||
-          article.excerpt.toLowerCase().includes(word) ||
-          article.content.toLowerCase().includes(word) ||
-          article.authorName.toLowerCase().includes(word) ||
-          article.categories.some(cat => cat.toLowerCase().includes(word)) ||
-          article.tags.some(tag => tag.toLowerCase().includes(word))
-        );
+        return words.every(word => { 
+          const wordRegex = new RegExp(`\\b${word}\\b`, 'i'); // '\\b' for word boundary, 'i' for case-insensitive
+          return wordRegex.test(article.title) ||
+            wordRegex.test(article.excerpt) ||
+            wordRegex.test(article.content) ||
+            wordRegex.test(article.authorName) ||
+            article.categories.some(cat => wordRegex.test(cat)) ||
+            article.tags.some(tag => wordRegex.test(tag));
+        }
+                           );
       });
 
       setResults(filteredResults.slice(0, 8));
