@@ -243,5 +243,3 @@ export const UserDashboard: React.FC = () => {
   );
 };
 
-  )
-}
