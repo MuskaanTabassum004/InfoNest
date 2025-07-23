@@ -1,3 +1,4 @@
+// src/hooks/useAutoSave.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { updateArticle, createArticle } from '../lib/articles';
 import { useAuth } from './useAuth';
@@ -77,7 +78,7 @@ export const useAutoSave = (
 
       const saveData = {
         ...articleData,
-        status: 'draft',
+        status: 'draft', // Always save as draft for auto-save
         authorId: userProfile.uid,
         authorName: userProfile.displayName || userProfile.email,
       };
@@ -106,7 +107,7 @@ export const useAutoSave = (
         setSaveState(prev => ({ ...prev, status: 'idle' }));
       }, 2000);
 
-    } catch (error) {
+    } catch (error: any) { // Explicitly type error as any
       console.error('Auto-save error:', error);
       
       if (retryCountRef.current < maxRetries) {
@@ -118,7 +119,7 @@ export const useAutoSave = (
         setSaveState(prev => ({
           ...prev,
           status: 'error',
-          error: 'Unable to save - please check your connection'
+          error: error.message || 'Unable to save - please check your connection'
         }));
         retryCountRef.current = 0;
       }
