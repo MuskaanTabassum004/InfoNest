@@ -860,7 +860,7 @@ export const ArticleEditor: React.FC = () => {
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
-                  Article Content *
+                  Article Content <span className="text-s text-red-500 mr-0">*</span>
                 </h3>
                 {fieldErrors.content && (
                   <p className="text-red-500 text-sm mt-1 flex items-center">
