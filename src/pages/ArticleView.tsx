@@ -22,32 +22,45 @@ import { SaveArticleButton } from "../components/SaveArticleButton";
 import { ShareButton } from "../components/ShareButton";
 import { onSnapshot, doc, updateDoc, increment } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
+import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
 
 export const ArticleView: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile, canEditArticle, canReadArticle } = useAuth();
+  const { userProfile, canEditArticle, canReadArticle, loading: authLoading } = useAuth();
   const [article, setArticle] = useState<Article | null>(null);
   const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewsIncremented, setViewsIncremented] = useState(false);
 
   useEffect(() => {
-    if (id) {
+    // Wait for auth to load before attempting to load article
+    // This ensures userProfile is available for permission checks
+    if (id && !authLoading) {
       loadArticle(id);
     }
-  }, [id]);
+  }, [id, authLoading]);
 
   const loadArticle = async (articleId: string) => {
     setLoading(true);
     try {
       const loadedArticle = await getArticle(articleId);
       if (loadedArticle) {
-        // Check if user can read this article
-        if (!canReadArticle(loadedArticle.status, loadedArticle.authorId)) {
-          toast.error("Article not found or not accessible");
-          navigate("/dashboard");
-          return;
+        // For published articles, anyone can read them
+        // For draft articles, we need to ensure userProfile is loaded before checking permissions
+        if (loadedArticle.status !== "published") {
+          // If userProfile is still loading, wait a bit and retry
+          if (!userProfile && !authLoading) {
+            toast.error("Authentication required to view this article");
+            navigate("/dashboard");
+            return;
+          }
+          // If userProfile is loaded, check permissions
+          if (userProfile && !canReadArticle(loadedArticle.status, loadedArticle.authorId)) {
+            toast.error("Article not found or not accessible");
+            navigate("/dashboard");
+            return;
+          }
         }
         setArticle(loadedArticle);
 
@@ -134,8 +147,338 @@ export const ArticleView: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Header */}
+    <>
+      <style>{`
+        /* Custom Image Layout Styles for Article View */
+        .prose .custom-image {
+          cursor: pointer;
+          border-radius: 8px;
+          transition: all 0.2s ease;
+          height: auto;
+        }
+
+        /* Full Column Width Layout */
+        .prose .image-full-column {
+          max-width: 100%;
+          width: auto;
+          display: block;
+          margin: 16px auto;
+        }
+
+        /* Outset Layout - extends beyond column boundaries */
+        .prose .image-outset {
+          max-width: 120%;
+          width: auto;
+          display: block;
+          margin: 16px auto;
+          margin-left: -10%;
+          margin-right: -10%;
+        }
+
+        /* Full Screen Width Layout */
+        .prose .image-full-screen {
+          width: 100vw;
+          max-width: none;
+          display: block;
+          margin: 16px 0;
+          margin-left: calc(-50vw + 50%);
+          margin-right: calc(-50vw + 50%);
+          padding: 0 20px;
+          box-sizing: border-box;
+        }
+
+        /* Image Grid Layouts */
+        .prose .image-grid-item {
+          display: inline-block;
+          margin: 4px;
+          border-radius: 8px;
+          vertical-align: top;
+        }
+
+        /* 2-image grid */
+        .prose .image-grid-item:nth-child(2n) {
+          width: calc(50% - 8px);
+        }
+
+        /* 3-image grid */
+        .prose .image-grid-item:nth-child(3n) {
+          width: calc(33.333% - 8px);
+        }
+
+        /* 4+ image grid */
+        .prose .image-grid-item:nth-child(4n) {
+          width: calc(25% - 8px);
+        }
+
+        /* Grid container */
+        .prose .image-grid-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin: 16px 0;
+          justify-content: center;
+        }
+
+        /* Responsive grid adjustments */
+        @media (max-width: 768px) {
+          .prose .image-outset {
+            max-width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+          }
+
+          .prose .image-full-screen {
+            width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+            padding: 0;
+          }
+
+          .prose .image-grid-item:nth-child(n) {
+            width: calc(50% - 8px);
+          }
+        }
+
+        @media (max-width: 480px) {
+          .prose .image-grid-item:nth-child(n) {
+            width: 100%;
+            margin: 4px 0;
+          }
+        }
+
+        /* Professional Document Styling */
+        .prose {
+          font-family: 'Georgia', 'Times New Roman', serif;
+          color: #1a1a1a;
+          max-width: none;
+        }
+
+        .prose p {
+          margin-bottom: 1.5em;
+          text-align: justify;
+          text-justify: inter-word;
+        }
+
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+          font-family: 'Helvetica Neue', 'Arial', sans-serif;
+          font-weight: 600;
+          color: #111827;
+          margin-top: 2.5em;
+          margin-bottom: 1em;
+          line-height: 1.3;
+        }
+
+        .prose h1 {
+          font-size: 2.25rem;
+          border-bottom: 2px solid #e5e7eb;
+          padding-bottom: 0.5rem;
+        }
+
+        .prose h2 {
+          font-size: 1.875rem;
+        }
+
+        .prose h3 {
+          font-size: 1.5rem;
+        }
+
+        .prose blockquote {
+          border-left: 4px solid #3b82f6;
+          padding-left: 1.5rem;
+          margin: 2rem 0;
+          font-style: italic;
+          color: #4b5563;
+          background-color: #f8fafc;
+          padding: 1.5rem;
+          border-radius: 0.5rem;
+        }
+
+        .prose ul, .prose ol {
+          margin: 1.5rem 0;
+          padding-left: 2rem;
+        }
+
+        .prose li {
+          margin: 0.75rem 0;
+          line-height: 1.7;
+        }
+
+        /* Image Caption Styles - now handled by JavaScript processor */
+        .prose .image-figure-container {
+          margin: 24px auto;
+          text-align: center;
+          display: block;
+        }
+
+        .prose .image-caption-text {
+          margin-top: 16px;
+          margin-bottom: 24px;
+          font-size: 0.9rem;
+          color: #6b7280;
+          font-style: italic;
+          line-height: 1.5;
+          text-align: center;
+          max-width: 700px;
+          margin-left: auto;
+          margin-right: auto;
+          padding: 0 24px;
+          box-sizing: border-box;
+          font-family: 'Helvetica Neue', 'Arial', sans-serif;
+        }
+
+        /* Prose content styling for text visibility and alignment */
+        .prose {
+          color: #374151;
+          line-height: 1.75;
+          max-width: none;
+          margin: 0 auto;
+        }
+
+        .prose p {
+          margin-top: 1.25em;
+          margin-bottom: 1.25em;
+          color: #374151;
+          text-align: left;
+        }
+
+        .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+          color: #111827;
+          font-weight: 600;
+          line-height: 1.25;
+          margin-top: 2em;
+          margin-bottom: 1em;
+        }
+
+        .prose h1 { font-size: 2.25em; }
+        .prose h2 { font-size: 1.875em; }
+        .prose h3 { font-size: 1.5em; }
+        .prose h4 { font-size: 1.25em; }
+
+        .prose ul, .prose ol {
+          margin-top: 1.25em;
+          margin-bottom: 1.25em;
+          padding-left: 1.625em;
+          color: #374151;
+        }
+
+        .prose li {
+          margin-top: 0.5em;
+          margin-bottom: 0.5em;
+        }
+
+        .prose blockquote {
+          font-style: italic;
+          border-left: 4px solid #e5e7eb;
+          padding-left: 1em;
+          margin: 1.6em 0;
+          color: #6b7280;
+        }
+
+        .prose code {
+          background-color: #f3f4f6;
+          padding: 0.125em 0.25em;
+          border-radius: 0.25em;
+          font-size: 0.875em;
+          color: #dc2626;
+        }
+
+        .prose pre {
+          background-color: #1f2937;
+          color: #f9fafb;
+          padding: 1em;
+          border-radius: 0.5em;
+          overflow-x: auto;
+          margin: 1.5em 0;
+        }
+
+        .prose pre code {
+          background-color: transparent;
+          color: inherit;
+          padding: 0;
+        }
+
+        .prose a {
+          color: #2563eb;
+          text-decoration: underline;
+        }
+
+        .prose a:hover {
+          color: #1d4ed8;
+        }
+
+        .prose strong {
+          font-weight: 600;
+          color: #111827;
+        }
+
+        .prose em {
+          font-style: italic;
+        }
+
+        /* Responsive Design for Mobile Devices */
+        @media (max-width: 768px) {
+          .prose {
+            font-size: 16px;
+            line-height: 1.7;
+          }
+
+          .prose h1 {
+            font-size: 1.875rem;
+          }
+
+          .prose h2 {
+            font-size: 1.5rem;
+          }
+
+          .prose h3 {
+            font-size: 1.25rem;
+          }
+
+          .prose p {
+            text-align: left;
+            margin-bottom: 1.25em;
+          }
+
+          .prose blockquote {
+            padding: 1rem;
+            margin: 1.5rem 0;
+          }
+
+          .prose .image-caption-text {
+            padding: 0 16px;
+            font-size: 0.85rem;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .prose {
+            font-size: 15px;
+          }
+
+          .prose h1 {
+            font-size: 1.5rem;
+          }
+
+          .prose h2 {
+            font-size: 1.25rem;
+          }
+
+          .prose .image-caption-text {
+            padding: 0 12px;
+          }
+        }
+
+        /* Legacy image styles for backward compatibility */
+        .prose img:not(.custom-image) {
+          border-radius: 8px;
+          max-width: 100%;
+          height: auto;
+          display: block;
+          margin: 12px auto;
+        }
+      `}</style>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={() => navigate(-1)}
@@ -340,12 +683,20 @@ export const ArticleView: React.FC = () => {
           )}
 
           {/* Content */}
-          <div
-            className="prose prose-lg max-w-none"
-            dangerouslySetInnerHTML={{ __html: article.content }}
-          />
+          <div className="max-w-5xl mx-auto px-8 py-8">
+            <div
+              className="prose prose-lg max-w-none"
+              style={{
+                fontSize: '18px',
+                lineHeight: '1.8',
+                letterSpacing: '0.01em'
+              }}
+              dangerouslySetInnerHTML={{ __html: processLayoutSpecificCaptions(article.content) }}
+            />
+          </div>
         </div>
       </article>
     </div>
+    </>
   );
 };

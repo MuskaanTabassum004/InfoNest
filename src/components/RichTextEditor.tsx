@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -32,6 +32,8 @@ import { useAuth } from "../hooks/useAuth";
 import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
 import { ResumableFileUploadButton } from "./ResumableFileUpload";
+import { CustomImageExtension } from "../lib/tiptap/extensions/CustomImageExtension";
+import { ImageGridManager } from "./extensions/ImageGridManager";
 
 const lowlight = createLowlight();
 
@@ -49,6 +51,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const { userProfile } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const gridManagerRef = useRef<ImageGridManager | null>(null);
   
   // Predefined colors like MS Word
   const textColors = [
@@ -104,12 +107,12 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         keepMarks: true,
         keepAttributes: true,
       }),
-      Image.configure({
-        inline: true,
+      // Use custom image extension instead of default Image extension
+      CustomImageExtension.configure({
+        inline: false,
         allowBase64: true,
         HTMLAttributes: {
-          class: "rounded-lg cursor-pointer",
-          style: "max-width: 100%; height: auto; resize: both; overflow: auto;",
+          class: "custom-image",
         },
       }),
       Link.configure({
@@ -128,6 +131,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+    },
+    onCreate: ({ editor }) => {
+      // Initialize grid manager when editor is created
+      gridManagerRef.current = new ImageGridManager(editor);
     },
     editorProps: {
       attributes: {
@@ -219,7 +226,11 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const addImage = () => {
     const url = window.prompt("Enter image URL:");
     if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
+      editor.commands.setImage({
+        src: url,
+        alt: '',
+        layout: 'full-column'
+      });
     }
   };
 
@@ -232,18 +243,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const handleFileUpload = (result: UploadResult) => {
     if (result.type.startsWith("image/")) {
-      // Insert image with enhanced attributes for positioning and resizing
-      editor
-        .chain()
-        .focus()
-        .setImage({
-          src: result.url,
-          alt: result.name,
-          title: result.name,
-          style:
-            "max-width: 50%; height: auto; float: left; margin: 0 16px 8px 0; resize: both; overflow: auto;",
-        })
-        .run();
+      // Insert image using custom image extension with default layout
+      editor.commands.setImage({
+        src: result.url,
+        alt: result.name || '',
+        title: result.name || '',
+        layout: 'full-column',
+      });
     } else {
       // Insert link for non-image files (PDFs, documents, etc.)
       const fileType = result.type === "application/pdf" ? "PDF" : "Document";
@@ -259,6 +265,30 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const handleUploadError = (error: string) => {
     toast.error(error);
+  };
+
+  const handleMultipleImageUpload = (results: UploadResult[]) => {
+    const imageResults = results.filter(result => result.type.startsWith("image/"));
+
+    if (imageResults.length === 0) {
+      return;
+    }
+
+    if (imageResults.length === 1) {
+      // Single image - use normal upload
+      handleFileUpload(imageResults[0]);
+    } else {
+      // Multiple images - create grid
+      const images = imageResults.map(result => ({
+        src: result.url,
+        alt: result.name || '',
+        title: result.name || '',
+      }));
+
+      if (gridManagerRef.current) {
+        gridManagerRef.current.createGrid(images);
+      }
+    }
   };
 
   const applyTextColor = (color: string) => {
@@ -295,8 +325,116 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           font-size: 16px !important;
           line-height: 18.4px !important;
         }
-        /* Image styles for both editor and preview */
-        .ProseMirror img, .article-content img {
+        /* Custom Image Layout Styles */
+        .custom-image {
+          cursor: pointer;
+          border-radius: 8px;
+          transition: all 0.2s ease;
+          height: auto;
+        }
+
+        /* Full Column Width Layout */
+        .image-full-column {
+          max-width: 100%;
+          width: auto;
+          display: block;
+          margin: 16px auto;
+        }
+
+        /* Outset Layout - extends beyond column boundaries */
+        .image-outset {
+          max-width: 120%;
+          width: auto;
+          display: block;
+          margin: 16px auto;
+          margin-left: -10%;
+          margin-right: -10%;
+        }
+
+        /* Full Screen Width Layout */
+        .image-full-screen {
+          width: 100vw;
+          max-width: none;
+          display: block;
+          margin: 16px 0;
+          margin-left: calc(-50vw + 50%);
+          margin-right: calc(-50vw + 50%);
+          padding: 0 20px;
+          box-sizing: border-box;
+        }
+
+        /* Image Grid Layouts */
+        .image-grid-item {
+          display: inline-block;
+          margin: 4px;
+          border-radius: 8px;
+          vertical-align: top;
+        }
+
+        /* 2-image grid */
+        .image-grid-item:nth-child(2n) {
+          width: calc(50% - 8px);
+        }
+
+        /* 3-image grid */
+        .image-grid-item:nth-child(3n) {
+          width: calc(33.333% - 8px);
+        }
+
+        /* 4+ image grid */
+        .image-grid-item:nth-child(4n) {
+          width: calc(25% - 8px);
+        }
+
+        /* Grid container */
+        .image-grid-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin: 16px 0;
+          justify-content: center;
+        }
+
+        /* Responsive grid adjustments */
+        @media (max-width: 768px) {
+          .image-outset {
+            max-width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+          }
+
+          .image-full-screen {
+            width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+            padding: 0;
+          }
+
+          .image-grid-item:nth-child(n) {
+            width: calc(50% - 8px);
+          }
+        }
+
+        @media (max-width: 480px) {
+          .image-grid-item:nth-child(n) {
+            width: 100%;
+            margin: 4px 0;
+          }
+        }
+
+        /* Hover and selection states */
+        .custom-image:hover {
+          outline: 2px solid #3b82f6;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+        }
+
+        .ProseMirror .custom-image.ProseMirror-selectednode {
+          outline: 2px solid #3b82f6;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+        }
+
+        /* Legacy image styles for backward compatibility */
+        .ProseMirror img:not(.custom-image), .article-content img:not(.custom-image) {
           cursor: pointer;
           border-radius: 8px;
           transition: all 0.2s ease;
@@ -305,36 +443,42 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           display: block;
           margin: 8px auto;
         }
-        .ProseMirror img:hover, .article-content img:hover {
+
+        .ProseMirror img:not(.custom-image):hover, .article-content img:not(.custom-image):hover {
           outline: 2px solid #3b82f6;
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
         }
-        .ProseMirror img.ProseMirror-selectednode {
+
+        .ProseMirror img:not(.custom-image).ProseMirror-selectednode {
           outline: 2px solid #3b82f6;
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
         }
-        /* Float left images */
+
+        /* Float left images (legacy) */
         .ProseMirror img[style*="float: left"], .article-content img[style*="float: left"] {
           float: left !important;
           margin: 0 16px 8px 0 !important;
           max-width: 50% !important;
           display: inline !important;
         }
-        /* Float right images */
+
+        /* Float right images (legacy) */
         .ProseMirror img[style*="float: right"], .article-content img[style*="float: right"] {
           float: right !important;
           margin: 0 0 8px 16px !important;
           max-width: 50% !important;
           display: inline !important;
         }
-        /* Centered images */
+
+        /* Centered images (legacy) */
         .ProseMirror img[style*="margin: 16px auto"], .article-content img[style*="margin: 16px auto"] {
           display: block !important;
           margin: 16px auto !important;
           max-width: 100% !important;
           float: none !important;
         }
-        /* Resizable images */
+
+        /* Resizable images (legacy) */
         .ProseMirror img[style*="resize: both"], .article-content img[style*="resize: both"] {
           resize: both !important;
           overflow: auto !important;

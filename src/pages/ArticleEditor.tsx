@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
+import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
 
 export const ArticleEditor: React.FC = () => {
   const { id } = useParams();
@@ -615,8 +616,214 @@ export const ArticleEditor: React.FC = () => {
           padding: 0 !important;
           display: inline !important;
         }
-        /* Image styles for preview mode */
-        .article-content img {
+        /* Custom Image Layout Styles for Preview */
+        .article-content .custom-image {
+          cursor: pointer;
+          border-radius: 8px;
+          transition: all 0.2s ease;
+          height: auto;
+        }
+
+        /* Full Column Width Layout */
+        .article-content .image-full-column {
+          max-width: 100%;
+          width: auto;
+          display: block;
+          margin: 16px auto;
+        }
+
+        /* Outset Layout - extends beyond column boundaries */
+        .article-content .image-outset {
+          max-width: 120%;
+          width: auto;
+          display: block;
+          margin: 16px auto;
+          margin-left: -10%;
+          margin-right: -10%;
+        }
+
+        /* Full Screen Width Layout */
+        .article-content .image-full-screen {
+          width: 100vw;
+          max-width: none;
+          display: block;
+          margin: 16px 0;
+          margin-left: calc(-50vw + 50%);
+          margin-right: calc(-50vw + 50%);
+          padding: 0 20px;
+          box-sizing: border-box;
+        }
+
+        /* Image Grid Layouts */
+        .article-content .image-grid-item {
+          display: inline-block;
+          margin: 4px;
+          border-radius: 8px;
+          vertical-align: top;
+        }
+
+        /* 2-image grid */
+        .article-content .image-grid-item:nth-child(2n) {
+          width: calc(50% - 8px);
+        }
+
+        /* 3-image grid */
+        .article-content .image-grid-item:nth-child(3n) {
+          width: calc(33.333% - 8px);
+        }
+
+        /* 4+ image grid */
+        .article-content .image-grid-item:nth-child(4n) {
+          width: calc(25% - 8px);
+        }
+
+        /* Grid container */
+        .article-content .image-grid-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin: 16px 0;
+          justify-content: center;
+        }
+
+        /* Responsive grid adjustments */
+        @media (max-width: 768px) {
+          .article-content .image-outset {
+            max-width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+          }
+
+          .article-content .image-full-screen {
+            width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+            padding: 0;
+          }
+
+          .article-content .image-grid-item:nth-child(n) {
+            width: calc(50% - 8px);
+          }
+        }
+
+        @media (max-width: 480px) {
+          .article-content .image-grid-item:nth-child(n) {
+            width: 100%;
+            margin: 4px 0;
+          }
+        }
+
+        /* Image Caption Styles for Preview - now handled by JavaScript processor */
+        .article-content .image-figure-container {
+          margin: 16px auto !important;
+          text-align: center !important;
+          display: block !important;
+        }
+
+        .article-content .image-caption-text {
+          margin-top: 12px !important;
+          margin-bottom: 16px !important;
+          font-size: 0.875rem !important;
+          color: #6b7280 !important;
+          font-style: italic !important;
+          line-height: 1.5 !important;
+          text-align: center !important;
+          max-width: 600px !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          padding: 0 20px !important;
+          box-sizing: border-box !important;
+          font-family: inherit !important;
+        }
+
+        /* Enhanced text content styling for preview */
+        .article-content {
+          color: #374151;
+          line-height: 1.75;
+          max-width: none;
+          margin: 0 auto;
+        }
+
+        .article-content p {
+          margin-top: 1.25em !important;
+          margin-bottom: 1.25em !important;
+          color: #374151 !important;
+          text-align: left !important;
+          font-size: 16px !important;
+          line-height: 1.75 !important;
+        }
+
+        .article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6 {
+          color: #111827 !important;
+          font-weight: 600 !important;
+          line-height: 1.25 !important;
+          margin-top: 2em !important;
+          margin-bottom: 1em !important;
+        }
+
+        .article-content ul, .article-content ol {
+          margin-top: 1.25em !important;
+          margin-bottom: 1.25em !important;
+          padding-left: 1.625em !important;
+          color: #374151 !important;
+        }
+
+        .article-content li {
+          margin-top: 0.5em !important;
+          margin-bottom: 0.5em !important;
+        }
+
+        .article-content blockquote {
+          font-style: italic !important;
+          border-left: 4px solid #e5e7eb !important;
+          padding-left: 1em !important;
+          margin: 1.6em 0 !important;
+          color: #6b7280 !important;
+        }
+
+        .article-content code {
+          background-color: #f3f4f6 !important;
+          padding: 0.125em 0.25em !important;
+          border-radius: 0.25em !important;
+          font-size: 0.875em !important;
+          color: #dc2626 !important;
+        }
+
+        .article-content pre {
+          background-color: #1f2937 !important;
+          color: #f9fafb !important;
+          padding: 1em !important;
+          border-radius: 0.5em !important;
+          overflow-x: auto !important;
+          margin: 1.5em 0 !important;
+        }
+
+        .article-content pre code {
+          background-color: transparent !important;
+          color: inherit !important;
+          padding: 0 !important;
+        }
+
+        .article-content a {
+          color: #2563eb !important;
+          text-decoration: underline !important;
+        }
+
+        .article-content a:hover {
+          color: #1d4ed8 !important;
+        }
+
+        .article-content strong {
+          font-weight: 600 !important;
+          color: #111827 !important;
+        }
+
+        .article-content em {
+          font-style: italic !important;
+        }
+
+        /* Legacy image styles for backward compatibility */
+        .article-content img:not(.custom-image) {
           border-radius: 8px;
           max-width: 100%;
           height: auto;
@@ -701,12 +908,14 @@ export const ArticleEditor: React.FC = () => {
           </div>
 
           {/* Article Content */}
-          <div
-            className="prose prose-lg max-w-none article-content"
-            dangerouslySetInnerHTML={{
-              __html: article.content || "<p>Start writing your article...</p>",
-            }}
-          />
+          <div className="max-w-4xl mx-auto px-6">
+            <div
+              className="prose prose-lg max-w-none article-content"
+              dangerouslySetInnerHTML={{
+                __html: processLayoutSpecificCaptions(article.content || "<p>Start writing your article...</p>"),
+              }}
+            />
+          </div>
 
           {/* Tags at bottom */}
           {article.tags && article.tags.length > 0 && (

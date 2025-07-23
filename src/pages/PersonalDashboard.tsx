@@ -60,50 +60,58 @@ export const PersonalDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    if (!userProfile || !isAdmin) return;
+    if (!userProfile) return;
 
     const unsubscribes: (() => void)[] = [];
 
-    // Listen to all published articles for general stats
-    const publishedQuery = query(
-      collection(firestore, "articles"),
-      where("status", "==", "published"),
-      orderBy("publishedAt", "desc"),
-      limit(50)
-    );
+    // Initialize data containers
+    let publishedArticles: Article[] = [];
+    const categoriesSet = new Set<string>();
+    const tagsMap = new Map<string, number>();
 
-    const publishedUnsubscribe = onSnapshot(publishedQuery, (snapshot) => {
-      const publishedArticles: Article[] = [];
-      const categoriesSet = new Set<string>();
-      const tagsMap = new Map<string, number>();
+    // For admins, also listen to all published articles for general stats
+    if (isAdmin) {
+      const publishedQuery = query(
+        collection(firestore, "articles"),
+        where("status", "==", "published"),
+        orderBy("publishedAt", "desc"),
+        limit(50)
+      );
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const article = {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate(),
-          publishedAt: data.publishedAt?.toDate(),
-        } as Article;
-        publishedArticles.push(article);
+      const publishedUnsubscribe = onSnapshot(publishedQuery, (snapshot) => {
+        publishedArticles = [];
 
-        if (article.category) categoriesSet.add(article.category);
-        article.tags?.forEach((tag) => {
-          tagsMap.set(tag, (tagsMap.get(tag) || 0) + 1);
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const article = {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate(),
+            publishedAt: data.publishedAt?.toDate(),
+          } as Article;
+          publishedArticles.push(article);
+
+          if (article.category) categoriesSet.add(article.category);
+          article.tags?.forEach((tag) => {
+            tagsMap.set(tag, (tagsMap.get(tag) || 0) + 1);
+          });
         });
       });
 
-      // Listen to admin's personal articles
-      const myArticlesQuery = query(
-        collection(firestore, "articles"),
-        where("authorId", "==", userProfile.uid),
-        orderBy("createdAt", "desc")
-      );
+      unsubscribes.push(publishedUnsubscribe);
+    }
 
-      const myArticlesUnsubscribe = onSnapshot(
-        myArticlesQuery,
-        (mySnapshot) => {
+    // Listen to user's personal articles (works for all user roles)
+    const myArticlesQuery = query(
+      collection(firestore, "articles"),
+      where("authorId", "==", userProfile.uid),
+      orderBy("createdAt", "desc")
+    );
+
+    const myArticlesUnsubscribe = onSnapshot(
+      myArticlesQuery,
+      (mySnapshot) => {
           const myArticles: Article[] = [];
           const myDrafts: Article[] = [];
           const unpublishedArticles: Article[] = [];
@@ -158,31 +166,14 @@ export const PersonalDashboard: React.FC = () => {
         }
       );
 
-      unsubscribes.push(myArticlesUnsubscribe);
-    });
-
-    unsubscribes.push(publishedUnsubscribe);
+    unsubscribes.push(myArticlesUnsubscribe);
 
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
     };
   }, [userProfile, isAdmin]);
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Access Denied
-          </h1>
-          <p className="text-gray-600">
-            Only administrators can access the personal dashboard.
-          </p>
-        </div>
-      </div>
-    );
-  }
+
 
   if (loading) {
     return (
@@ -227,8 +218,8 @@ export const PersonalDashboard: React.FC = () => {
                 Personal Dashboard
               </h1>
               <p className="text-gray-600">
-                Welcome back, {userProfile?.displayName}! Manage your personal
-                content creation.
+                Welcome back, {userProfile?.displayName}! View and manage your
+                articles and drafts.
               </p>
             </div>
             <div className="flex items-center space-x-4">
