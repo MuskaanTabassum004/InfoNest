@@ -1,3 +1,4 @@
+// src/components/AutoSaveIndicator.tsx
 import React from 'react';
 import { 
   Save, 
@@ -8,7 +9,7 @@ import {
   Clock
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { SaveStatus } from '../hooks/useAutoSave';
+import { SaveStatus } from '../hooks/useAutoSave'; // Import SaveStatus type
 
 interface AutoSaveIndicatorProps {
   status: SaveStatus;
