@@ -228,7 +228,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         .insertContent(linkText)
         .run();
     }
-    toast.success("File inserted into article!");
   };
 
   const handleUploadError = (error: string) => {
