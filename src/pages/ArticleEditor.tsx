@@ -58,6 +58,7 @@ export const ArticleEditor: React.FC = () => {
   // Enhanced form state
   const [selectedCategory, setSelectedCategory] = useState("");
   const [tagInput, setTagInput] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
   const [coverImageMethod, setCoverImageMethod] = useState<"upload" | "url">(
     "upload"
   );
@@ -86,6 +87,7 @@ export const ArticleEditor: React.FC = () => {
     "Business",
     "Tutorials",
     "News & Updates",
+    "Other",
   ];
 
   // Extract files from article content
@@ -158,8 +160,11 @@ export const ArticleEditor: React.FC = () => {
     setSelectedCategory(category);
     setArticle((prev) => ({
       ...prev,
-      categories: category ? [category] : [],
+      categories: category === "Other" ? [] : category ? [category] : [], // If "Other", wait for input
     }));
+    if (category !== "Other") {
+      setCustomCategory(""); // reset custom input if not "Other"
+    }
   };
 
   const handleCoverImageUpload = async (result: UploadResult) => {
@@ -362,6 +367,9 @@ export const ArticleEditor: React.FC = () => {
     }
     if (!selectedCategory) {
       newFieldErrors.category = "Please select a category";
+      hasErrors = true;
+    } else if (selectedCategory === "Other" && !customCategory.trim()) {
+      newFieldErrors.category = "Please enter your custom category";
       hasErrors = true;
     }
     if (!article.tags || article.tags.length === 0) {
@@ -906,6 +914,32 @@ export const ArticleEditor: React.FC = () => {
                 ))}
               </select>
 
+              {selectedCategory === "Other" && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Enter Custom Category <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customCategory}
+                    onChange={(e) => {
+                      setCustomCategory(e.target.value);
+                      if (fieldErrors.category) {
+                        setFieldErrors((prev) => ({ ...prev, category: "" }));
+                      }
+                      setArticle((prev) => ({
+                        ...prev,
+                        categories: [e.target.value],
+                      }));
+                    }}
+                    placeholder="Type your custom category..."
+                    className={`w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      fieldErrors.category ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                </div>
+              )}
+
               {fieldErrors.category && (
                 <p className="text-red-500 text-sm mt-2 flex items-center">
                   <span className="mr-1">⚠️</span>
@@ -916,8 +950,8 @@ export const ArticleEditor: React.FC = () => {
               {selectedCategory && (
                 <div className="mt-3">
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    {selectedCategory}
-                    <button
+                    {selectedCategory === "Other" ? customCategory || "Other" : selectedCategory}
+                    {selectedCategory === "Other" ? customCategory || "Other" : selectedCategory}
                       onClick={() => handleCategoryChange("")}
                       className="hover:text-blue-600"
                     >
