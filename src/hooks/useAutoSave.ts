@@ -42,6 +42,16 @@ export const useAutoSave = (
   const lastSavedDataRef = useRef<string>('');
   const isOnlineRef = useRef(navigator.onLine);
 
+  // Initialize lastSavedDataRef.current on mount with the initial articleData
+  // This prevents "Unsaved changes" immediately after loading an already saved article.
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current && articleData && Object.keys(articleData).length > 0) {
+      lastSavedDataRef.current = JSON.stringify(articleData);
+      isInitialMount.current = false;
+    }
+  }, [articleData]); // Dependency on articleData to ensure it's available
+
   // Monitor network status
   useEffect(() => {
     const handleOnline = () => {
@@ -83,23 +93,28 @@ export const useAutoSave = (
         authorName: userProfile.displayName || userProfile.email,
       };
 
-      if (articleId) {
-        await updateArticle(articleId, saveData);
+      // IMPORTANT: For new articles, createArticle returns the new ID.
+      // We need to update the articleId ref if it's a new article being saved for the first time.
+      let currentArticleId = articleId;
+      if (!currentArticleId) {
+        const newId = await createArticle(saveData);
+        currentArticleId = newId; // Update the local variable for this save cycle
+        // If you need to update the articleId prop in the parent component,
+        // you'd need a callback from this hook, but for auto-save,
+        // it's usually handled by the parent navigating to the new URL.
       } else {
-        // For new articles, we would need to handle creation differently
-        // This is a simplified version
-        await createArticle(saveData);
+        await updateArticle(currentArticleId, saveData);
       }
 
       const now = new Date();
-      lastSavedDataRef.current = JSON.stringify(articleData);
+      lastSavedDataRef.current = JSON.stringify(articleData); // This line updates the ref
       retryCountRef.current = 0;
 
       setSaveState({
         status: 'saved',
         lastSaved: now,
         error: null,
-        hasUnsavedChanges: false
+        hasUnsavedChanges: false // This should clear the unsaved changes flag
       });
 
       // Reset to idle after 2 seconds
@@ -124,7 +139,7 @@ export const useAutoSave = (
         retryCountRef.current = 0;
       }
     }
-  }, [userProfile, articleData, articleId, maxRetries, retryDelayMs]);
+  }, [userProfile, articleData, articleId, maxRetries, retryDelayMs]); // Added articleId to dependencies
 
   // Trigger save with debouncing
   const triggerSave = useCallback(() => {
