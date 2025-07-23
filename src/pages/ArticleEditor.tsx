@@ -746,7 +746,7 @@ export const ArticleEditor: React.FC = () => {
                           : "text-gray-600 hover:text-gray-900"
                       }`}
                     >
-                      📁 Upload File
+                    
                     </button>
                     <button
                       onClick={() => setCoverImageMethod("url")}
