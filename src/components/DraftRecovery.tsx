@@ -1,3 +1,4 @@
+// src/components/DraftRecovery.tsx
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, RotateCcw, X, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
