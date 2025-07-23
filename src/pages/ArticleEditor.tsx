@@ -947,20 +947,20 @@ export const ArticleEditor: React.FC = () => {
                 </p>
               )}
 
-             {selectedCategory && (
-  <div className="mt-3">
-    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-      {selectedCategory === "Other" ? customCategory || "Other" : selectedCategory}
-      <button
-        onClick={() => handleCategoryChange("")}
-        className="hover:text-blue-600"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </span>
-  </div>
-)}
-
+              {selectedCategory && (
+                <div className="mt-3">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    {selectedCategory === "Other" ? customCategory || "Other" : selectedCategory}
+                    <button
+                      onClick={() => handleCategoryChange("")}
+                      className="hover:text-blue-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* Tags */}
             <div className={`bg-white rounded-2xl p-6 border ${
