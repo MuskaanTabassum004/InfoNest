@@ -892,7 +892,7 @@ export const ArticleEditor: React.FC = () => {
             }`}>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Folder className="h-5 w-5 mr-2" />
-                Category
+                Category <span className="text-s text-red-500 mr-0">*</span>
               </h3>
 
               <select
