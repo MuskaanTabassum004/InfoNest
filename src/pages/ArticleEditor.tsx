@@ -322,8 +322,28 @@ export const ArticleEditor: React.FC = () => {
   };
 
   const handleSave = async (status: "draft" | "published" = "draft") => {
-    if (!userProfile || !article.title?.trim() || !article.content?.trim()) {
-      toast.error("Please fill in title and content");
+    if (!userProfile) {
+      toast.error("User authentication error. Please refresh and try again.");
+      return;
+    }
+
+    // Validate required fields
+    const errors = [];
+    if (!article.title?.trim()) {
+      errors.push("Article title is required");
+    }
+    if (!article.content?.trim()) {
+      errors.push("Article content is required");
+    }
+    if (!selectedCategory) {
+      errors.push("Category selection is required");
+    }
+    if (!article.tags || article.tags.length === 0) {
+      errors.push("At least one tag is required");
+    }
+
+    if (errors.length > 0) {
+      toast.error(errors.join(", "));
       return;
     }
 
@@ -781,6 +801,9 @@ export const ArticleEditor: React.FC = () => {
 
             {/* Title */}
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Article Title *
+              </label>
               <input
                 type="text"
                 value={article.title || ""}
@@ -788,8 +811,9 @@ export const ArticleEditor: React.FC = () => {
                   setArticle((prev) => ({ ...prev, title: e.target.value }))
                 }
                 placeholder="Article title..."
-                className="w-full text-3xl font-bold border-none outline-none bg-transparent placeholder-gray-400 resize-none"
+                className="w-full text-3xl font-bold border-none outline-none bg-transparent placeholder-gray-400 resize-none required:border-red-300"
                 style={{ minHeight: "1.2em" }}
+                required
               />
             </div>
 
@@ -798,7 +822,7 @@ export const ArticleEditor: React.FC = () => {
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
-                  Article Content
+                  Article Content *
                 </h3>
               </div>
               <div className="p-6">
@@ -819,13 +843,14 @@ export const ArticleEditor: React.FC = () => {
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Folder className="h-5 w-5 mr-2" />
-                Category (Select One)
+                Category (Select One) *
               </h3>
 
               <select
                 value={selectedCategory}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent required:border-red-300"
+                required
               >
                 <option value="">Select a category...</option>
                 {availableCategories.map((category) => (
@@ -854,7 +879,7 @@ export const ArticleEditor: React.FC = () => {
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Tag className="h-5 w-5 mr-2" />
-                Tags (Max 4)
+                Tags (Max 4) *
               </h3>
 
               <div className="flex flex-wrap gap-2 mb-3">
@@ -901,7 +926,8 @@ export const ArticleEditor: React.FC = () => {
                 </button>
               </div>
 
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 mt-2 flex items-center">
+                <span className="text-red-500 mr-1">*</span>
                 {article.tags?.length || 0}/4 tags used
               </p>
             </div>
@@ -977,23 +1003,6 @@ export const ArticleEditor: React.FC = () => {
               files={articleFiles}
               onFileRemoved={handleFileRemoved}
             />
-          </div>
-        </div>
-      )}
-
-      {/* Article Info */}
-      {isEditing && !isPreviewMode && (
-        <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Article Information
-          </h2>
-          <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-            <span>Status: {article.status}</span>
-            {article.updatedAt && (
-              <span>
-                Last updated: {new Date(article.updatedAt).toLocaleDateString()}
-              </span>
-            )}
           </div>
         </div>
       )}
