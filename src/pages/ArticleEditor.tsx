@@ -65,6 +65,13 @@ export const ArticleEditor: React.FC = () => {
   const [coverImageUploading, setCoverImageUploading] = useState(false);
   const [showUploadManager, setShowUploadManager] = useState(false);
 
+  // Field validation states
+  const [fieldErrors, setFieldErrors] = useState({
+    title: "",
+    content: "",
+    category: "",
+    tags: "",
+  });
   // Available categories (you may want to fetch these from a backend)
   const availableCategories = [
     "Technology",
@@ -327,23 +334,44 @@ export const ArticleEditor: React.FC = () => {
       return;
     }
 
-    // Validate required fields
-    const errors = [];
+    // Reset field errors
+    setFieldErrors({
+      title: "",
+      content: "",
+      category: "",
+      tags: "",
+    });
+
+    // Validate required fields individually
+    const newFieldErrors = {
+      title: "",
+      content: "",
+      category: "",
+      tags: "",
+    };
+    
+    let hasErrors = false;
+
     if (!article.title?.trim()) {
-      errors.push("Article title is required");
+      newFieldErrors.title = "This field is required";
+      hasErrors = true;
     }
     if (!article.content?.trim()) {
-      errors.push("Article content is required");
+      newFieldErrors.content = "This field is required";
+      hasErrors = true;
     }
     if (!selectedCategory) {
-      errors.push("Category selection is required");
+      newFieldErrors.category = "Please select a category";
+      hasErrors = true;
     }
     if (!article.tags || article.tags.length === 0) {
-      errors.push("At least one tag is required");
+      newFieldErrors.tags = "At least one tag is required";
+      hasErrors = true;
     }
 
-    if (errors.length > 0) {
-      toast.error(errors.join(", "));
+    if (hasErrors) {
+      setFieldErrors(newFieldErrors);
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -810,27 +838,46 @@ export const ArticleEditor: React.FC = () => {
                 onChange={(e) =>
                   setArticle((prev) => ({ ...prev, title: e.target.value }))
                 }
+                onFocus={() => setFieldErrors(prev => ({ ...prev, title: "" }))}
                 placeholder="Article title..."
-                className="w-full text-3xl font-bold border-none outline-none bg-transparent placeholder-gray-400 resize-none required:border-red-300"
+                className={`w-full text-3xl font-bold border-none outline-none bg-transparent placeholder-gray-400 resize-none ${
+                  fieldErrors.title ? "border-b-2 border-red-500" : ""
+                }`}
                 style={{ minHeight: "1.2em" }}
-                required
               />
+              {fieldErrors.title && (
+                <p className="text-red-500 text-sm mt-1 flex items-center">
+                  <span className="mr-1">⚠️</span>
+                  {fieldErrors.title}
+                </p>
+              )}
             </div>
 
             {/* Rich Text Editor */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className={`bg-white rounded-2xl border overflow-hidden ${
+              fieldErrors.content ? "border-red-500" : "border-gray-200"
+            }`}>
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
                   Article Content *
                 </h3>
+                {fieldErrors.content && (
+                  <p className="text-red-500 text-sm mt-1 flex items-center">
+                    <span className="mr-1">⚠️</span>
+                    {fieldErrors.content}
+                  </p>
+                )}
               </div>
               <div className="p-6">
                 <RichTextEditor
                   content={article.content || ""}
-                  onChange={(content) =>
+                  onChange={(content) => {
                     setArticle((prev) => ({ ...prev, content }))
-                  }
+                    if (fieldErrors.content) {
+                      setFieldErrors(prev => ({ ...prev, content: "" }))
+                    }
+                  }}
                   placeholder="Start writing your article..."
                 />
               </div>
@@ -840,7 +887,9 @@ export const ArticleEditor: React.FC = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Category Selection */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-200">
+            <div className={`bg-white rounded-2xl p-6 border ${
+              fieldErrors.category ? "border-red-500" : "border-gray-200"
+            }`}>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Folder className="h-5 w-5 mr-2" />
                 Category (Select One) *
@@ -848,9 +897,15 @@ export const ArticleEditor: React.FC = () => {
 
               <select
                 value={selectedCategory}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent required:border-red-300"
-                required
+                onChange={(e) => {
+                  handleCategoryChange(e.target.value)
+                  if (fieldErrors.category) {
+                    setFieldErrors(prev => ({ ...prev, category: "" }))
+                  }
+                }}
+                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  fieldErrors.category ? "border-red-500" : "border-gray-300"
+                }`}
               >
                 <option value="">Select a category...</option>
                 {availableCategories.map((category) => (
@@ -859,6 +914,13 @@ export const ArticleEditor: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              {fieldErrors.category && (
+                <p className="text-red-500 text-sm mt-2 flex items-center">
+                  <span className="mr-1">⚠️</span>
+                  {fieldErrors.category}
+                </p>
+              )}
 
               {selectedCategory && (
                 <div className="mt-3">
@@ -876,11 +938,22 @@ export const ArticleEditor: React.FC = () => {
             </div>
 
             {/* Tags */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-200">
+            <div className={`bg-white rounded-2xl p-6 border ${
+              fieldErrors.tags ? "border-red-500" : "border-gray-200"
+            }`}>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Tag className="h-5 w-5 mr-2" />
                 Tags (Max 4) *
               </h3>
+
+              {fieldErrors.tags && (
+                <div className="mb-3">
+                  <p className="text-red-500 text-sm flex items-center">
+                    <span className="mr-1">⚠️</span>
+                    {fieldErrors.tags}
+                  </p>
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-2 mb-3">
                 {article.tags?.map((tag) => (
@@ -903,7 +976,12 @@ export const ArticleEditor: React.FC = () => {
                 <input
                   type="text"
                   value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
+                  onChange={(e) => {
+                    setTagInput(e.target.value)
+                    if (fieldErrors.tags && article.tags && article.tags.length > 0) {
+                      setFieldErrors(prev => ({ ...prev, tags: "" }))
+                    }
+                  }}
                   onKeyPress={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -911,11 +989,18 @@ export const ArticleEditor: React.FC = () => {
                     }
                   }}
                   placeholder="Add a tag..."
-                  className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className={`flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    fieldErrors.tags ? "border-red-500" : "border-gray-300"
+                  }`}
                   disabled={article.tags && article.tags.length >= 4}
                 />
                 <button
-                  onClick={addTag}
+                  onClick={() => {
+                    addTag()
+                    if (fieldErrors.tags && tagInput.trim()) {
+                      setFieldErrors(prev => ({ ...prev, tags: "" }))
+                    }
+                  }}
                   disabled={
                     !tagInput.trim() ||
                     (article.tags && article.tags.length >= 4)
@@ -929,6 +1014,7 @@ export const ArticleEditor: React.FC = () => {
               <p className="text-xs text-gray-500 mt-2 flex items-center">
                 <span className="text-red-500 mr-1">*</span>
                 {article.tags?.length || 0}/4 tags used
+                {article.tags && article.tags.length === 0 && " - At least one tag is required"}
               </p>
             </div>
 
