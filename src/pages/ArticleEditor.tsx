@@ -943,7 +943,7 @@ export const ArticleEditor: React.FC = () => {
             }`}>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Tag className="h-5 w-5 mr-2" />
-                Tags<span className="text-red-400 mr-1">*</span>
+                Tags<span className="text-red-500 mr-0">*</span>
               </h3>
 
               {fieldErrors.tags && (
