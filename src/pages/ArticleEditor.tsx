@@ -738,16 +738,7 @@ export const ArticleEditor: React.FC = () => {
                 <div className="space-y-4">
                   {/* Method Toggle */}
                   <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-                    <button
-                      onClick={() => setCoverImageMethod("upload")}
-                      className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                        coverImageMethod === "upload"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
-                    >
                     
-                    </button>
                     <button
                       onClick={() => setCoverImageMethod("url")}
                       className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
