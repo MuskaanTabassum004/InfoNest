@@ -28,6 +28,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 import { ArticleCard } from "../components/ArticleCard";
+import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
 
 export const MyArticles: React.FC = () => {
   const {
