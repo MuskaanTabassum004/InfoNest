@@ -9,6 +9,7 @@ import BulletList from "@tiptap/extension-bullet-list";
 import OrderedList from "@tiptap/extension-ordered-list";
 
 import TextStyle from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
 import { createLowlight } from "lowlight";
 import {
   Bold,
@@ -24,6 +25,7 @@ import {
   Redo,
   Upload,
   Type,
+  Palette,
 } from "lucide-react";
 import { FileUploadButton } from "./FileUpload";
 import { useAuth } from "../hooks/useAuth";
@@ -46,6 +48,28 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 }) => {
   const { userProfile } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  
+  // Predefined colors like MS Word
+  const textColors = [
+    { name: "Black", value: "#000000" },
+    { name: "Dark Gray", value: "#404040" },
+    { name: "Gray", value: "#808080" },
+    { name: "Light Gray", value: "#C0C0C0" },
+    { name: "Red", value: "#FF0000" },
+    { name: "Orange", value: "#FFA500" },
+    { name: "Yellow", value: "#FFFF00" },
+    { name: "Green", value: "#008000" },
+    { name: "Blue", value: "#0000FF" },
+    { name: "Purple", value: "#800080" },
+    { name: "Dark Red", value: "#8B0000" },
+    { name: "Dark Orange", value: "#FF8C00" },
+    { name: "Dark Yellow", value: "#B8860B" },
+    { name: "Dark Green", value: "#006400" },
+    { name: "Dark Blue", value: "#000080" },
+    { name: "Dark Purple", value: "#4B0082" },
+  ];
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -55,6 +79,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         listItem: false,
       }),
       TextStyle,
+      Color.configure({
+        types: [TextStyle.name, ListItem.name],
+      }),
       // Custom list extensions with stable configuration
       ListItem.configure({
         HTMLAttributes: {
@@ -234,6 +261,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     toast.error(error);
   };
 
+  const applyTextColor = (color: string) => {
+    editor.chain().focus().setColor(color).run();
+    setShowColorPicker(false);
+  };
+
+  const removeTextColor = () => {
+    editor.chain().focus().unsetColor().run();
+    setShowColorPicker(false);
+  };
   return (
     <div className="border border-gray-200 rounded-xl bg-white relative flex flex-col max-h-[600px]">
       <style>{`
@@ -476,6 +512,40 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <Italic className="h-4 w-4" />
         </button>
 
+        {/* Text Color */}
+        <div className="relative">
+          <button
+            onClick={() => setShowColorPicker(!showColorPicker)}
+            className={`p-2 rounded-lg hover:bg-gray-100 ${
+              showColorPicker ? "bg-blue-100 text-blue-700" : "text-gray-600"
+            }`}
+            title="Text Color"
+          >
+            <Palette className="h-4 w-4" />
+          </button>
+
+          {showColorPicker && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-20">
+              <div className="grid grid-cols-4 gap-1 mb-2">
+                {textColors.map((color) => (
+                  <button
+                    key={color.value}
+                    onClick={() => applyTextColor(color.value)}
+                    className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+                    style={{ backgroundColor: color.value }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={removeTextColor}
+                className="w-full text-xs text-gray-600 hover:text-gray-800 py-1 border-t border-gray-200"
+              >
+                Remove Color
+              </button>
+            </div>
+          )}
+        </div>
         <div className="w-px h-6 bg-gray-300 mx-1" />
 
         <button
@@ -581,206 +651,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
         <div className="w-px h-6 bg-gray-300 mx-1" />
 
-        {/* Image Positioning Controls */}
-        <button
-          onClick={() => {
-            // Find selected image node
-            const { state } = editor;
-            const { selection } = state;
-            let imageNode = null;
-            let imagePos = null;
-
-            // Check if current selection is an image
-            state.doc.nodesBetween(
-              selection.from,
-              selection.to,
-              (node, pos) => {
-                if (node.type.name === "image") {
-                  imageNode = node;
-                  imagePos = pos;
-                  return false;
-                }
-              }
-            );
-
-            if (imageNode && imagePos !== null) {
-              editor
-                .chain()
-                .focus()
-                .setNodeSelection(imagePos)
-                .updateAttributes("image", {
-                  style:
-                    "max-width: 50%; height: auto; float: left; margin: 0 16px 8px 0; resize: both; overflow: auto;",
-                })
-                .run();
-            }
-          }}
-          className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
-          title="Float Left"
-        >
-          ⬅️
-        </button>
-
-        <button
-          onClick={() => {
-            // Find selected image node
-            const { state } = editor;
-            const { selection } = state;
-            let imageNode = null;
-            let imagePos = null;
-
-            // Check if current selection is an image
-            state.doc.nodesBetween(
-              selection.from,
-              selection.to,
-              (node, pos) => {
-                if (node.type.name === "image") {
-                  imageNode = node;
-                  imagePos = pos;
-                  return false;
-                }
-              }
-            );
-
-            if (imageNode && imagePos !== null) {
-              editor
-                .chain()
-                .focus()
-                .setNodeSelection(imagePos)
-                .updateAttributes("image", {
-                  style:
-                    "max-width: 50%; height: auto; float: right; margin: 0 0 8px 16px; resize: both; overflow: auto;",
-                })
-                .run();
-            }
-          }}
-          className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
-          title="Float Right"
-        >
-          ➡️
-        </button>
-
-        <button
-          onClick={() => {
-            // Find selected image node
-            const { state } = editor;
-            const { selection } = state;
-            let imageNode = null;
-            let imagePos = null;
-
-            // Check if current selection is an image
-            state.doc.nodesBetween(
-              selection.from,
-              selection.to,
-              (node, pos) => {
-                if (node.type.name === "image") {
-                  imageNode = node;
-                  imagePos = pos;
-                  return false;
-                }
-              }
-            );
-
-            if (imageNode && imagePos !== null) {
-              editor
-                .chain()
-                .focus()
-                .setNodeSelection(imagePos)
-                .updateAttributes("image", {
-                  style:
-                    "max-width: 100%; height: auto; display: block; margin: 16px auto; resize: both; overflow: auto;",
-                })
-                .run();
-            }
-          }}
-          className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
-          title="Center"
-        >
-          ⬆️
-        </button>
-
-        {/* Image Resize Controls */}
-        <button
-          onClick={() => {
-            // Find selected image node and make it smaller
-            const { state } = editor;
-            const { selection } = state;
-            let imageNode = null;
-            let imagePos = null;
-
-            state.doc.nodesBetween(
-              selection.from,
-              selection.to,
-              (node, pos) => {
-                if (node.type.name === "image") {
-                  imageNode = node;
-                  imagePos = pos;
-                  return false;
-                }
-              }
-            );
-
-            if (imageNode && imagePos !== null) {
-              const currentStyle = imageNode.attrs.style || "";
-              const newStyle = currentStyle.includes("max-width: 25%")
-                ? currentStyle
-                : currentStyle.replace(/max-width:\s*\d+%/, "max-width: 25%");
-
-              editor
-                .chain()
-                .focus()
-                .setNodeSelection(imagePos)
-                .updateAttributes("image", { style: newStyle })
-                .run();
-            }
-          }}
-          className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
-          title="Make Smaller"
-        >
-          🔍-
-        </button>
-
-        <button
-          onClick={() => {
-            // Find selected image node and make it larger
-            const { state } = editor;
-            const { selection } = state;
-            let imageNode = null;
-            let imagePos = null;
-
-            state.doc.nodesBetween(
-              selection.from,
-              selection.to,
-              (node, pos) => {
-                if (node.type.name === "image") {
-                  imageNode = node;
-                  imagePos = pos;
-                  return false;
-                }
-              }
-            );
-
-            if (imageNode && imagePos !== null) {
-              const currentStyle = imageNode.attrs.style || "";
-              const newStyle = currentStyle.includes("max-width: 100%")
-                ? currentStyle
-                : currentStyle.replace(/max-width:\s*\d+%/, "max-width: 75%");
-
-              editor
-                .chain()
-                .focus()
-                .setNodeSelection(imagePos)
-                .updateAttributes("image", { style: newStyle })
-                .run();
-            }
-          }}
-          className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
-          title="Make Larger"
-        >
-          🔍+
-        </button>
-
-        <div className="w-px h-6 bg-gray-300 mx-1" />
 
         <FileUploadButton
           onUploadComplete={handleFileUpload}
