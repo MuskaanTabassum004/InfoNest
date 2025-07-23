@@ -830,7 +830,7 @@ export const ArticleEditor: React.FC = () => {
             {/* Title */}
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Article Title *
+                Article Title <span className="text-s text-red-500 mr-0">*</span>
               </label>
               <input
                 type="text"
