@@ -33,6 +33,11 @@ service cloud.firestore {
       // Admins can update any article (including their own and infowriter articles)
       allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
+      // Allow anyone to increment views on published articles
+      allow update: if resource.data.status == 'published' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']) &&
+                       request.resource.data.views == resource.data.views + 1;
+
       // DELETE PERMISSIONS
       // Authors can delete their own articles (hard delete)
       allow delete: if request.auth != null && request.auth.uid == resource.data.authorId;
