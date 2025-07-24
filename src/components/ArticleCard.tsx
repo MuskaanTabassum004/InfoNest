@@ -146,6 +146,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     <div
       className={`bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 hover:border-blue-200 transition-all duration-200 hover:shadow-lg group ${getVariantClasses()} ${className}`}
     >
+      <Link to={`/article/${article.id}`} className="flex-1">
       {/* Cover Image */}
       {article.coverImage && (
         <div
@@ -165,7 +166,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
       {/* Title and Status */}
       <div className="flex items-start justify-between mb-3">
-        <Link to={`/article/${article.id}`} className="flex-1">
+        
           <h3
             className={`font-semibold text-gray-900 group-hover:text-blue-700 transition-colors line-clamp-2 ${
               variant === "featured"
@@ -177,7 +178,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           >
             {article.title}
           </h3>
-        </Link>
+        
 
         {showStatus && (
           <span
@@ -240,10 +241,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         {article.excerpt || "No excerpt available"}
       </p>
 
-      {/* Updated Date */}
+      {/* published Date */}
       <div className="flex items-center text-xs text-gray-500 mb-3">
         <Clock className="h-3 w-3 mr-1" />
-        <span>Updated {formatDistanceToNow(article.updatedAt)} ago</span>
+        <span>Published {formatDistanceToNow(article.updatedAt)} ago</span>
       </div>
 
       {/* Category */}
@@ -349,16 +350,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               )}
             </div>
           )}
-
-          <Link
-            to={`/article/${article.id}`}
-            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title="View Article"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
         </div>
       </div>
+        </Link>
     </div>
   );
 };
