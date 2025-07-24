@@ -40,7 +40,7 @@ import {
 import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
-
+import { stripHtmlTags } from "../utils/searchUtils";
 export const ArticleEditor: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
