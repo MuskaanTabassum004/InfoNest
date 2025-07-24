@@ -597,8 +597,9 @@ export const ArticleView: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4" />
-              <span>Updated {formatDistanceToNow(article.updatedAt)} ago</span>
+              
+              <Calendar className="h-4 w-4" />
+              <span>Published {formatDistanceToNow(article.updatedAt)} ago</span>
             </div>
 
             <div className="flex items-center space-x-2">
