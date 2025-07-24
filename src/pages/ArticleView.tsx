@@ -587,14 +587,7 @@ export const ArticleView: React.FC = () => {
 
           {/* Article Stats */}
           <div className="flex flex-wrap items-center gap-6 mb-8 text-sm text-gray-600 bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4" />
-              <span>
-                Published{" "}
-                {formatDistanceToNow(article.publishedAt || article.createdAt)}{" "}
-                ago
-              </span>
-            </div>
+            
 
             <div className="flex items-center space-x-2">
               
