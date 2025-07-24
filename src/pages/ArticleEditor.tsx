@@ -413,10 +413,18 @@ export const ArticleEditor: React.FC = () => {
   };
 
   const generateExcerpt = (content: string): string => {
-    const textContent = content.replace(/<[^>]*>/g, "").trim();
-    return textContent.length > 200
-      ? textContent.substring(0, 200) + "..."
-      : textContent;
+    const plainText = stripHtmlTags(content);
+    const words = plainText.split(/\s+/).filter(word => word.length > 0); // Split by whitespace and filter empty strings
+
+    const MAX_WORDS = 70; // Set the maximum word limit
+
+    if (words.length <= MAX_WORDS) {
+      // If content is 70 words or less, use all of it
+      return words.join(" ");
+    } else {
+      // If content is more than 70 words, take the first 70 words and add "..."
+      return words.slice(0, MAX_WORDS).join(" ") + "...";
+    }
   };
 
   // Clean up draft when article is successfully saved/published
