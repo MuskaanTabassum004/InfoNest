@@ -102,12 +102,12 @@ class AuthCacheManager {
           ...basePermissions,
           canCreateArticles: true,
           canManageUsers: true,
-          canEditAnyArticle: true, // Admins can edit any article (matches Firebase rules)
+          canEditAnyArticle: false, // Admins can only edit their own articles (updated security model)
           canAccessAdmin: true,
           canAccessInfoWriter: true,
           canDeleteOwnArticles: true, // Admins can hard delete their own articles
           canDeleteInfowriterArticles: true, // Admins can soft delete infowriter articles
-          canReadAllArticles: true, // Admins can read all articles (matches Firebase rules)
+          canReadAllArticles: true, // Admins can read all published articles
           allowedRoutes: [
             ...basePermissions.allowedRoutes,
             "/admin",
