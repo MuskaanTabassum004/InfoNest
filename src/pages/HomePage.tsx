@@ -262,14 +262,9 @@ export const HomePage: React.FC = () => {
                 href="#features"
                 className="text-gray-600 hover:text-blue-600 transition-colors"
               >
-                Features
+                Docs
               </a>
-              <a
-                href="#categories"
-                className="text-gray-600 hover:text-blue-600 transition-colors"
-              >
-                Categories
-              </a>
+              
               <a
                 href="#about"
                 className="text-gray-600 hover:text-blue-600 transition-colors"
@@ -333,14 +328,7 @@ export const HomePage: React.FC = () => {
                         <Bookmark className="h-4 w-4" />
                         <span>Saved Articles</span>
                       </Link>
-                      <Link
-                        to="/chats"
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        <span>Chats</span>
-                      </Link>
+                      
                       <Link
                         to="/settings"
                         onClick={() => setIsDropdownOpen(false)}
@@ -438,14 +426,7 @@ export const HomePage: React.FC = () => {
 
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Featured Documentation
-            </h2>
-            <p className="text-gray-600 text-lg">
-              Discover our most popular and high-quality documentation
-            </p>
-          </div>
+          
 
           {homeData.featuredArticles.length > 0 ? (
             <div className="relative">
