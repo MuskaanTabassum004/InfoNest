@@ -15,6 +15,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { SaveArticleButton } from "./SaveArticleButton";
 import { ShareButton } from "./ShareButton";
+import { LikeButton } from "./LikeButton";
 import { getUserProfile, UserProfile } from "../lib/auth";
 import { useAuth } from "../hooks/useAuth";
 import { Article, deleteArticleByRole } from "../lib/articles";
@@ -290,7 +291,14 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                 articleAuthor={article.authorName}
                 size="sm"
               />
-              
+              <LikeButton
+                key={`like-${article.id}`}
+                articleId={article.id}
+                initialLikes={article.likes || 0}
+                initialLikedBy={article.likedBy || []}
+                size="sm"
+                showLabel={true}
+              />
             </React.Fragment>
           )}
         </div>
