@@ -190,14 +190,7 @@ function AppContent({
                 </UserRoute>
               }
             />
-            <Route
-              path="chats"
-              element={
-                <UserRoute>
-                  <ChatsPage />
-                </UserRoute>
-              }
-            />
+            
 
             {/* InfoWriter and Admin only routes */}
             <Route
