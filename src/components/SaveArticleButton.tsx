@@ -29,7 +29,7 @@ export const SaveArticleButton: React.FC<SaveArticleButtonProps> = ({
   showLabel = false,
   size = "md",
 }) => {
-  const { userProfile, isUser } = useAuth();
+  const { userProfile, isAuthenticated } = useAuth();
   const [isSaved, setIsSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -40,7 +40,7 @@ export const SaveArticleButton: React.FC<SaveArticleButtonProps> = ({
   // Check if article is already saved
   useEffect(() => {
     const checkSavedStatus = async () => {
-      if (!userProfile?.uid || !isUser || !currentArticleId) {
+      if (!userProfile?.uid || !isAuthenticated || !currentArticleId) {
         setChecking(false);
         return;
       }
@@ -56,10 +56,10 @@ export const SaveArticleButton: React.FC<SaveArticleButtonProps> = ({
     };
 
     checkSavedStatus();
-  }, [userProfile?.uid, currentArticleId, isUser]);
+  }, [userProfile?.uid, currentArticleId, isAuthenticated]);
 
   const handleToggleSave = async () => {
-    if (!userProfile?.uid || !isUser || !currentArticleId) {
+    if (!userProfile?.uid || !isAuthenticated || !currentArticleId) {
       toast.error("Please login to save articles");
       return;
     }
@@ -96,8 +96,8 @@ export const SaveArticleButton: React.FC<SaveArticleButtonProps> = ({
     }
   };
 
-  // Don't show for non-users
-  if (!isUser) {
+  // Don't show for non-authenticated users
+  if (!isAuthenticated) {
     return null;
   }
 
