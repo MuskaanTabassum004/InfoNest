@@ -38,6 +38,7 @@ export const HomePage: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
 
   const loadHomePageData = async (): Promise<void> => {
     setLoading(true);
@@ -152,6 +153,23 @@ export const HomePage: React.FC = () => {
   useEffect(() => {
     loadHomePageData();
   }, []);
+
+  // Filter articles based on search query
+  useEffect(() => {
+    if (homeData?.articles) {
+      if (searchQuery.trim()) {
+        const filtered = homeData.articles.filter(article =>
+          article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          article.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          article.categories.some(cat => cat.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          article.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+        setFilteredArticles(filtered);
+      } else {
+        setFilteredArticles(homeData.articles);
+      }
+    }
+  }, [homeData?.articles, searchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -443,19 +461,13 @@ export const HomePage: React.FC = () => {
                         {homeData.featuredArticles
                           .slice(slideIndex * 3, (slideIndex + 1) * 3)
                           .map((article) => (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredArticles.map((article) => (
-              <ArticleCard
-                key={article.id}
-                article={article}
-                variant="default"
-                showActions={true}
-                title={article.title}
-                author={article.author}
-                date={article.date}
-              />
-            ))}
-          </div>
+                            <ArticleCard
+                              key={article.id}
+                              article={article}
+                              variant="featured"
+                              showActions={true}
+                              onClick={() => handleDocumentClick(article.id)}
+                            />
                           ))}
                       </div>
                     </div>
