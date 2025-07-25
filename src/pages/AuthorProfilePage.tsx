@@ -18,7 +18,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { onSnapshot, collection, query, where } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
-import { getDisplayRole, getRoleBadgeClasses } from "../lib/roleUtils";
+
 
 export const AuthorProfilePage: React.FC = () => {
   const { authorId } = useParams<{ authorId: string }>();
@@ -172,11 +172,13 @@ export const AuthorProfilePage: React.FC = () => {
               
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-4">
                 <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getRoleBadgeClasses(
-                    authorProfile.role as any, "general"
-                  )} bg-white/90`}
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
+                    authorProfile.role === "admin" || authorProfile.role === "infowriter"
+                      ? "bg-blue-100 text-blue-800 border-blue-200"
+                      : "bg-gray-100 text-gray-800 border-gray-200"
+                  } bg-white/90`}
                 >
-                  {getDisplayRole(authorProfile.role as any, currentUser?.role as any, "general")}
+                  {authorProfile.role === "infowriter" ? "InfoWriter" : authorProfile.role === "admin" ? "InfoWriter" : authorProfile.role}
                 </span>
                 
                 
