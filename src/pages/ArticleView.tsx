@@ -597,27 +597,31 @@ export const ArticleView: React.FC = () => {
           <div className="flex items-start justify-between mb-8">
             <div className="flex items-center space-x-4">
               {/* Author Profile */}
-              <div className="flex items-center space-x-3">
+              <Link
+                to={`/author/${article.authorId}`}
+                className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors group"
+              >
                 {authorProfile?.profilePicture ? (
                   <img
                     src={authorProfile.profilePicture}
                     alt={authorProfile.displayName || article.authorName}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-300 transition-colors"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all">
                     <User className="h-6 w-6 text-white" />
                   </div>
                 )}
                 <div>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
                     {authorProfile?.displayName || article.authorName}
                   </p>
                   <p className="text-sm text-gray-600 capitalize">
-                    {authorProfile?.role || "Author"}
+                    {authorProfile?.role === 'infowriter' ? 'InfoWriter' :
+                     authorProfile?.role || "Author"}
                   </p>
                 </div>
-              </div>
+              </Link>
             </div>
 
             {/* Article Actions */}
