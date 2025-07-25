@@ -218,22 +218,7 @@ export const UserDashboard: React.FC = () => {
                   </div>
                 </Link>
 
-                <Link
-                  to="/chats"
-                  className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
-                >
-                  <div className="bg-green-100 p-2 rounded-lg group-hover:bg-green-200 transition-colors">
-                    <MessageCircle className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-900 group-hover:text-green-700">
-                      Chats
-                    </span>
-                    <p className="text-xs text-gray-600">
-                      Connect with other users
-                    </p>
-                  </div>
-                </Link>
+                
               </div>
             </div>
           </div>
