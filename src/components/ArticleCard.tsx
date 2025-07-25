@@ -276,6 +276,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           )}
         </div>
       )}
+        </Link>
 
       {/* Actions */}
       <div className="flex items-center justify-between">
@@ -352,7 +353,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           )}
         </div>
       </div>
-        </Link>
+        
     </div>
   );
 };
