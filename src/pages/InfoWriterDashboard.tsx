@@ -455,7 +455,7 @@ export const InfoWriterDashboard: React.FC = () => {
                     View
                   </Link>
                   <Link
-                    to={`/edit-article/${article.id}`}
+                    to={`/article/edit/${article.id}`}
                     className="flex-1 text-center py-2 px-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                   >
                     Edit
