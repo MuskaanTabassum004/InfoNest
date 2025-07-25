@@ -290,12 +290,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                 articleAuthor={article.authorName}
                 size="sm"
               />
-              <ShareButton
-                key={`share-${article.id}`}
-                articleId={article.id}
-                articleTitle={article.title}
-                size="sm"
-              />
+              
             </React.Fragment>
           )}
         </div>
