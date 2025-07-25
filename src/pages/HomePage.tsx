@@ -264,12 +264,7 @@ export const HomePage: React.FC = () => {
               >
                 Features
               </a>
-              <a
-                href="#categories"
-                className="text-gray-600 hover:text-blue-600 transition-colors"
-              >
-                Categories
-              </a>
+              
               <a
                 href="#about"
                 className="text-gray-600 hover:text-blue-600 transition-colors"
