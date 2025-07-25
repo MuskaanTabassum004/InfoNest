@@ -35,6 +35,9 @@ export interface Article {
   views?: number;
   shareCount?: number;
   attachments?: string[];
+  // Like fields
+  likes?: number;
+  likedBy?: string[];
   // Soft delete fields
   deletedAt?: Date;
   deletedBy?: string; // "admin" or "infowriter"
@@ -65,6 +68,8 @@ export const createArticle = async (
       slug,
       createdAt: new Date(),
       updatedAt: new Date(),
+      likes: 0,
+      likedBy: [],
     };
 
     // Prepare data for Firestore, handling undefined values
