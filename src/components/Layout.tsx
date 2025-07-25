@@ -10,7 +10,6 @@ import {
   PenTool,
   Shield,
   Search,
-  Settings,
   MessageCircle,
   UserCog,
   Upload,
@@ -186,14 +185,7 @@ export const Layout: React.FC = () => {
                         <span>Create New Article</span>
                       </Link>
                     )}
-                    <Link
-                      to="/settings"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <Settings className="h-4 w-4" />
-                      <span>Settings</span>
-                    </Link>
+                    
                     
                     <hr className="my-2" />
                     <button
