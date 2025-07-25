@@ -27,11 +27,8 @@ service cloud.firestore {
         request.auth.uid == request.resource.data.authorId;
 
       // UPDATE PERMISSIONS
-      // Authors can update their own articles
+      // Authors can update their own articles (including admins updating their own articles)
       allow update: if request.auth != null && request.auth.uid == resource.data.authorId;
-
-      // Admins can update any article (including their own and infowriter articles)
-      allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
       // Allow anyone to increment views on published articles
       allow update: if resource.data.status == 'published' &&
