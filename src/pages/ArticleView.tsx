@@ -163,6 +163,7 @@ export const ArticleView: React.FC = () => {
           width: auto;
           display: block;
           margin: 16px auto;
+          text-align: center;
         }
 
         /* Outset Layout - extends beyond column boundaries */
@@ -177,12 +178,13 @@ export const ArticleView: React.FC = () => {
 
         /* Full Screen Width Layout */
         .prose .image-full-screen {
-          width: 100vw;
+          width: calc(100% + 4rem);
           max-width: none;
           display: block;
           margin: 16px 0;
-          margin-left: calc(-50vw + 50%);
-          margin-right: calc(-50vw + 50%);
+          margin-left: -2rem;
+          margin-right: -2rem;
+          object-fit: cover;
           padding: 0 20px;
           box-sizing: border-box;
         }
@@ -599,7 +601,7 @@ export const ArticleView: React.FC = () => {
 
           {/* Categories and Tags */}
           {(article.categories.length > 0 || article.tags.length > 0) && (
-            <div className="mb-8 space-y-4">
+            <div className="mb-4 space-y-3">
               {article.categories.length > 0 && (
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
@@ -646,7 +648,7 @@ export const ArticleView: React.FC = () => {
 
           {/* Attachments */}
           {article.attachments && article.attachments.length > 0 && (
-            <div className="mb-8">
+            <div className="mb-6">
               <div className="flex items-center space-x-2 mb-3">
                 <Download className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">
@@ -673,7 +675,7 @@ export const ArticleView: React.FC = () => {
           )}
 
           {/* Content */}
-          <div className="max-w-5xl mx-auto px-8 py-8">
+          <div className="max-w-5xl mx-auto px-8 py-4">
             <div
               className="prose prose-lg max-w-none"
               style={{

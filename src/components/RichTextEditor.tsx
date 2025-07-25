@@ -339,6 +339,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           width: auto;
           display: block;
           margin: 16px auto;
+          text-align: center;
         }
 
         /* Outset Layout - extends beyond column boundaries */
@@ -353,14 +354,13 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
         /* Full Screen Width Layout */
         .image-full-screen {
-          width: 100vw;
+          width: calc(100% + 2rem);
           max-width: none;
           display: block;
           margin: 16px 0;
-          margin-left: calc(-50vw + 50%);
-          margin-right: calc(-50vw + 50%);
-          padding: 0 20px;
-          box-sizing: border-box;
+          margin-left: -1rem;
+          margin-right: -1rem;
+          object-fit: cover;
         }
 
         /* Image Grid Layouts */

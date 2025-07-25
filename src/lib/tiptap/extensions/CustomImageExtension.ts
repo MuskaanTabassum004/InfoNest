@@ -118,6 +118,7 @@ export const CustomImageExtension = Node.create<ImageOptions>({
     const attributes = {
       class: className,
       'data-layout': layout || 'full-column',
+      style: layout === 'full-column' ? 'display: block; margin: 16px auto; text-align: center;' : undefined,
     };
 
     // Add data-caption attribute if caption exists and is not empty
