@@ -23,6 +23,7 @@ import toast from "react-hot-toast";
 import { ShareButton } from "../components/ShareButton";
 import { ArticleCard } from "../components/ArticleCard";
 import { Article } from "../lib/articles";
+import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
 
 // Helper function to convert SavedArticle to Article format for ArticleCard
 const convertSavedArticleToArticle = (savedArticle: SavedArticle): Article => ({
