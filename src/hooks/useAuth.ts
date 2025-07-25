@@ -20,6 +20,13 @@ export interface UserProfile {
   role: "user" | "infowriter" | "admin";
   emailVerified: boolean;
   profilePicture?: string;
+  bio?: string;
+  socialLinks?: {
+    twitter?: string;
+    linkedin?: string;
+    github?: string;
+    website?: string;
+  };
   createdAt?: Date;
   updatedAt?: Date;
   requestedWriterAccess?: boolean;
@@ -57,6 +64,8 @@ export const useAuth = () => {
           role: data.role || "user",
           emailVerified: currentUser.emailVerified,
           profilePicture: data.profilePicture || "",
+          bio: data.bio || "",
+          socialLinks: data.socialLinks || {},
           createdAt: data.createdAt?.toDate(),
           updatedAt: data.updatedAt?.toDate(),
           requestedWriterAccess: data.requestedWriterAccess,
@@ -105,6 +114,8 @@ export const useAuth = () => {
               role: data.role || "user",
               emailVerified: firebaseUser.emailVerified,
               profilePicture: data.profilePicture || "",
+              bio: data.bio || "",
+              socialLinks: data.socialLinks || {},
               createdAt: data.createdAt?.toDate(),
               updatedAt: data.updatedAt?.toDate(),
               requestedWriterAccess: data.requestedWriterAccess,
@@ -201,6 +212,8 @@ export const useAuth = () => {
           role: data.role || "user",
           emailVerified: user.emailVerified,
           profilePicture: data.profilePicture || "",
+          bio: data.bio || "",
+          socialLinks: data.socialLinks || {},
           createdAt: data.createdAt?.toDate(),
           updatedAt: data.updatedAt?.toDate(),
           requestedWriterAccess: data.requestedWriterAccess,
