@@ -19,7 +19,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 import { SaveArticleButton } from "../components/SaveArticleButton";
-// Removed ShareButton import
+import { ShareButton } from "../components/ShareButton";
 import { onSnapshot, doc, updateDoc, increment } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
@@ -177,12 +177,14 @@ export const ArticleView: React.FC = () => {
 
         /* Full Screen Width Layout */
         .prose .image-full-screen {
-          width: calc(100% + 4rem); /* Span full content width (p-8 is 2rem on each side) */
+          width: 100vw;
           max-width: none;
           display: block;
           margin: 16px 0;
-          margin-left: -2rem; /* Offset for p-8 padding */
-          margin-right: -2rem; /* Offset for p-8 padding */
+          margin-left: calc(-50vw + 50%);
+          margin-right: calc(-50vw + 50%);
+          padding: 0 20px;
+          box-sizing: border-box;
         }
 
         /* Image Grid Layouts */
@@ -490,12 +492,12 @@ export const ArticleView: React.FC = () => {
           {/* Save Article Button for Users */}
           <SaveArticleButton article={article} />
 
-          {/* Removed Share Article Button */}
-          {/* <ShareButton
+          {/* Share Article Button */}
+          <ShareButton
             articleId={article.id}
             articleTitle={article.title}
             showLabel={true}
-          /> */}
+          />
 
           {canEdit(article) && (
             <Link
@@ -576,7 +578,10 @@ export const ArticleView: React.FC = () => {
                 <MessageCircle className="h-4 w-4" />
                 <span className="text-sm">Comment</span>
               </button>
-              
+              <button className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                <Share2 className="h-4 w-4" />
+                <span className="text-sm">Share</span>
+              </button>
             </div>
           </div>
 
@@ -598,7 +603,7 @@ export const ArticleView: React.FC = () => {
 
           {/* Categories and Tags */}
           {(article.categories.length > 0 || article.tags.length > 0) && (
-            <div className="mb-6 space-y-4"> {/* Changed mb-8 to mb-6 */}
+            <div className="mb-8 space-y-4">
               {article.categories.length > 0 && (
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
@@ -685,6 +690,7 @@ export const ArticleView: React.FC = () => {
           </div>
         </div>
       </article>
-    
+    </div>
+    <div/>
   );
 };
