@@ -21,6 +21,7 @@ import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 import { SaveArticleButton } from "../components/SaveArticleButton";
 import { ShareButton } from "../components/ShareButton";
+import { CommentSection, CommentButton, useCommentSection } from "../components/CommentSection";
 import { onSnapshot, doc, updateDoc, increment } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 
@@ -37,6 +38,9 @@ export const ArticleView: React.FC = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [likingInProgress, setLikingInProgress] = useState(false);
+
+  // Comment section state
+  const commentSection = useCommentSection(article?.id || "");
 
   useEffect(() => {
     // Wait for auth to load before attempting to load article
@@ -628,10 +632,11 @@ export const ArticleView: React.FC = () => {
 
             {/* Article Actions */}
             <div className="flex items-center space-x-3">
-              <button className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                <MessageCircle className="h-4 w-4" />
-                <span className="text-sm">Comment</span>
-              </button>
+              <CommentButton
+                commentCount={commentSection.commentCount}
+                onClick={commentSection.toggle}
+                className="data-comment-button"
+              />
 
               <button
                 onClick={handleLikeToggle}
@@ -762,6 +767,17 @@ export const ArticleView: React.FC = () => {
           )}
         </div>
       </article>
+
+      {/* Comment Section */}
+      {article && (
+        <div className="mt-8" data-comment-section>
+          <CommentSection
+            articleId={article.id}
+            isOpen={commentSection.isOpen}
+            onToggle={commentSection.toggle}
+          />
+        </div>
+      )}
     </div>
     </>
   );
