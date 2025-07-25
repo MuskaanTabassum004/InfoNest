@@ -26,14 +26,20 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(initialLikes);
   const [likingInProgress, setLikingInProgress] = useState(false);
+  const [currentLikedBy, setCurrentLikedBy] = useState<string[]>(initialLikedBy);
 
-  // Initialize like state
+  // Initialize like state based on Firestore data
   useEffect(() => {
     setLikeCount(initialLikes);
-    setIsLiked(initialLikedBy.includes(userProfile?.uid || ''));
+    setCurrentLikedBy(initialLikedBy);
+    if (userProfile?.uid) {
+      setIsLiked(initialLikedBy.includes(userProfile.uid));
+    } else {
+      setIsLiked(false);
+    }
   }, [initialLikes, initialLikedBy, userProfile?.uid]);
 
-  // Real-time listener for like updates
+  // Real-time listener for like updates - ensures persistent state across sessions
   useEffect(() => {
     if (!articleId) return;
 
@@ -41,9 +47,21 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
     const unsubscribe = onSnapshot(articleRef, (doc) => {
       if (doc.exists()) {
         const data = doc.data();
-        setLikeCount(data.likes || 0);
-        setIsLiked(data.likedBy?.includes(userProfile?.uid || '') || false);
+        const newLikeCount = data.likes || 0;
+        const newLikedBy = data.likedBy || [];
+
+        setLikeCount(newLikeCount);
+        setCurrentLikedBy(newLikedBy);
+
+        // Determine like state based on current user's presence in likedBy array
+        if (userProfile?.uid) {
+          setIsLiked(newLikedBy.includes(userProfile.uid));
+        } else {
+          setIsLiked(false);
+        }
       }
+    }, (error) => {
+      console.error("Error listening to article updates:", error);
     });
 
     return () => unsubscribe();
@@ -63,9 +81,6 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
     setLikingInProgress(true);
     try {
       const articleRef = doc(firestore, "articles", articleId);
-      
-      // Get current data to avoid race conditions
-      const currentLikedBy = initialLikedBy || [];
       const userId = userProfile.uid;
 
       if (isLiked) {
@@ -83,7 +98,7 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
       }
     } catch (error) {
       console.error("Error toggling like:", error);
-      toast.error("Failed to update like");
+      toast.error("Failed to update like. Please try again.");
     } finally {
       setLikingInProgress(false);
     }
