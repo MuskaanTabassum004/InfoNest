@@ -227,7 +227,16 @@ export const UserDashboard: React.FC = () => {
     
     
 
-      
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Recent Articles
+          </h2>
+          <div className="flex items-center space-x-2 text-sm text-gray-500">
+            <TrendingUp className="h-4 w-4" />
+            <span>{filteredArticles.length} articles</span>
+          </div>
+        </div>
 
         {filteredArticles.length === 0 ? (
           <div className="text-center py-12">
