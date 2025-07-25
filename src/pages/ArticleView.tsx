@@ -159,11 +159,11 @@ export const ArticleView: React.FC = () => {
 
         /* Full Column Width Layout */
         .prose .image-full-column {
-          max-width: 100%;
+          max-width: calc(100% + 64px);
           width: auto;
           display: block;
-          margin: 16px auto;
-          text-align: center;
+          margin: 16px -32px;
+          border-radius: 8px;
         }
 
         /* Outset Layout - extends beyond column boundaries */
@@ -178,13 +178,12 @@ export const ArticleView: React.FC = () => {
 
         /* Full Screen Width Layout */
         .prose .image-full-screen {
-          width: calc(100% + 4rem);
+          width: 100vw;
           max-width: none;
           display: block;
           margin: 16px 0;
-          margin-left: -2rem;
-          margin-right: -2rem;
-          object-fit: cover;
+          margin-left: calc(-50vw + 50%);
+          margin-right: calc(-50vw + 50%);
           padding: 0 20px;
           box-sizing: border-box;
         }
@@ -601,7 +600,7 @@ export const ArticleView: React.FC = () => {
 
           {/* Categories and Tags */}
           {(article.categories.length > 0 || article.tags.length > 0) && (
-            <div className="mb-4 space-y-3">
+            <div className="mb-4 space-y-4">
               {article.categories.length > 0 && (
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
@@ -648,7 +647,7 @@ export const ArticleView: React.FC = () => {
 
           {/* Attachments */}
           {article.attachments && article.attachments.length > 0 && (
-            <div className="mb-6">
+            <div className="mb-4">
               <div className="flex items-center space-x-2 mb-3">
                 <Download className="h-4 w-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">
@@ -675,9 +674,9 @@ export const ArticleView: React.FC = () => {
           )}
 
           {/* Content */}
-          <div className="max-w-5xl mx-auto px-8 py-4">
+          <div className="w-full pt-4 pb-8">
             <div
-              className="prose prose-lg max-w-none"
+              className="prose prose-lg max-w-none mx-auto px-8"
               style={{
                 fontSize: '18px',
                 lineHeight: '1.8',
