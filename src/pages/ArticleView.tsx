@@ -15,6 +15,7 @@ import {
   Eye,
   Share2,
   Download,
+  Heart,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
@@ -32,6 +33,9 @@ export const ArticleView: React.FC = () => {
   const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewsIncremented, setViewsIncremented] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [likingInProgress, setLikingInProgress] = useState(false);
 
   useEffect(() => {
     // Wait for auth to load before attempting to load article
@@ -63,6 +67,10 @@ export const ArticleView: React.FC = () => {
           }
         }
         setArticle(loadedArticle);
+
+        // Initialize like state
+        setLikeCount(loadedArticle.likes || 0);
+        setIsLiked(loadedArticle.likedBy?.includes(userProfile?.uid || '') || false);
 
         // Load author profile
         try {
@@ -111,15 +119,54 @@ export const ArticleView: React.FC = () => {
           publishedAt: data.publishedAt?.toDate(),
         } as Article;
         setArticle(updatedArticle);
+
+        // Update like state in real-time
+        setLikeCount(updatedArticle.likes || 0);
+        setIsLiked(updatedArticle.likedBy?.includes(userProfile?.uid || '') || false);
       }
     });
 
     return () => unsubscribe();
-  }, [id]);
+  }, [id, userProfile?.uid]);
 
   const canEdit = (article: Article): boolean => {
     if (!userProfile) return false;
     return canEditArticle(article.authorId);
+  };
+
+  const handleLikeToggle = async () => {
+    if (!userProfile) {
+      toast.error("Please log in to like articles");
+      return;
+    }
+
+    if (!article || likingInProgress) return;
+
+    setLikingInProgress(true);
+    try {
+      const articleRef = doc(firestore, "articles", article.id);
+      const currentLikedBy = article.likedBy || [];
+      const userId = userProfile.uid;
+
+      if (isLiked) {
+        // Unlike: remove user from likedBy array and decrement likes
+        await updateDoc(articleRef, {
+          likes: increment(-1),
+          likedBy: currentLikedBy.filter(id => id !== userId)
+        });
+      } else {
+        // Like: add user to likedBy array and increment likes
+        await updateDoc(articleRef, {
+          likes: increment(1),
+          likedBy: [...currentLikedBy, userId]
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      toast.error("Failed to update like");
+    } finally {
+      setLikingInProgress(false);
+    }
   };
 
   if (loading) {
@@ -578,6 +625,21 @@ export const ArticleView: React.FC = () => {
               <button className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                 <MessageCircle className="h-4 w-4" />
                 <span className="text-sm">Comment</span>
+              </button>
+
+              <button
+                onClick={handleLikeToggle}
+                disabled={likingInProgress}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                  isLiked
+                    ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                    : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+                }`}
+              >
+                <Heart
+                  className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`}
+                />
+                <span className="text-sm">{likeCount}</span>
               </button>
             </div>
           </div>
