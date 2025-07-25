@@ -578,10 +578,7 @@ export const ArticleView: React.FC = () => {
                 <MessageCircle className="h-4 w-4" />
                 <span className="text-sm">Comment</span>
               </button>
-              <button className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
-                <Share2 className="h-4 w-4" />
-                <span className="text-sm">Share</span>
-              </button>
+              
             </div>
           </div>
 
