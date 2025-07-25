@@ -9,7 +9,6 @@ import {
   UserX,
   ChevronDown,
   BarChart3,
-  Settings,
   Search,
   Tag,
   Edit,
@@ -343,20 +342,7 @@ export const AdminDashboard: React.FC = () => {
 
               {/* Note: No "Back to Dashboard" needed since this IS the Admin Dashboard */}
 
-              <Link
-                to="/admin/system"
-                className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
-              >
-                <div className="bg-gray-100 p-2 rounded-lg group-hover:bg-gray-200 transition-colors">
-                  <Settings className="h-4 w-4 text-gray-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">System Settings</p>
-                  <p className="text-sm text-gray-600">
-                    Configure platform settings
-                  </p>
-                </div>
-              </Link>
+              
             </div>
           </div>
         </div>
