@@ -443,25 +443,19 @@ export const HomePage: React.FC = () => {
                         {homeData.featuredArticles
                           .slice(slideIndex * 3, (slideIndex + 1) * 3)
                           .map((article) => (
-                            <div
-                              key={article.id}
-                              onClick={() => handleDocumentClick(article.id)}
-                              className="cursor-pointer"
-                            >
-                              <ArticleCard
-                                article={article}
-                                variant="featured"
-                                showActions={true}
-                                className="relative"
-                              />
-                              {/* Featured Badge */}
-                              <div className="absolute top-4 right-4 flex items-center space-x-1 text-yellow-500 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
-                                <Star className="h-3 w-3 fill-current" />
-                                <span className="text-xs text-gray-600 font-medium">
-                                  Featured
-                                </span>
-                              </div>
-                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredArticles.map((article) => (
+              <ArticleCard
+                key={article.id}
+                article={article}
+                variant="default"
+                showActions={true}
+                title={article.title}
+                author={article.author}
+                date={article.date}
+              />
+            ))}
+          </div>
                           ))}
                       </div>
                     </div>
