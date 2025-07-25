@@ -388,11 +388,8 @@ export const ArticleEditor: React.FC = () => {
     try {
       const loadedArticle = await getArticle(articleId);
       if (loadedArticle) {
-        // Check if user owns this article or is admin
-        if (
-          loadedArticle.authorId !== userProfile?.uid &&
-          userProfile?.role !== "admin"
-        ) {
+        // Check if user owns this article (admins can only edit their own articles now)
+        if (loadedArticle.authorId !== userProfile?.uid) {
           toast.error("You can only edit your own articles");
           navigate("/my-articles");
           return;
