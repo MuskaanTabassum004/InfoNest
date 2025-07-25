@@ -799,7 +799,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <FileUploadButton
           onUploadComplete={handleFileUpload}
           onUploadError={handleUploadError}
-          accept="image/*,.pdf,.txt,.doc,.docx,.mp4"
+          accept="image/*,.pdf,.txt,.doc,.docx"
           folder="articles"
           className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
           useResumable={true}
