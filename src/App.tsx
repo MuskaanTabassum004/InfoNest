@@ -23,6 +23,7 @@ import { AdminPanel } from "./pages/AdminPanel";
 import { WriterRequestPage } from "./pages/WriterRequestPage";
 import { SavedArticles } from "./pages/SavedArticles";
 import { ProfilePage } from "./pages/ProfilePage";
+import { AuthorProfilePage } from "./pages/AuthorProfilePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ChatsPage } from "./pages/ChatsPage";
 
@@ -134,6 +135,9 @@ function AppContent({
           }
         />
         <Route path="/email-verify" element={<EmailVerificationPage />} />
+
+        {/* Author Profile - Public route (viewable by anyone) */}
+        <Route path="/author/:authorId" element={<AuthorProfilePage />} />
 
         {/* Protected Routes */}
         {isAuthenticated && emailVerified ? (
