@@ -37,7 +37,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
   const handleShare = async (method: "copy" | "twitter" | "facebook" | "linkedin" | "email") => {
     try {
       switch (method) {
-        case "copy":
+        case "copy": {
           const success = await copyToClipboard(url);
           if (success) {
             setCopied(true);
@@ -47,6 +47,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
             toast.error("Failed to copy link");
           }
           break;
+        }
         case "twitter":
           shareToTwitter(url, articleTitle);
           break;
