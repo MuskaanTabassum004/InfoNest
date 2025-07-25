@@ -257,14 +257,11 @@ export const useAuth = () => {
   const canEditArticle = useCallback(
     (authorId: string): boolean => {
       if (!userProfile) return false;
-      // Users can edit their own articles
-      if (userProfile.uid === authorId) return true;
-      // Admins can edit any article (matches Firebase rules and permissions)
-      if (userProfile.role === "admin" && permissions?.canEditAnyArticle)
-        return true;
-      return false;
+      // Only authors can edit their own articles (including admins editing their own articles)
+      // This matches the updated Firebase security rules
+      return userProfile.uid === authorId;
     },
-    [userProfile, permissions]
+    [userProfile]
   );
 
   const canDeleteArticle = useCallback(
