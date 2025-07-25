@@ -329,14 +329,6 @@ export const HomePage: React.FC = () => {
                         <span>Saved Articles</span>
                       </Link>
                       <Link
-                        to="/chats"
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        <span>Chats</span>
-                      </Link>
-                      <Link
                         to="/settings"
                         onClick={() => setIsDropdownOpen(false)}
                         className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
