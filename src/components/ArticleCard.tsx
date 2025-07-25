@@ -16,6 +16,7 @@ import { formatDistanceToNow } from "date-fns";
 import { SaveArticleButton } from "./SaveArticleButton";
 import { ShareButton } from "./ShareButton";
 import { LikeButton } from "./LikeButton";
+import { getDisplayRole } from "../lib/roleUtils";
 import { getUserProfile, UserProfile } from "../lib/auth";
 import { useAuth } from "../hooks/useAuth";
 import { Article, deleteArticleByRole } from "../lib/articles";
@@ -228,9 +229,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             </span>
             {authorProfile?.role && (
               <span className="text-xs text-gray-500 capitalize">
-                {authorProfile.role === "infowriter"
-                  ? "InfoWriter"
-                  : authorProfile.role}
+                {getDisplayRole(authorProfile.role as any, userProfile?.role as any, "general")}
               </span>
             )}
           </div>
