@@ -145,8 +145,8 @@ export const ArticleView: React.FC = () => {
     setLikingInProgress(true);
     try {
       const articleRef = doc(firestore, "articles", article.id);
-      const currentLikedBy = article.likedBy || [];
       const userId = userProfile.uid;
+      const currentLikedBy = article.likedBy || [];
 
       if (isLiked) {
         // Unlike: remove user from likedBy array and decrement likes
