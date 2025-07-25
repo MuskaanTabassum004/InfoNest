@@ -25,7 +25,6 @@ import { SavedArticles } from "./pages/SavedArticles";
 import { ProfilePage } from "./pages/ProfilePage";
 import { AuthorProfilePage } from "./pages/AuthorProfilePage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { ChatsPage } from "./pages/ChatsPage";
 
 import { ActiveWritersPage } from "./pages/ActiveWritersPage";
 import { RemovedWritersPage } from "./pages/RemovedWritersPage";
