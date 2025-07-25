@@ -92,7 +92,7 @@ class AuthCacheManager {
       canReadPublishedArticles: true, // All authenticated users can read published articles
       canReadOwnArticles: true, // All users can read their own articles
       canReadAllArticles: false,
-      allowedRoutes: ["/", "/dashboard", "/profile", "/settings", "/chats"],
+      allowedRoutes: ["/", "/dashboard", "/profile", "/settings",],
       dashboardRoute: "/dashboard",
     };
 
