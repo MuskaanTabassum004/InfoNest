@@ -23,7 +23,7 @@ import { SaveArticleButton } from "../components/SaveArticleButton";
 import { ShareButton } from "../components/ShareButton";
 import { onSnapshot, doc, updateDoc, increment } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
-import { getDisplayRole } from "../lib/roleUtils";
+
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
 
 export const ArticleView: React.FC = () => {
@@ -619,7 +619,7 @@ export const ArticleView: React.FC = () => {
                   </p>
                   <p className="text-sm text-gray-600 capitalize">
                     {authorProfile?.role ?
-                     getDisplayRole(authorProfile.role as any, userProfile?.role as any, "general") :
+                     (authorProfile.role === "infowriter" ? "InfoWriter" : authorProfile.role === "admin" ? "InfoWriter" : authorProfile.role) :
                      "Author"}
                   </p>
                 </div>
