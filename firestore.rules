@@ -38,6 +38,19 @@ service cloud.firestore {
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']) &&
                        request.resource.data.views == resource.data.views + 1;
 
+      // Allow authenticated users to like/unlike published articles
+      allow update: if request.auth != null &&
+                       resource.data.status == 'published' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']) &&
+                       (
+                         // Like: increment likes and add user to likedBy
+                         (request.resource.data.likes == resource.data.likes + 1 &&
+                          request.resource.data.likedBy.toSet().difference(resource.data.likedBy.toSet()) == [request.auth.uid].toSet()) ||
+                         // Unlike: decrement likes and remove user from likedBy
+                         (request.resource.data.likes == resource.data.likes - 1 &&
+                          resource.data.likedBy.toSet().difference(request.resource.data.likedBy.toSet()) == [request.auth.uid].toSet())
+                       );
+
       // DELETE PERMISSIONS
       // Authors can delete their own articles (hard delete)
       allow delete: if request.auth != null && request.auth.uid == resource.data.authorId;
