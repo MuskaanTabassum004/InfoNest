@@ -23,6 +23,7 @@ import { SaveArticleButton } from "../components/SaveArticleButton";
 import { ShareButton } from "../components/ShareButton";
 import { onSnapshot, doc, updateDoc, increment } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
+import { getDisplayRole } from "../lib/roleUtils";
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
 
 export const ArticleView: React.FC = () => {
@@ -589,7 +590,7 @@ export const ArticleView: React.FC = () => {
           )}
 
           {/* Title */}
-          <h1 className="text-4xl font-bold text-gray-900 mb-6 leading-tight">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6 leading-tight">
             {article.title}
           </h1>
 
@@ -617,8 +618,9 @@ export const ArticleView: React.FC = () => {
                     {authorProfile?.displayName || article.authorName}
                   </p>
                   <p className="text-sm text-gray-600 capitalize">
-                    {authorProfile?.role === 'infowriter' ? 'InfoWriter' :
-                     authorProfile?.role || "Author"}
+                    {authorProfile?.role ?
+                     getDisplayRole(authorProfile.role as any, userProfile?.role as any, "general") :
+                     "Author"}
                   </p>
                 </div>
               </Link>
@@ -711,36 +713,8 @@ export const ArticleView: React.FC = () => {
             </div>
           )}
 
-          {/* Attachments */}
-          {article.attachments && article.attachments.length > 0 && (
-            <div className="mb-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <Download className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">
-                  Attachments
-                </span>
-              </div>
-              <div className="space-y-2">
-                {article.attachments.map((attachment, index) => (
-                  <a
-                    key={index}
-                    href={attachment}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <Download className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm text-blue-600 hover:text-blue-800">
-                      {attachment.split("/").pop() || "Download"}
-                    </span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Content */}
-          <div className="w-full pt-4 pb-8">
+          <div className="w-full pt-2 pb-6">
             <div
               className="prose prose-lg max-w-none mx-auto px-8"
               style={{
@@ -751,6 +725,41 @@ export const ArticleView: React.FC = () => {
               dangerouslySetInnerHTML={{ __html: processLayoutSpecificCaptions(article.content) }}
             />
           </div>
+
+          {/* Attachments */}
+          {article.attachments && article.attachments.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <div className="flex items-center space-x-2 mb-4">
+                <Download className="h-5 w-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Attachments
+                </h3>
+              </div>
+              <div className="space-y-3">
+                {article.attachments.map((attachment, index) => (
+                  <a
+                    key={index}
+                    href={attachment}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200 group"
+                  >
+                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all">
+                      <Download className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors block truncate">
+                        {attachment.split("/").pop() || "Download"}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Click to download
+                      </span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </article>
     </div>
