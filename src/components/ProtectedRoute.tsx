@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { AlertTriangle, Shield, Lock } from "lucide-react";
 import toast from "react-hot-toast";
+import { getDisplayRole, getRoleBadgeClasses } from "../lib/roleUtils";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
