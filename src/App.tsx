@@ -24,8 +24,6 @@ import { WriterRequestPage } from "./pages/WriterRequestPage";
 import { SavedArticles } from "./pages/SavedArticles";
 import { ProfilePage } from "./pages/ProfilePage";
 import { AuthorProfilePage } from "./pages/AuthorProfilePage";
-import { SettingsPage } from "./pages/SettingsPage";
-
 import { ActiveWritersPage } from "./pages/ActiveWritersPage";
 import { RemovedWritersPage } from "./pages/RemovedWritersPage";
 import { PersonalDashboard } from "./pages/PersonalDashboard";
@@ -260,14 +258,7 @@ function AppContent({
                 </AdminRoute>
               }
             />
-            <Route
-              path="admin/system"
-              element={
-                <AdminRoute>
-                  <SettingsPage />
-                </AdminRoute>
-              }
-            />
+          
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
