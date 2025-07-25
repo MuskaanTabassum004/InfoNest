@@ -16,8 +16,9 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { onSnapshot, collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { onSnapshot, collection, query, where } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
+import { getDisplayRole, getRoleBadgeClasses } from "../lib/roleUtils";
 
 export const AuthorProfilePage: React.FC = () => {
   const { authorId } = useParams<{ authorId: string }>();
@@ -27,8 +28,7 @@ export const AuthorProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [articlesLoading, setArticlesLoading] = useState(true);
 
-  // Debug the authorId parameter
-  console.log("AuthorProfilePage: authorId from URL params:", authorId);
+
 
   // Load author profile
   useEffect(() => {
@@ -52,42 +52,9 @@ export const AuthorProfilePage: React.FC = () => {
 
   // Real-time articles listener
   useEffect(() => {
-    if (!authorId) {
-      console.log("AuthorProfile: No authorId provided");
-      return;
-    }
+    if (!authorId) return;
 
-    console.log(`AuthorProfile: Loading articles for authorId: ${authorId}`);
     setArticlesLoading(true);
-
-    // Test query to see if we can get any articles at all
-    const testAllArticles = async () => {
-      try {
-        const allArticlesQuery = query(collection(firestore, "articles"));
-        const allSnapshot = await getDocs(allArticlesQuery);
-        console.log(`AuthorProfile: Total articles in database: ${allSnapshot.docs.length}`);
-
-        const publishedArticles = allSnapshot.docs.filter(doc => doc.data().status === "published");
-        console.log(`AuthorProfile: Published articles in database: ${publishedArticles.length}`);
-
-        const authorArticles = publishedArticles.filter(doc => doc.data().authorId === authorId);
-        console.log(`AuthorProfile: Published articles by this author: ${authorArticles.length}`);
-
-        authorArticles.forEach(doc => {
-          const data = doc.data();
-          console.log(`AuthorProfile: Found article:`, {
-            id: doc.id,
-            title: data.title,
-            authorId: data.authorId,
-            status: data.status
-          });
-        });
-      } catch (error) {
-        console.error("AuthorProfile: Test query failed:", error);
-      }
-    };
-
-    testAllArticles();
 
     // Query for published articles by this author - using pattern from InfoWriterDashboard
     const articlesQuery = query(
@@ -97,19 +64,9 @@ export const AuthorProfilePage: React.FC = () => {
     );
 
     const unsubscribe = onSnapshot(articlesQuery, (snapshot) => {
-      console.log(`AuthorProfile: Received ${snapshot.docs.length} articles for author ${authorId}`);
-
       const authorArticles: Article[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        console.log(`Article ${doc.id}:`, {
-          title: data.title,
-          status: data.status,
-          authorId: data.authorId,
-          publishedAt: data.publishedAt,
-          createdAt: data.createdAt
-        });
-
         authorArticles.push({
           id: doc.id,
           ...data,
@@ -128,14 +85,9 @@ export const AuthorProfilePage: React.FC = () => {
 
       setArticles(authorArticles);
       setArticlesLoading(false);
-      console.log(`AuthorProfile: Set ${authorArticles.length} articles in state`);
     }, (error) => {
       console.error("Error loading author articles:", error);
-      console.error("Error details:", {
-        code: error.code,
-        message: error.message
-      });
-      setArticles([]); // Clear articles on error
+      setArticles([]);
       setArticlesLoading(false);
     });
 
@@ -152,16 +104,7 @@ export const AuthorProfilePage: React.FC = () => {
     }
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'infowriter':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
+
 
   if (loading) {
     return (
@@ -229,12 +172,11 @@ export const AuthorProfilePage: React.FC = () => {
               
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-4">
                 <span
-                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getRoleColor(
-                    authorProfile.role
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getRoleBadgeClasses(
+                    authorProfile.role as any, "general"
                   )} bg-white/90`}
                 >
-                  {authorProfile.role === 'infowriter' ? 'InfoWriter' : 
-                   authorProfile.role.charAt(0).toUpperCase() + authorProfile.role.slice(1)}
+                  {getDisplayRole(authorProfile.role as any, currentUser?.role as any, "general")}
                 </span>
                 
                 
