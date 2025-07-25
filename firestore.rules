@@ -151,5 +151,59 @@ service cloud.firestore {
         (request.auth.uid == resource.data.userId ||
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
+
+    // Comments subcollection for articles
+    match /articles/{articleId}/comments/{commentId} {
+      // READ PERMISSIONS - Simplified for testing
+      // Anyone can read comments (we'll add restrictions later)
+      allow read, list: if true;
+
+      // CREATE PERMISSIONS - Simplified for testing
+      // Only authenticated users can create comments
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.userId;
+
+      // UPDATE PERMISSIONS
+      // Users can update their own comments
+      allow update: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+
+      // DELETE PERMISSIONS
+      // Users can delete their own comments
+      allow delete: if request.auth != null &&
+        request.auth.uid == resource.data.userId;
+
+      // Admins can delete any comment
+      allow delete: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+      // Replies subcollection
+      match /replies/{replyId} {
+        // READ PERMISSIONS - Simplified for testing
+        // Anyone can read replies (we'll add restrictions later)
+        allow read, list: if true;
+
+        // CREATE PERMISSIONS - Simplified for testing
+        // Only authenticated users can create replies
+        allow create: if request.auth != null &&
+          request.auth.uid == request.resource.data.userId;
+
+        // UPDATE PERMISSIONS
+        // Users can update their own replies
+        allow update: if request.auth != null &&
+          request.auth.uid == resource.data.userId;
+
+        // DELETE PERMISSIONS
+        // Users can delete their own replies
+        allow delete: if request.auth != null &&
+          request.auth.uid == resource.data.userId;
+
+        // Admins can delete any reply
+        allow delete: if request.auth != null &&
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      }
+    }
   }
 }
