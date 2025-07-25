@@ -181,14 +181,7 @@ function AppContent({
                 </UserRoute>
               }
             />
-            <Route
-              path="settings"
-              element={
-                <UserRoute>
-                  <SettingsPage />
-                </UserRoute>
-              }
-            />
+            
             
 
             {/* InfoWriter and Admin only routes */}
