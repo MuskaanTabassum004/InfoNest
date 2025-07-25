@@ -578,7 +578,6 @@ export const ArticleView: React.FC = () => {
                 <MessageCircle className="h-4 w-4" />
                 <span className="text-sm">Comment</span>
               </button>
-              
             </div>
           </div>
 
