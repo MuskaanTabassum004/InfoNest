@@ -16,11 +16,6 @@ export const NetworkStatus: React.FC<NetworkStatusProps> = ({
   const [connectionQuality, setConnectionQuality] = useState<'good' | 'poor' | 'offline'>('good');
   const [lastOnlineTime, setLastOnlineTime] = useState<Date | null>(null);
 
-  // Hide from UI but keep functionality
-  if (hideFromUI) {
-    return null;
-  }
-
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -70,6 +65,11 @@ export const NetworkStatus: React.FC<NetworkStatusProps> = ({
       clearInterval(interval);
     };
   }, []);
+
+  // Hide from UI but keep functionality
+  if (hideFromUI) {
+    return null;
+  }
 
   const getStatusIcon = () => {
     if (!isOnline) {
