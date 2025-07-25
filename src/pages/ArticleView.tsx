@@ -687,4 +687,3 @@ export const ArticleView: React.FC = () => {
       </article>
     </>
   );
-};
