@@ -194,9 +194,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
       {/* Author Information */}
       <div className="flex items-center space-x-3 mb-3">
-        <div className="flex items-center space-x-2">
+        <Link
+          to={`/author/${article.authorId}`}
+          className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg p-1 -m-1 transition-colors group"
+          onClick={(e) => e.stopPropagation()} // Prevent card click when clicking author
+        >
           {/* Author Profile Picture */}
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 relative">
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 relative group-hover:ring-2 group-hover:ring-blue-200 transition-all">
             {loadingAuthor ? (
               <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                 <div className="w-3 h-3 border border-gray-300 border-t-transparent rounded-full animate-spin"></div>
@@ -209,7 +213,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                 onError={() => setProfilePicError(true)}
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+              <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center group-hover:from-blue-200 group-hover:to-blue-300 transition-all">
                 <span className="text-blue-700 text-xs font-semibold">
                   {article.authorName.charAt(0).toUpperCase()}
                 </span>
@@ -219,7 +223,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
           {/* Author Name */}
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
+            <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
               {article.authorName}
             </span>
             {authorProfile?.role && (
@@ -230,7 +234,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               </span>
             )}
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Content Preview */}
