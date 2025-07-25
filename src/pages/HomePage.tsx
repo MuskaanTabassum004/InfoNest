@@ -14,7 +14,6 @@ import {
   Loader2,
   User,
   LogOut,
-  Settings,
   MessageCircle,
   Bookmark,
 } from "lucide-react";
@@ -347,14 +346,7 @@ export const HomePage: React.FC = () => {
                         <span>Saved Articles</span>
                       </Link>
                       
-                      <Link
-                        to="/settings"
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        <Settings className="h-4 w-4" />
-                        <span>Settings</span>
-                      </Link>
+                      
                       <div className="border-t border-gray-200 my-2"></div>
                       <button
                         onClick={handleLogout}
