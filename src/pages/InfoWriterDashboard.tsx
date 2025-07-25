@@ -31,6 +31,7 @@ import {
 } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
+import { SaveArticleButton } from "../components/SaveArticleButton";
 
 interface InfoWriterDashboardData {
   publishedArticles: Article[];
@@ -466,27 +467,28 @@ export const InfoWriterDashboard: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {dashboardData.publishedArticles.slice(0, 6).map((article) => (
-            <Link
+            <div
               key={article.id}
-              to={`/article/${article.id}`}
-              className="block bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-200 hover:shadow-md transition-all group"
+              className="bg-white rounded-xl p-4 border border-gray-200 hover:border-blue-200 hover:shadow-md transition-all group"
             >
-              {article.coverImage && (
-                <div className="aspect-video bg-gray-100 rounded-lg mb-3 overflow-hidden">
-                  <img
-                    src={article.coverImage}
-                    alt={article.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                </div>
-              )}
-              <h3 className="font-semibold text-gray-900 group-hover:text-blue-700 mb-2 line-clamp-2">
-                {article.title}
-              </h3>
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                {article.excerpt}
-              </p>
-              <div className="flex items-center justify-between text-xs text-gray-500">
+              <Link to={`/article/${article.id}`} className="block">
+                {article.coverImage && (
+                  <div className="aspect-video bg-gray-100 rounded-lg mb-3 overflow-hidden">
+                    <img
+                      src={article.coverImage}
+                      alt={article.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                  </div>
+                )}
+                <h3 className="font-semibold text-gray-900 group-hover:text-blue-700 mb-2 line-clamp-2">
+                  {article.title}
+                </h3>
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                  {article.excerpt}
+                </p>
+              </Link>
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                 <div className="flex items-center space-x-1">
                   <Clock className="h-3 w-3" />
                   <span>
@@ -506,7 +508,21 @@ export const InfoWriterDashboard: React.FC = () => {
                   ))}
                 </div>
               </div>
-            </Link>
+              {/* Save button for platform articles */}
+              <div className="flex items-center justify-between">
+                <SaveArticleButton
+                  article={article}
+                  size="sm"
+                  showLabel={false}
+                />
+                <Link
+                  to={`/article/${article.id}`}
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                >
+                  Read More →
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       </div>
