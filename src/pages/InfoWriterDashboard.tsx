@@ -157,7 +157,7 @@ export const InfoWriterDashboard: React.FC = () => {
               totalArticles: myArticles.length,
               totalViews,
               totalDrafts: myDrafts.length,
-              totalPublished: publishedArticles.length,
+              totalPublished: myArticles.length,
               totalUnpublished: unpublishedArticles.length,
             },
           });
