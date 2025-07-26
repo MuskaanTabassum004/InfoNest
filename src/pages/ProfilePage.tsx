@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { updateDoc, doc } from "firebase/firestore";
+import { updateDoc, doc, onSnapshot } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 import { uploadFile } from "../lib/fileUpload";
 import {
@@ -22,7 +22,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import toast from "react-hot-toast";
+
 
 interface ProfileFormData {
   displayName: string;
@@ -58,24 +58,61 @@ export const ProfilePage: React.FC = () => {
   const [tempDisplayName, setTempDisplayName] = useState("");
   const [nameEditLoading, setNameEditLoading] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [realtimeUpdateReceived, setRealtimeUpdateReceived] = useState(false);
 
+  // Initialize form data when user profile loads and set up real-time listener
   useEffect(() => {
-    if (userProfile) {
+    if (!userProfile) return;
+
+    // Set initial form data
+    const updateFormData = (profile: typeof userProfile) => {
       setFormData({
-        displayName: userProfile.displayName || "",
-        profilePicture: userProfile.profilePicture || "",
-        bio: userProfile.bio || "",
+        displayName: profile.displayName || "",
+        profilePicture: profile.profilePicture || "",
+        bio: profile.bio || "",
         socialLinks: {
-          twitter: userProfile.socialLinks?.twitter || "",
-          linkedin: userProfile.socialLinks?.linkedin || "",
-          github: userProfile.socialLinks?.github || "",
-          website: userProfile.socialLinks?.website || "",
+          twitter: profile.socialLinks?.twitter || "",
+          linkedin: profile.socialLinks?.linkedin || "",
+          github: profile.socialLinks?.github || "",
+          website: profile.socialLinks?.website || "",
         },
       });
-      setPreviewUrl(userProfile.profilePicture || "");
-      setTempDisplayName(userProfile.displayName || "");
-    }
-  }, [userProfile]);
+      setPreviewUrl(profile.profilePicture || "");
+      setTempDisplayName(profile.displayName || "");
+    };
+
+    updateFormData(userProfile);
+
+    // Set up real-time listener for profile changes
+    const userRef = doc(firestore, "users", userProfile.uid);
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        const updatedProfile = {
+          ...userProfile,
+          displayName: data.displayName || "",
+          profilePicture: data.profilePicture || "",
+          bio: data.bio || "",
+          socialLinks: data.socialLinks || {},
+          updatedAt: data.updatedAt?.toDate(),
+        };
+
+        // Show real-time update indicator
+        setRealtimeUpdateReceived(true);
+        setTimeout(() => setRealtimeUpdateReceived(false), 2000);
+
+        // Only update form if user is not currently editing to avoid overwriting their changes
+        if (!isEditing && !loading) {
+          updateFormData(updatedProfile);
+          console.log("📡 Real-time profile update received and applied");
+        } else {
+          console.log("📡 Real-time profile update received but not applied (user is editing)");
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [userProfile?.uid]); // Only depend on uid to avoid unnecessary re-subscriptions
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,13 +120,11 @@ export const ProfilePage: React.FC = () => {
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size must be less than 5MB");
       return;
     }
 
@@ -117,11 +152,9 @@ export const ProfilePage: React.FC = () => {
         (progress) => setUploadProgress(progress)
       );
 
-      toast.success("Profile picture uploaded successfully!");
       return result.url;
     } catch (error) {
       console.error("Error uploading profile picture:", error);
-      toast.error("Failed to upload profile picture");
       return null;
     } finally {
       setUploading(false);
@@ -131,7 +164,14 @@ export const ProfilePage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userProfile) return;
+    if (!userProfile) {
+      return;
+    }
+
+    // Validate required fields
+    if (!formData.displayName.trim()) {
+      return;
+    }
 
     setLoading(true);
 
@@ -143,27 +183,41 @@ export const ProfilePage: React.FC = () => {
         const uploadedUrl = await handleImageUpload();
         if (uploadedUrl) {
           profilePictureUrl = uploadedUrl;
+        } else {
+          // If upload failed, don't proceed with profile update
+          setLoading(false);
+          return;
         }
       }
 
-      // Update user profile in Firestore
-      const userRef = doc(firestore, "users", userProfile.uid);
-      await updateDoc(userRef, {
+      console.log("🔄 Updating profile:", {
+        userId: userProfile.uid,
         displayName: formData.displayName,
-        profilePicture: profilePictureUrl,
         bio: formData.bio,
         socialLinks: formData.socialLinks,
-        updatedAt: new Date(),
       });
 
-      // Refresh the profile in auth context
-      await refreshProfile();
+      // Update user profile in Firestore
+      const userRef = doc(firestore, "users", userProfile.uid);
+      const updateData = {
+        displayName: formData.displayName.trim(),
+        profilePicture: profilePictureUrl,
+        bio: formData.bio?.trim() || "",
+        socialLinks: formData.socialLinks,
+        updatedAt: new Date(),
+      };
 
-      toast.success("Profile updated successfully!");
+      await updateDoc(userRef, updateData);
+      console.log("✅ Profile updated successfully in Firestore");
+
+      // Refresh the profile in auth context to ensure immediate sync
+      await refreshProfile();
+      console.log("✅ Profile refresh completed");
+
       setSelectedFile(null);
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      toast.error("Failed to update profile");
+      setPreviewUrl("");
+    } catch (error: any) {
+      console.error("❌ Error updating profile:", error);
     } finally {
       setLoading(false);
     }
@@ -194,7 +248,10 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleDisplayNameEdit = async () => {
-    if (!userProfile) return;
+    if (!userProfile) {
+      setNameError("User not authenticated");
+      return;
+    }
 
     // Validate the display name
     const validationError = validateDisplayName(tempDisplayName);
@@ -213,26 +270,33 @@ export const ProfilePage: React.FC = () => {
         updatedAt: new Date(),
       };
 
-      console.log("🔄 Updating Firestore profile:", {
+      console.log("🔄 Updating display name:", {
         userId: userProfile.uid,
         oldName: userProfile.displayName,
         newName: tempDisplayName.trim(),
-        updateData,
       });
 
       await updateDoc(userRef, updateData);
-      console.log("✅ Firestore update successful");
+      console.log("✅ Display name updated successfully in Firestore");
 
       // Refresh the profile to ensure immediate sync across all components
       await refreshProfile();
       console.log("✅ Profile refresh completed");
 
       setIsEditing(false);
-      toast.success("Name updated successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error updating name:", error);
-      setNameError("Failed to update name. Please try again.");
-      toast.error("Failed to update name");
+
+      // Provide specific error messages
+      if (error.code === 'permission-denied') {
+        setNameError("Permission denied. Please check your authentication status.");
+      } else if (error.code === 'not-found') {
+        setNameError("User profile not found. Please try logging out and back in.");
+      } else if (error.code === 'network-error') {
+        setNameError("Network error. Please check your connection.");
+      } else {
+        setNameError(`Failed to update name: ${error.message || 'Unknown error'}`);
+      }
     } finally {
       setNameEditLoading(false);
     }
@@ -289,6 +353,16 @@ export const ProfilePage: React.FC = () => {
         </div>
 
         <div className="p-8">
+          {/* Real-time Update Indicator */}
+          {realtimeUpdateReceived && (
+            <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-2 animate-pulse">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
+              <span className="text-green-700 text-sm font-medium">
+                Profile updated in real-time
+              </span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Profile Picture Section */}
             <div className="flex items-start space-x-6">
