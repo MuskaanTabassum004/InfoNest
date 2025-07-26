@@ -128,6 +128,10 @@ export const ArticleView: React.FC = () => {
         // Update like state in real-time
         setLikeCount(updatedArticle.likes || 0);
         setIsLiked(updatedArticle.likedBy?.includes(userProfile?.uid || '') || false);
+      } else {
+        // Article has been deleted - redirect to dashboard
+        toast.error("This article has been removed");
+        navigate("/dashboard");
       }
     });
 
