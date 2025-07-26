@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getPublishedArticles, Article } from "../lib/articles";
+import { Article } from "../lib/articles";
 import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
 import { useAuth } from "../hooks/useAuth";
 import { BookOpen, Loader2, ArrowLeft, FileText, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { ArticleCard } from "../components/ArticleCard";
+import { onSnapshot, collection, query, where } from "firebase/firestore";
+import { firestore } from "../lib/firebase";
 
 interface SearchPageData {
   articles: Article[];
@@ -22,39 +24,61 @@ export const SearchPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTag, setSelectedTag] = useState<string>("");
 
-  const loadSearchData = async (): Promise<void> => {
+  const loadSearchData = (): (() => void) => {
     setLoading(true);
-    try {
-      const publishedArticles = await getPublishedArticles();
 
-      // Extract unique categories and tags
-      const allCategories = new Set<string>();
-      const allTags = new Set<string>();
+    // Set up real-time listener for published articles
+    const articlesQuery = query(
+      collection(firestore, "articles"),
+      where("status", "==", "published")
+    );
 
-      publishedArticles.forEach((article) => {
-        article.categories.forEach((cat) => allCategories.add(cat));
-        article.tags.forEach((tag) => allTags.add(tag));
-      });
+    const unsubscribe = onSnapshot(articlesQuery, (snapshot) => {
+      try {
+        const publishedArticles: Article[] = [];
 
-      setSearchData({
-        articles: publishedArticles,
-        categories: Array.from(allCategories).sort(),
-        tags: Array.from(allTags).sort(),
-      });
-    } catch (error) {
-      toast.error("Error loading articles");
-    } finally {
-      setLoading(false);
-    }
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const article = {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate(),
+            publishedAt: data.publishedAt?.toDate(),
+          } as Article;
+          publishedArticles.push(article);
+        });
+
+        // Extract unique categories and tags
+        const allCategories = new Set<string>();
+        const allTags = new Set<string>();
+
+        publishedArticles.forEach((article) => {
+          article.categories.forEach((cat) => allCategories.add(cat));
+          article.tags.forEach((tag) => allTags.add(tag));
+        });
+
+        setSearchData({
+          articles: publishedArticles,
+          categories: Array.from(allCategories).sort(),
+          tags: Array.from(allTags).sort(),
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading articles:", error);
+        toast.error("Error loading articles");
+        setLoading(false);
+      }
+    });
+
+    return unsubscribe;
   };
 
   useEffect(() => {
-    const initializeSearch = async () => {
-      if (authLoading) return; // Wait for auth to complete
-      await loadSearchData();
-    };
+    if (authLoading) return; // Wait for auth to complete
 
-    initializeSearch();
+    const unsubscribe = loadSearchData();
+    return () => unsubscribe();
   }, [authLoading]);
 
   useEffect(() => {
