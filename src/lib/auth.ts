@@ -292,7 +292,7 @@ export const signUp = async (
   displayName?: string
 ) => {
   try {
-    // Create Firebase Auth user and Firestore profile immediately
+    // Create Firebase Auth user but DO NOT create Firestore profile yet
     const result = await createUserWithEmailAndPassword(auth, email, password);
 
     // Update Firebase Auth profile with display name
@@ -300,32 +300,13 @@ export const signUp = async (
       await updateProfile(result.user, { displayName });
     }
 
-    // Create Firestore profile immediately (before verification)
-    const userProfile: UserProfile = {
-      uid: result.user.uid,
-      email: result.user.email!,
-      role: "user",
-      displayName: displayName || result.user.email?.split("@")[0] || "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      requestedWriterAccess: false,
-      emailVerified: false, // Will be updated when verified
-    };
-
-    const profileRef = doc(firestore, "users", result.user.uid);
-    await setDoc(profileRef, {
-      ...userProfile,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
     // Send email verification immediately
     await sendEmailVerification(result.user, {
       url: `${window.location.origin}/verify-email`,
       handleCodeInApp: true,
     });
 
-    // Keep user signed in but mark as unverified
+    // Keep user signed in but they won't have Firestore profile until verified
     console.log("✅ User created successfully, verification email sent");
 
     // Return user info for verification page display
@@ -361,23 +342,23 @@ export const signUp = async (
 export const updateUserProfileAfterVerification = async (
   firebaseUser: User
 ) => {
-  // Update verification status for verified users
+  // Only create/update profile for verified users
   if (!firebaseUser.emailVerified) {
     return;
   }
 
-  // Update existing profile with verification status
+  // Check if profile exists, if not create it (this is the first time after verification)
   const profileRef = doc(firestore, "users", firebaseUser.uid);
   const profileSnap = await getDoc(profileRef);
 
   if (profileSnap.exists()) {
-    // Update existing profile with verification status
+    // Update existing profile with verification status (shouldn't happen in new flow)
     await updateDoc(profileRef, {
       emailVerified: true,
       updatedAt: new Date(),
     });
   } else {
-    // Create profile if it doesn't exist (fallback)
+    // Create profile for the first time after email verification
     const userProfile: UserProfile = {
       uid: firebaseUser.uid,
       email: firebaseUser.email!,
@@ -395,6 +376,8 @@ export const updateUserProfileAfterVerification = async (
       createdAt: new Date(),
       updatedAt: new Date(),
     });
+    
+    console.log("✅ User profile created after email verification");
   }
 };
 
