@@ -515,6 +515,28 @@ export const ArticleEditor: React.FC = () => {
         if (status === "published") {
           cleanupDraft();
         }
+        
+        // Reset form fields after successful save/publish
+        setArticle({
+          title: "",
+          content: "",
+          excerpt: "",
+          status: "draft",
+          categories: [],
+          tags: [],
+          coverImage: "",
+          attachments: [],
+        });
+        setSelectedCategory("");
+        setCustomCategory("");
+        setTagInput("");
+        setCoverImageUrl("");
+        
+        // Navigate to dashboard after saving draft
+        if (status === "draft") {
+          navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
+          return;
+        }
       } else {
         const newId = await createArticle(
           articleData as Omit<
@@ -527,11 +549,33 @@ export const ArticleEditor: React.FC = () => {
             status === "published" ? "published" : "created"
           } successfully`
         );
-        navigate(`/article/edit/${newId}`);
+        
+        // Reset form fields after successful creation
+        setArticle({
+          title: "",
+          content: "",
+          excerpt: "",
+          status: "draft",
+          categories: [],
+          tags: [],
+          coverImage: "",
+          attachments: [],
+        });
+        setSelectedCategory("");
+        setCustomCategory("");
+        setTagInput("");
+        setCoverImageUrl("");
         
         // Clean up auto-saved draft after successful creation
         if (status === "published") {
           cleanupDraft();
+        }
+        
+        // Navigate based on status
+        if (status === "draft") {
+          navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
+        } else {
+          navigate(`/article/edit/${newId}`);
         }
       }
 

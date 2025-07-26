@@ -528,19 +528,6 @@ export const MyArticles: React.FC = () => {
                           </button>
                         )}
 
-                        {article.status !== "unpublished" && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStatusChange(article.id, "unpublished");
-                            }}
-                            disabled={updatingStatus === article.id}
-                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-700 flex items-center space-x-2 disabled:opacity-50"
-                          >
-                            <Clock className="h-4 w-4" />
-                            <span>Mark as Unpublished</span>
-                          </button>
-                        )}
 
                         <div className="border-t border-gray-100 my-1"></div>
 
