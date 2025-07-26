@@ -18,7 +18,7 @@ import {
   Download,
   Heart,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import toast from "react-hot-toast";
 import { SaveArticleButton } from "../components/SaveArticleButton";
 import { ShareButton } from "../components/ShareButton";
@@ -656,12 +656,9 @@ export const ArticleView: React.FC = () => {
 
           {/* Article Stats */}
           <div className="flex flex-wrap items-center gap-6 mb-8 text-sm text-gray-600 bg-gray-50 rounded-lg p-4">
-            
-
             <div className="flex items-center space-x-2">
-              
               <Calendar className="h-4 w-4" />
-              <span>Published {formatDistanceToNow(article.updatedAt)} ago</span>
+              <span>Updated: {format(article.updatedAt, 'dd/MM/yyyy')}</span>
             </div>
 
             <div className="flex items-center space-x-2">
