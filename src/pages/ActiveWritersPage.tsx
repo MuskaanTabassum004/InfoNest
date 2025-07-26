@@ -53,6 +53,8 @@ export const ActiveWritersPage: React.FC = () => {
     if (!userProfile || !isAdmin) return;
 
     const unsubscribes: (() => void)[] = [];
+    let writersData: { [key: string]: any } = {};
+    let articlesData: { [key: string]: number } = {};
 
     // Listen to users with infowriter role
     const writersQuery = query(
@@ -60,55 +62,63 @@ export const ActiveWritersPage: React.FC = () => {
       where("role", "==", "infowriter")
     );
 
-    const writersUnsubscribe = onSnapshot(writersQuery, async (snapshot) => {
-      const activeWriters: ActiveWriter[] = [];
-
-      // Get article counts for each writer
-      const articlesQuery = query(collection(firestore, "articles"));
-      const articlesUnsubscribe = onSnapshot(
-        articlesQuery,
-        (articlesSnapshot) => {
-          const articleCounts: { [key: string]: number } = {};
-
-          articlesSnapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.author?.uid && data.status === "published") {
-              articleCounts[data.author.uid] =
-                (articleCounts[data.author.uid] || 0) + 1;
-            }
-          });
-
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            activeWriters.push({
-              id: doc.id,
-              uid: data.uid || doc.id,
-              displayName: data.displayName || "Unknown Writer",
-              email: data.email || "",
-              profilePicture: data.profilePicture,
-              joinedAt: data.createdAt?.toDate() || new Date(),
-              articleCount: articleCounts[data.uid || doc.id] || 0,
-              lastActive: data.lastActive?.toDate(),
-            });
-          });
-
-          // Sort by article count (descending), then by join date
-          activeWriters.sort((a, b) => {
-            if (a.articleCount !== b.articleCount) {
-              return b.articleCount - a.articleCount;
-            }
-            return b.joinedAt.getTime() - a.joinedAt.getTime();
-          });
-
-          setWriters(activeWriters);
-          setLoading(false);
-        }
-      );
-
-      unsubscribes.push(articlesUnsubscribe);
+    const writersUnsubscribe = onSnapshot(writersQuery, (snapshot) => {
+      writersData = {};
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        writersData[data.uid || doc.id] = {
+          id: doc.id,
+          uid: data.uid || doc.id,
+          displayName: data.displayName || "Unknown Writer",
+          email: data.email || "",
+          profilePicture: data.profilePicture,
+          joinedAt: data.createdAt?.toDate() || new Date(),
+          lastActive: data.lastActive?.toDate(),
+        };
+      });
+      updateWritersList();
     });
 
-    unsubscribes.push(writersUnsubscribe);
+    // Listen to all articles for real-time count updates
+    const articlesQuery = query(
+      collection(firestore, "articles"),
+      where("status", "==", "published")
+    );
+
+    const articlesUnsubscribe = onSnapshot(articlesQuery, (snapshot) => {
+      articlesData = {};
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.authorId) {
+          articlesData[data.authorId] = (articlesData[data.authorId] || 0) + 1;
+        }
+      });
+      updateWritersList();
+    });
+
+    const updateWritersList = () => {
+      const activeWriters: ActiveWriter[] = [];
+
+      Object.values(writersData).forEach((writer: any) => {
+        activeWriters.push({
+          ...writer,
+          articleCount: articlesData[writer.uid] || 0,
+        });
+      });
+
+      // Sort by article count (descending), then by join date
+      activeWriters.sort((a, b) => {
+        if (a.articleCount !== b.articleCount) {
+          return b.articleCount - a.articleCount;
+        }
+        return b.joinedAt.getTime() - a.joinedAt.getTime();
+      });
+
+      setWriters(activeWriters);
+      setLoading(false);
+    };
+
+    unsubscribes.push(writersUnsubscribe, articlesUnsubscribe);
 
     return () => {
       unsubscribes.forEach((unsubscribe) => unsubscribe());
@@ -280,17 +290,18 @@ export const ActiveWritersPage: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <FileText className="h-4 w-4 mr-2 text-blue-600" />
-                          <span className="text-sm font-medium text-gray-900">
-                            {writer.articleCount}
-                          </span>
-                          {writer.articleCount > 0 && (
+                          {writer.articleCount > 0 ? (
                             <Link
                               to={`/author/${writer.uid}`}
-                              className="ml-2 text-blue-600 hover:text-blue-800"
-                              title="View articles"
+                              className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer"
+                              title={`View ${writer.articleCount} published articles by ${writer.displayName}`}
                             >
-                              <ExternalLink className="h-4 w-4" />
+                              {writer.articleCount}
                             </Link>
+                          ) : (
+                            <span className="text-sm font-medium text-gray-500">
+                              {writer.articleCount}
+                            </span>
                           )}
                         </div>
                       </td>
@@ -329,7 +340,7 @@ export const ActiveWritersPage: React.FC = () => {
                               title="View Writer Details"
                             >
                               <Eye className="h-4 w-4" />
-                              <span>View</span>
+
                             </button>
                             <button
                               onClick={() => setConfirmRemoval(writer.id)}
@@ -399,9 +410,20 @@ export const ActiveWritersPage: React.FC = () => {
                       <div className="flex items-center">
                         <FileText className="h-5 w-5 text-blue-600 mr-2" />
                         <div>
-                          <p className="text-2xl font-bold text-blue-900">
-                            {selectedWriter.articleCount}
-                          </p>
+                          {selectedWriter.articleCount > 0 ? (
+                            <Link
+                              to={`/author/${selectedWriter.uid}`}
+                              className="text-2xl font-bold text-blue-900 hover:text-blue-700 hover:underline transition-colors cursor-pointer"
+                              title={`View all ${selectedWriter.articleCount} articles by ${selectedWriter.displayName}`}
+                              onClick={() => setSelectedWriter(null)}
+                            >
+                              {selectedWriter.articleCount}
+                            </Link>
+                          ) : (
+                            <p className="text-2xl font-bold text-gray-500">
+                              {selectedWriter.articleCount}
+                            </p>
+                          )}
                           <p className="text-sm text-blue-600">
                             Published Articles
                           </p>
