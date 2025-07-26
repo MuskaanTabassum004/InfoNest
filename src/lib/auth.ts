@@ -115,7 +115,6 @@ class AuthCacheManager {
             "/admin/active-writers",
             "/admin/removed-writers",
             "/admin/system",
-            "/personal-dashboard",
             "/article/new",
             "/article/edit/:id",
             "/article/:id", // Allow viewing articles
