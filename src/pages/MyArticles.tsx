@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -71,7 +71,7 @@ export const MyArticles: React.FC = () => {
   const shouldShowContent =
     userProfile && !authLoading && canCreateArticles === true;
 
-  const loadArticles = async (): Promise<void> => {
+  const loadArticles = useCallback(async (): Promise<void> => {
     if (!userProfile?.uid) return;
 
     setArticlesLoading(true);
@@ -84,14 +84,14 @@ export const MyArticles: React.FC = () => {
     } finally {
       setArticlesLoading(false);
     }
-  };
+  }, [userProfile?.uid]);
 
   // Load articles only when we have confirmed InfoWriter access
   useEffect(() => {
     if (shouldShowContent && userProfile?.uid) {
       loadArticles();
     }
-  }, [shouldShowContent, userProfile?.uid]);
+  }, [shouldShowContent, userProfile?.uid, loadArticles]);
 
   // Filter articles whenever articles, search, or status filter changes
   useEffect(() => {
