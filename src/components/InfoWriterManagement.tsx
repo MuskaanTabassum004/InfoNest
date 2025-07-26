@@ -22,6 +22,7 @@ import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 import { onSnapshot, collection, query, where } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
+import { useProfileContext } from "../contexts/ProfileContext";
 
 interface InfoWriterManagementProps {
   onInfoWriterRemoved?: (removedWriter: UserProfile) => void;
@@ -30,6 +31,7 @@ interface InfoWriterManagementProps {
 export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
   onInfoWriterRemoved,
 }) => {
+  const { subscribeToProfile } = useProfileContext();
   const [infoWriters, setInfoWriters] = useState<UserProfile[]>([]);
   const [filteredWriters, setFilteredWriters] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +104,12 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
     const updateWritersData = () => {
       setInfoWriters(writersData);
       setWriterArticleCounts(articlesData);
+
+      // Subscribe to profile updates for each InfoWriter
+      writersData.forEach((writer) => {
+        subscribeToProfile(writer.uid);
+      });
+
       setLoading(false);
     };
 
