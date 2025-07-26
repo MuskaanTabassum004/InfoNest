@@ -32,6 +32,7 @@ import {
 import { firestore } from "../lib/firebase";
 import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
 import { SaveArticleButton } from "../components/SaveArticleButton";
+import { useUserProfile } from "../contexts/ProfileContext";
 
 interface InfoWriterDashboardData {
   publishedArticles: Article[];
