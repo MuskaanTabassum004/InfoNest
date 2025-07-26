@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth, UserProfile } from "../hooks/useAuth";
-import { getUserProfile } from "../lib/auth";
+import { useUserProfile } from "../contexts/ProfileContext";
 import { getArticles, Article } from "../lib/articles";
 import { ArticleCard } from "../components/ArticleCard";
 import {
@@ -23,32 +23,19 @@ import { firestore } from "../lib/firebase";
 export const AuthorProfilePage: React.FC = () => {
   const { authorId } = useParams<{ authorId: string }>();
   const { userProfile: currentUser, loading: authLoading } = useAuth();
-  const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
+  const authorProfile = useUserProfile(authorId);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [articlesLoading, setArticlesLoading] = useState(true);
 
 
 
-  // Load author profile
+  // Profile is now loaded via real-time hook
   useEffect(() => {
-    const loadAuthorProfile = async () => {
-      if (!authorId) return;
-      
-      setLoading(true);
-      try {
-        const profile = await getUserProfile(authorId);
-        setAuthorProfile(profile);
-      } catch (error) {
-        console.error("Error loading author profile:", error);
-        setAuthorProfile(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadAuthorProfile();
-  }, [authorId]);
+    if (authorProfile) {
+      setLoading(false);
+    }
+  }, [authorProfile]);
 
   // Real-time articles listener
   useEffect(() => {
