@@ -10,13 +10,9 @@ import {
   ArrowRight,
   Shield,
   Zap,
-  Star,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   User,
   LogOut,
-  MessageCircle,
   Bookmark,
 } from "lucide-react";
 import { signOut } from "../lib/auth";
@@ -35,11 +31,8 @@ export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, userProfile, loading: authLoading } = useAuth();
   const [homeData, setHomeData] = useState<HomePageData | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
 
   const loadHomePageData = (): (() => void) => {
     setLoading(true);
@@ -102,75 +95,124 @@ export const HomePage: React.FC = () => {
     return unsubscribe;
   };
 
-  // Enhanced Featured Articles Selection Function
+  // Enhanced Featured Articles Selection Function with Priority System
   const selectFeaturedArticles = (articles: Article[]): Article[] => {
-    // Calculate category frequency for priority ranking
-    const categoryFrequency = new Map<string, number>();
-    articles.forEach((article) => {
-      article.categories.forEach((category) => {
-        categoryFrequency.set(
-          category,
-          (categoryFrequency.get(category) || 0) + 1
-        );
-      });
-    });
+    // Define application categories for priority ranking
+    const applicationCategories = [
+      "Technology", "Business", "Education", "Health", "Finance",
+      "Marketing", "Development", "Design", "Management", "Research"
+    ];
 
-    // Sort categories by frequency (most frequent = higher priority)
-    const sortedCategories = Array.from(categoryFrequency.entries())
-      .sort(([, a], [, b]) => b - a)
-      .map(([category]) => category);
-
-    // Priority scoring function
+    // Priority scoring function based on specified criteria
     const calculatePriority = (article: Article): number => {
       let score = 0;
 
-      // Primary criteria: Category assignment + Cover image (highest priority)
-      if (article.categories.length > 0 && article.coverImage) {
+      // Priority 1: Articles with cover images and infowriter info (highest priority)
+      if (article.coverImage && article.authorId) {
+        score += 10000;
+
+        // Additional bonus for articles with author information
         score += 1000;
       }
-      // Secondary criteria: Category assignment without cover image (medium priority)
-      else if (article.categories.length > 0) {
+
+      // Priority 2: Categories mentioned in the application (highest priority)
+      const hasApplicationCategory = article.categories.some(category =>
+        applicationCategories.some(appCat =>
+          category.toLowerCase().includes(appCat.toLowerCase())
+        )
+      );
+      if (hasApplicationCategory) {
+        score += 5000;
+
+        // Bonus for multiple application categories
+        const appCategoryCount = article.categories.filter(category =>
+          applicationCategories.some(appCat =>
+            category.toLowerCase().includes(appCat.toLowerCase())
+          )
+        ).length;
+        score += appCategoryCount * 500;
+      }
+
+      // Priority 3: Articles with proper tags
+      if (article.tags && article.tags.length > 0) {
+        score += 1000;
+
+        // Bonus for more tags (up to 5 tags)
+        score += Math.min(article.tags.length * 100, 500);
+
+        // Bonus for relevant tags
+        const relevantTags = article.tags.filter(tag =>
+          tag.length > 2 && !tag.includes(' ')
+        );
+        score += relevantTags.length * 50;
+      }
+
+      // Priority 4: Articles with proper title
+      if (article.title && article.title.trim().length > 10) {
         score += 500;
-      }
-      // Tertiary criteria: Articles from less frequent categories (lowest priority)
-      else {
-        score += 100;
-      }
 
-      // Bonus points for popularity metrics
-      if (article.views) {
-        score += Math.min(article.views * 0.1, 100); // Cap at 100 bonus points
-      }
-
-      // Bonus points for category popularity (higher for more popular categories)
-      article.categories.forEach((category) => {
-        const categoryIndex = sortedCategories.indexOf(category);
-        if (categoryIndex !== -1) {
-          // More popular categories get higher scores
-          score += Math.max(50 - categoryIndex * 2, 10);
+        // Bonus for descriptive titles (20-80 characters)
+        const titleLength = article.title.trim().length;
+        if (titleLength >= 20 && titleLength <= 80) {
+          score += 200;
         }
-      });
 
-      // Bonus for recent articles (recency factor)
+        // Bonus for titles with keywords
+        const titleKeywords = ['guide', 'tutorial', 'how to', 'best practices', 'tips'];
+        const hasKeywords = titleKeywords.some(keyword =>
+          article.title.toLowerCase().includes(keyword)
+        );
+        if (hasKeywords) {
+          score += 150;
+        }
+      }
+
+      // Priority 5: Content quality
+      if (article.content && article.content.trim().length > 100) {
+        score += 200;
+
+        // Bonus for substantial content (500+ characters)
+        if (article.content.trim().length >= 500) {
+          score += 100;
+        }
+
+        // Bonus for very detailed content (1000+ characters)
+        if (article.content.trim().length >= 1000) {
+          score += 100;
+        }
+      }
+
+      // Additional factors
+      // Bonus for recent articles
       if (article.publishedAt) {
-        const daysSincePublished =
-          (Date.now() - article.publishedAt.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSincePublished < 30) {
-          score += Math.max(20 - daysSincePublished * 0.5, 0);
+        const daysSincePublished = (Date.now() - article.publishedAt.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSincePublished < 7) {
+          score += 300; // Recent articles get priority
+        } else if (daysSincePublished < 30) {
+          score += 150;
         }
+      }
+
+      // Bonus for engagement metrics
+      if (article.views && article.views > 0) {
+        score += Math.min(article.views * 0.5, 200);
+      }
+
+      if (article.likes && article.likes > 0) {
+        score += Math.min(article.likes * 2, 100);
       }
 
       return score;
     };
 
-    // Sort articles by priority score and select top 6
+    // Sort articles by priority score and select top 12 for grid display
     return articles
       .map((article) => ({
         article,
         priority: calculatePriority(article),
       }))
       .sort((a, b) => b.priority - a.priority)
-      .slice(0, 6)
+      .slice(0, 12) // Increased to 12 for better grid display (4 rows of 3)
       .map(({ article }) => article);
   };
 
@@ -179,37 +221,7 @@ export const HomePage: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Filter articles based on search query
-  useEffect(() => {
-    if (homeData?.articles) {
-      if (searchQuery.trim()) {
-        const filtered = homeData.articles.filter(article =>
-          article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          article.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          article.categories.some(cat => cat.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          article.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-        setFilteredArticles(filtered);
-      } else {
-        setFilteredArticles(homeData.articles);
-      }
-    }
-  }, [homeData?.articles, searchQuery]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      if (isAuthenticated) {
-        navigate(`/dashboard?search=${encodeURIComponent(searchQuery.trim())}`);
-      } else {
-        navigate(
-          `/auth?redirect=dashboard&search=${encodeURIComponent(
-            searchQuery.trim()
-          )}`
-        );
-      }
-    }
-  };
 
   const handleDocumentClick = (articleId?: string) => {
     if (isAuthenticated) {
@@ -231,21 +243,7 @@ export const HomePage: React.FC = () => {
     }
   };
 
-  const nextSlide = () => {
-    if (!homeData) return;
-    setCurrentSlide(
-      (prev) => (prev + 1) % Math.ceil(homeData.featuredArticles.length / 3)
-    );
-  };
 
-  const prevSlide = () => {
-    if (!homeData) return;
-    setCurrentSlide(
-      (prev) =>
-        (prev - 1 + Math.ceil(homeData.featuredArticles.length / 3)) %
-        Math.ceil(homeData.featuredArticles.length / 3)
-    );
-  };
 
   // Show loading state while data is loading
   if (loading || authLoading) {
@@ -460,54 +458,39 @@ export const HomePage: React.FC = () => {
         />
       </div>
 
+      {/* Featured Articles Section with Grid Layout */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/50">
         <div className="max-w-7xl mx-auto">
-          
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Featured Articles
+            </h2>
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+              Discover our top-quality articles, prioritized by content quality,
+              categories, and community engagement
+            </p>
+          </div>
 
           {homeData.featuredArticles.length > 0 ? (
-            <div className="relative">
-              <div className="overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-fr">
+              {homeData.featuredArticles.map((article, index) => (
                 <div
-                  className="flex transition-transform duration-500 ease-in-out"
-                  style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+                  key={article.id}
+                  className={`
+                    ${index % 3 === 0 ? 'md:col-start-1' : ''}
+                    ${index % 3 === 1 ? 'md:col-start-2' : ''}
+                    ${index % 3 === 2 ? 'md:col-start-3' : ''}
+                    cursor-pointer transition-transform hover:scale-105
+                  `}
+                  onClick={() => handleDocumentClick(article.id)}
                 >
-                  {Array.from({
-                    length: Math.ceil(homeData.featuredArticles.length / 3),
-                  }).map((_, slideIndex) => (
-                    <div key={slideIndex} className="w-full flex-shrink-0">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {homeData.featuredArticles
-                          .slice(slideIndex * 3, (slideIndex + 1) * 3)
-                          .map((article) => (
-                            <ArticleCard
-                              key={article.id}
-                              article={article}
-                              variant="featured"
-                              showActions={true}
-                              onClick={() => handleDocumentClick(article.id)}
-                            />
-                          ))}
-                      </div>
-                    </div>
-                  ))}
+                  <ArticleCard
+                    article={article}
+                    variant="featured"
+                    showActions={true}
+                  />
                 </div>
-              </div>
-              {homeData.featuredArticles.length > 3 && (
-                <>
-                  <button
-                    onClick={prevSlide}
-                    className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-4 bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-white transition-all"
-                  >
-                    <ChevronLeft className="h-6 w-6 text-gray-600" />
-                  </button>
-                  <button
-                    onClick={nextSlide}
-                    className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-4 bg-white/80 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-white transition-all"
-                  >
-                    <ChevronRight className="h-6 w-6 text-gray-600" />
-                  </button>
-                </>
-              )}
+              ))}
             </div>
           ) : (
             <div className="text-center py-12">
@@ -515,6 +498,25 @@ export const HomePage: React.FC = () => {
               <p className="text-gray-500">
                 No featured articles available yet.
               </p>
+            </div>
+          )}
+
+          {/* Show More Button if there are more articles */}
+          {homeData.articles.length > homeData.featuredArticles.length && (
+            <div className="text-center mt-12">
+              <button
+                onClick={() => {
+                  if (isAuthenticated) {
+                    navigate('/dashboard');
+                  } else {
+                    navigate('/auth?redirect=dashboard');
+                  }
+                }}
+                className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                <span>View All Articles</span>
+                <ArrowRight className="h-5 w-5" />
+              </button>
             </div>
           )}
         </div>
