@@ -324,7 +324,7 @@ export const AdminDashboard: React.FC = () => {
               </Link>
 
               <Link
-                to="/personal-dashboard"
+                to="/my-articles"
                 className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
               >
                 <div className="bg-purple-100 p-2 rounded-lg group-hover:bg-purple-200 transition-colors">
@@ -332,7 +332,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">
-                    Personal Dashboard
+                    My Articles
                   </p>
                   <p className="text-sm text-gray-600">
                     Create and manage your own articles
