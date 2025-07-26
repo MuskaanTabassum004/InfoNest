@@ -1,27 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
-  Calendar,
-  User,
   Tag,
   Folder,
   Clock,
-  Eye,
   Edit,
   FileText,
   Trash2,
   AlertTriangle,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { SaveArticleButton } from "./SaveArticleButton";
-import { ShareButton } from "./ShareButton";
 import { LikeButton } from "./LikeButton";
-
-import { UserProfile } from "../lib/auth";
 import { useAuth } from "../hooks/useAuth";
 import { useUserProfile } from "../contexts/ProfileContext";
 import { Article, deleteArticleByRole } from "../lib/articles";
 import { toast } from "react-hot-toast";
+import { onSnapshot, doc } from "firebase/firestore";
+import { firestore } from "../lib/firebase";
 
 interface ArticleCardProps {
   article: Article;
@@ -33,7 +29,7 @@ interface ArticleCardProps {
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({
-  article,
+  article: initialArticle,
   showStatus = false,
   showActions = true,
   showEditButton = false,
@@ -41,12 +37,32 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   className = "",
 }) => {
   const { userProfile, canEditArticle, canDeleteArticle } = useAuth();
-  const authorProfile = useUserProfile(article.authorId);
+  const authorProfile = useUserProfile(initialArticle.authorId);
   const [profilePicError, setProfilePicError] = useState(false);
-
+  const [article, setArticle] = useState(initialArticle);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Real-time article updates
+  useEffect(() => {
+    const articleRef = doc(firestore, "articles", initialArticle.id);
+    const unsubscribe = onSnapshot(articleRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        const updatedArticle = {
+          ...data,
+          id: doc.id,
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+          publishedAt: data.publishedAt?.toDate(),
+        } as Article;
+        setArticle(updatedArticle);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [initialArticle.id]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -127,13 +143,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
   return (
     <div
-      className={`bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 hover:border-blue-200 transition-all duration-200 hover:shadow-lg group ${getVariantClasses()} ${className}`}
+      className={`bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 hover:border-blue-200 transition-all duration-200 hover:shadow-lg group flex flex-col h-full ${getVariantClasses()} ${className}`}
     >
-      <Link to={`/article/${article.id}`} className="flex-1">
-      {/* Cover Image */}
+      <Link to={`/article/${article.id}`} className="flex-1 flex flex-col">
+      {/* Cover Image - Only show if exists */}
       {article.coverImage && (
         <div
-          className={`bg-gray-100 rounded-lg mb-4 overflow-hidden ${getImageClasses()}`}
+          className={`bg-gray-100 rounded-lg mb-4 overflow-hidden ${getImageClasses()} flex-shrink-0`}
         >
           <img
             src={article.coverImage}
@@ -147,25 +163,23 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         </div>
       )}
 
-      {/* Title and Status */}
-      <div className="flex items-start justify-between mb-3">
-        
-          <h3
-            className={`font-semibold text-gray-900 group-hover:text-blue-700 transition-colors line-clamp-2 ${
-              variant === "featured"
-                ? "text-xl"
-                : variant === "compact"
-                ? "text-base"
-                : "text-lg"
-            }`}
-          >
-            {article.title}
-          </h3>
-        
+      {/* Title and Status - Fixed Height */}
+      <div className="flex items-start justify-between mb-3 min-h-[3rem]">
+        <h3
+          className={`font-semibold text-gray-900 group-hover:text-blue-700 transition-colors line-clamp-2 ${
+            variant === "featured"
+              ? "text-xl"
+              : variant === "compact"
+              ? "text-base"
+              : "text-lg"
+          }`}
+        >
+          {article.title}
+        </h3>
 
         {showStatus && (
           <span
-            className={`ml-2 px-2 py-1 text-xs rounded-full font-medium ${getStatusColor(
+            className={`ml-2 px-2 py-1 text-xs rounded-full font-medium flex-shrink-0 ${getStatusColor(
               article.status
             )}`}
           >
@@ -174,8 +188,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         )}
       </div>
 
-      {/* Author Information */}
-      <div className="flex items-center space-x-3 mb-3">
+      {/* Author Information - Fixed Height */}
+      <div className="flex items-center space-x-3 mb-3 min-h-[2.5rem]">
         <Link
           to={`/author/${article.authorId}`}
           className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg p-1 -m-1 transition-colors group"
@@ -213,54 +227,61 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         </Link>
       </div>
 
-      {/* Content Preview */}
+      {/* Content Preview - Flexible Height based on image presence */}
       <p
-        className={`text-gray-600 mb-4 line-clamp-3 ${
+        className={`text-gray-600 mb-4 flex-grow ${
           variant === "compact" ? "text-sm" : "text-sm"
-        }`}
+        } ${article.coverImage ? 'line-clamp-3' : 'line-clamp-6'}`}
+        style={{
+          minHeight: article.coverImage ? '3.75rem' : '7.5rem'
+        }}
       >
         {article.excerpt || "No excerpt available"}
       </p>
 
-      {/* published Date */}
+      {/* Updated Date */}
       <div className="flex items-center text-xs text-gray-500 mb-3">
         <Clock className="h-3 w-3 mr-1" />
-        <span>Published {formatDistanceToNow(article.updatedAt)} ago</span>
+        <span>Updated: {format(article.updatedAt, 'dd/MM/yyyy')}</span>
       </div>
 
-      {/* Category */}
-      {article.categories.length > 0 && (
-        <div className="flex items-center mb-3">
-          <Folder className="h-3 w-3 text-gray-400 mr-1" />
-          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-            {article.categories[0]}
-          </span>
-        </div>
-      )}
+      {/* Category - Fixed Height */}
+      <div className="mb-3 min-h-[1.5rem] flex items-center">
+        {article.categories.length > 0 && (
+          <>
+            <Folder className="h-3 w-3 text-gray-400 mr-1" />
+            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+              {article.categories[0]}
+            </span>
+          </>
+        )}
+      </div>
 
-      {/* Tags */}
-      {article.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-4">
-          {article.tags.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full flex items-center"
-            >
-              <Tag className="h-2 w-2 mr-1" />
-              {tag}
-            </span>
-          ))}
-          {article.tags.length > 3 && (
-            <span className="text-xs text-gray-500">
-              +{article.tags.length - 3} more
-            </span>
-          )}
-        </div>
-      )}
+      {/* Tags - Fixed Height */}
+      <div className="mb-4 min-h-[2rem] flex items-start">
+        {article.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {article.tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full flex items-center"
+              >
+                <Tag className="h-2 w-2 mr-1" />
+                {tag}
+              </span>
+            ))}
+            {article.tags.length > 3 && (
+              <span className="text-xs text-gray-500">
+                +{article.tags.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
+      </div>
         </Link>
 
-      {/* Actions */}
-      <div className="flex items-center justify-between">
+      {/* Actions - Fixed at bottom */}
+      <div className="flex items-center justify-between mt-auto pt-2">
         <div className="flex items-center space-x-2">
           {showActions && (
             <React.Fragment key="article-actions">
