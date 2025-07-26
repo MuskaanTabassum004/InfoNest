@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Search, X, Clock, Tag } from "lucide-react";
-import { getPublishedArticles, Article } from "../lib/articles";
+import { Article } from "../lib/articles";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
 import Fuse from "fuse.js";
 import { stripHtmlTags, createFuseQuery, highlightSearchTerms } from "../utils/searchUtils";
+import { onSnapshot, collection, query, where } from "firebase/firestore";
+import { firestore } from "../lib/firebase";
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -41,13 +43,34 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Load articles and recent searches on mount
+  // Load articles and recent searches on mount with real-time updates
   useEffect(() => {
-    const loadData = async () => {
+    if (!isOpen) return;
+
+    // Set up real-time listener for published articles
+    const articlesQuery = query(
+      collection(firestore, "articles"),
+      where("status", "==", "published")
+    );
+
+    const unsubscribe = onSnapshot(articlesQuery, (snapshot) => {
       try {
-        const publishedArticles = await getPublishedArticles();
+        const publishedArticles: Article[] = [];
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const article = {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate(),
+            publishedAt: data.publishedAt?.toDate(),
+          } as Article;
+          publishedArticles.push(article);
+        });
+
         setArticles(publishedArticles);
-        
+
         // Initialize Fuse.js with fuzzy search configuration
         const fuseInstance = new Fuse(publishedArticles, {
           keys: [
@@ -55,13 +78,13 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             { name: 'categories', weight: 0.3 },
             { name: 'tags', weight: 0.2 },
             { name: 'authorName', weight: 0.15 },
-            { 
-              name: 'excerpt', 
+            {
+              name: 'excerpt',
               weight: 0.1,
               getFn: (article) => stripHtmlTags(article.excerpt || '')
             },
-            { 
-              name: 'content', 
+            {
+              name: 'content',
               weight: 0.05,
               getFn: (article) => stripHtmlTags(article.content || '')
             }
@@ -74,17 +97,16 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           useExtendedSearch: true,
           shouldSort: true
         });
-        
+
         setFuse(fuseInstance);
       } catch (error) {
         console.error("Error loading articles:", error);
       }
-    };
+    });
 
-    if (isOpen) {
-      loadData();
-      loadRecentSearches();
-    }
+    loadRecentSearches();
+
+    return () => unsubscribe();
   }, [isOpen]);
 
   // Global search shortcut listener
