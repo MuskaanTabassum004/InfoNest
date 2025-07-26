@@ -115,6 +115,7 @@ class AuthCacheManager {
             "/admin/active-writers",
             "/admin/removed-writers",
             "/admin/system",
+            "/personal-dashboard",
             "/article/new",
             "/article/edit/:id",
             "/article/:id", // Allow viewing articles
@@ -295,42 +296,31 @@ export const signUp = async (
     // Create Firebase Auth user but DO NOT create Firestore profile yet
     const result = await createUserWithEmailAndPassword(auth, email, password);
 
-    // Update Firebase Auth profile with display name
+    // Store display name in Firebase Auth profile for later use
     if (displayName) {
       await updateProfile(result.user, { displayName });
     }
 
-    // Send email verification immediately
+    // Send email verification immediately with proper action URL
     await sendEmailVerification(result.user, {
       url: `${window.location.origin}/verify-email`,
-      handleCodeInApp: true,
+      handleCodeInApp: false, // Use email link, not in-app handling
     });
 
-    // Keep user signed in but they won't have Firestore profile until verified
-    console.log("✅ User created successfully, verification email sent");
+    // Keep user signed in for verification process
+    // Database profile will NOT be created until email is verified
 
     // Return user info for verification page display
     return { user: result.user, email, displayName };
   } catch (error: any) {
     console.error("Signup error:", error);
 
-    // Handle email already in use error
-    if (error.code === 'auth/email-already-in-use') {
-      // Check if user exists but is unverified
+    // If user creation failed, ensure no partial state exists
+    if (auth.currentUser) {
       try {
-        const signInResult = await signInWithEmailAndPassword(auth, email, password);
-        if (!signInResult.user.emailVerified) {
-          // Resend verification email
-          await sendEmailVerification(signInResult.user, {
-            url: `${window.location.origin}/verify-email`,
-            handleCodeInApp: true,
-          });
-          return { user: signInResult.user, email, displayName };
-        } else {
-          throw new Error("An account with this email already exists and is verified. Please sign in instead.");
-        }
-      } catch (signInError) {
-        throw new Error("An account with this email already exists. Please sign in instead.");
+        await auth.currentUser.delete();
+      } catch (deleteError) {
+        console.error("Failed to cleanup failed user creation:", deleteError);
       }
     }
 
@@ -338,27 +328,26 @@ export const signUp = async (
   }
 };
 
-// Update user profile verification status after email verification
-export const updateUserProfileAfterVerification = async (
+// Create user profile in Firestore ONLY after email verification
+export const createUserProfileAfterVerification = async (
   firebaseUser: User
 ) => {
-  // Only create/update profile for verified users
+  // STRICT: Only create profile for verified users - NO EXCEPTIONS
   if (!firebaseUser.emailVerified) {
+    // Force sign out unverified users
+    try {
+      await firebaseSignOut(auth);
+    } catch (signOutError) {
+      console.error("Failed to sign out unverified user:", signOutError);
+    }
     return;
   }
 
-  // Check if profile exists, if not create it (this is the first time after verification)
+  // Check if profile already exists
   const profileRef = doc(firestore, "users", firebaseUser.uid);
   const profileSnap = await getDoc(profileRef);
 
-  if (profileSnap.exists()) {
-    // Update existing profile with verification status (shouldn't happen in new flow)
-    await updateDoc(profileRef, {
-      emailVerified: true,
-      updatedAt: new Date(),
-    });
-  } else {
-    // Create profile for the first time after email verification
+  if (!profileSnap.exists()) {
     const userProfile: UserProfile = {
       uid: firebaseUser.uid,
       email: firebaseUser.email!,
@@ -376,18 +365,22 @@ export const updateUserProfileAfterVerification = async (
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    
-    console.log("✅ User profile created after email verification");
+  } else {
+    // Profile already exists
   }
 };
 
 export const signIn = async (email: string, password: string) => {
   const result = await signInWithEmailAndPassword(auth, email, password);
 
-  // Allow sign in but redirect unverified users to verification page
+  // STRICT: Check if email is verified before allowing sign in
   if (!result.user.emailVerified) {
-    // Don't sign out, just let the app handle the redirect
-    console.log("User signed in but not verified, will redirect to verification page");
+    // Sign out the unverified user immediately
+    await firebaseSignOut(auth);
+
+    throw new Error(
+      "Please verify your email address before signing in. Check your inbox for the verification link."
+    );
   }
 
   return result;
@@ -647,47 +640,24 @@ export const signInWithGoogle = async () => {
   return result;
 };
 
-// Handle email verification from link
-export const handleEmailVerification = async (
-  actionCode: string
-): Promise<boolean> => {
+
+
+// Function to clean up unverified users (can be called periodically)
+export const cleanupUnverifiedUser = async (userEmail: string) => {
   try {
-    // Verify the action code
-    await applyActionCode(auth, actionCode);
+    // This would typically be handled by Firebase Admin SDK on the backend
+    // For now, we'll just log the cleanup attempt
+    console.log(`Cleanup requested for unverified user: ${userEmail}`);
 
-    // Force refresh the current user to get updated emailVerified status
-    if (auth.currentUser) {
-      await auth.currentUser.reload();
+    // In a production app, you'd want to:
+    // 1. Use Firebase Admin SDK to delete unverified users after X days
+    // 2. Set up a Cloud Function to run this cleanup periodically
+    // 3. Or handle it through Firebase Auth triggers
 
-      // Update user profile verification status
-      if (auth.currentUser.emailVerified) {
-        await updateUserProfileAfterVerification(auth.currentUser);
-        return true;
-      } else {
-        return false;
-      }
-    } else {
-      return false;
-    }
+    return true;
   } catch (error) {
-    console.error("Email verification failed:", error);
-
-    // Provide more specific error messages
-    if (error.code === "auth/invalid-action-code") {
-      throw new Error(
-        "This verification link has expired or has already been used. Please request a new verification email."
-      );
-    } else if (error.code === "auth/user-disabled") {
-      throw new Error(
-        "This account has been disabled. Please contact support."
-      );
-    } else if (error.code === "auth/user-not-found") {
-      throw new Error(
-        "No account found for this verification link. Please sign up again."
-      );
-    }
-
-    throw error;
+    console.error("Error cleaning up unverified user:", error);
+    return false;
   }
 };
 
