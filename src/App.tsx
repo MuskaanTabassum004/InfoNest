@@ -26,7 +26,6 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { AuthorProfilePage } from "./pages/AuthorProfilePage";
 import { ActiveWritersPage } from "./pages/ActiveWritersPage";
 import { RemovedWritersPage } from "./pages/RemovedWritersPage";
-import { PersonalDashboard } from "./pages/PersonalDashboard";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { GlobalUploadNotifications } from "./components/GlobalUploadNotifications";
 import {
@@ -218,14 +217,6 @@ function AppContent({
             />
 
             {/* Admin only routes */}
-            <Route
-              path="personal-dashboard"
-              element={
-                <AdminRoute>
-                  <PersonalDashboard />
-                </AdminRoute>
-              }
-            />
             <Route
               path="admin"
               element={
