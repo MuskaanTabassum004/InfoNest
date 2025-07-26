@@ -61,16 +61,23 @@ export const AuthForm: React.FC = () => {
           formData.password,
           formData.displayName
         );
-        toast.success(
-          "Account created! Please check your email and verify your address from any device."
-        );
-        // Navigate to email verification page with user data
-        navigate("/email-verify", {
-          state: {
-            email: formData.email,
-            displayName: formData.displayName,
-          },
-        });
+        
+        // Check if user is already verified (Google sign-in case)
+        if (auth.currentUser?.emailVerified) {
+          toast.success("Account created and verified!");
+          navigate("/dashboard");
+        } else {
+          toast.success(
+            "Account created! Please check your email and verify your address."
+          );
+          // Navigate to email verification page with user data
+          navigate("/email-verify", {
+            state: {
+              email: formData.email,
+              displayName: formData.displayName,
+            },
+          });
+        }
       }
     } catch (error: any) {
       console.error("Authentication error:", error);

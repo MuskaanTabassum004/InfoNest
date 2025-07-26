@@ -80,7 +80,7 @@ export const useAuth = () => {
 
   const loadUserProfile = useCallback(
     async (firebaseUser: User): Promise<void> => {
-      if (!firebaseUser.emailVerified) return;
+      // Load profile for all authenticated users, regardless of verification status
 
       setProfileLoading(true);
 
@@ -149,23 +149,8 @@ export const useAuth = () => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
-        // STRICT VERIFICATION CHECK: Only process verified users
-        if (firebaseUser.emailVerified) {
-          await createUserProfileAfterVerification(firebaseUser);
-          await loadUserProfile(firebaseUser);
-        } else {
-          // CRITICAL: Sign out unverified users immediately
-          try {
-            await firebaseSignOut(auth);
-          } catch (signOutError) {
-            console.error("Failed to sign out unverified user");
-          }
-
-          // Clear all user data for unverified users
-          setUserProfile(null);
-          setPermissions(null);
-          authCache.clearAllSessions();
-        }
+        // Load profile for all authenticated users
+        await loadUserProfile(firebaseUser);
       } else {
         setUser(null);
         setUserProfile(null);
@@ -193,7 +178,7 @@ export const useAuth = () => {
 
   // Real-time profile updates - always call useEffect but conditionally set up listener
   useEffect(() => {
-    if (!user || !user.emailVerified) return;
+    if (!user) return;
 
     const profileRef = doc(firestore, "users", user.uid);
     const unsubscribe = onSnapshot(profileRef, (doc) => {

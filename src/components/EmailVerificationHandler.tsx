@@ -34,7 +34,7 @@ export const EmailVerificationHandler: React.FC = () => {
           toast.success('Email verified! Welcome to InfoNest.');
           
           setTimeout(() => {
-            navigate('/auth', { replace: true });
+            navigate('/dashboard', { replace: true });
           }, 3000);
         } else {
           setStatus('error');
@@ -95,7 +95,7 @@ export const EmailVerificationHandler: React.FC = () => {
                 className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
               >
                 <Home className="h-4 w-4" />
-                <span>Go to Homepage</span>
+                <span>Go to Dashboard</span>
               </button>
             </>
           )}

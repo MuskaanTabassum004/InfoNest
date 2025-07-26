@@ -133,53 +133,84 @@ function AppContent({
             !isAuthenticated ? <AuthForm /> : <Navigate to="/" replace />
           }
         />
-        <Route path="/email-verify" element={<EmailVerificationPage />} />
+        <Route 
+          path="/email-verify" 
+          element={
+            isAuthenticated && !emailVerified ? (
+              <EmailVerificationPage />
+            ) : isAuthenticated && emailVerified ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          } 
+        />
 
         {/* Author Profile - Public route (viewable by anyone) */}
         <Route path="/author/:authorId" element={<AuthorProfilePage />} />
 
         {/* Protected Routes */}
-        {isAuthenticated && emailVerified ? (
+        {isAuthenticated ? (
           <Route path="/*" element={<Layout />}>
             {/* Routes accessible to all authenticated users */}
             <Route
               path="dashboard"
               element={
-                <UserRoute>
-                  <Dashboard />
-                </UserRoute>
+                emailVerified ? (
+                  <UserRoute>
+                    <Dashboard />
+                  </UserRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="article/:id"
               element={
-                <UserRoute>
-                  <ArticleView />
-                </UserRoute>
+                emailVerified ? (
+                  <UserRoute>
+                    <ArticleView />
+                  </UserRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="writer-request"
               element={
-                <UserRoute>
-                  <WriterRequestPage />
-                </UserRoute>
+                emailVerified ? (
+                  <UserRoute>
+                    <WriterRequestPage />
+                  </UserRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="saved-articles"
               element={
-                <UserRoute>
-                  <SavedArticles />
-                </UserRoute>
+                emailVerified ? (
+                  <UserRoute>
+                    <SavedArticles />
+                  </UserRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="profile"
               element={
-                <UserRoute>
-                  <ProfilePage />
-                </UserRoute>
+                emailVerified ? (
+                  <UserRoute>
+                    <ProfilePage />
+                  </UserRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             
@@ -189,33 +220,49 @@ function AppContent({
             <Route
               path="search"
               element={
-                <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
-                  <SearchPage />
-                </ProtectedRoute>
+                emailVerified ? (
+                  <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
+                    <SearchPage />
+                  </ProtectedRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="article/new"
               element={
-                <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
-                  <ArticleEditor />
-                </ProtectedRoute>
+                emailVerified ? (
+                  <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
+                    <ArticleEditor />
+                  </ProtectedRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="article/edit/:id"
               element={
-                <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
-                  <ArticleEditor />
-                </ProtectedRoute>
+                emailVerified ? (
+                  <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
+                    <ArticleEditor />
+                  </ProtectedRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="my-articles"
               element={
-                <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
-                  <MyArticles />
-                </ProtectedRoute>
+                emailVerified ? (
+                  <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
+                    <MyArticles />
+                  </ProtectedRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
 
@@ -223,41 +270,61 @@ function AppContent({
             <Route
               path="admin"
               element={
-                <AdminRoute>
-                  <AdminPanel />
-                </AdminRoute>
+                emailVerified ? (
+                  <AdminRoute>
+                    <AdminPanel />
+                  </AdminRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="admin/writer-requests"
               element={
-                <AdminRoute>
-                  <WriterRequestPage />
-                </AdminRoute>
+                emailVerified ? (
+                  <AdminRoute>
+                    <WriterRequestPage />
+                  </AdminRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="admin/active-writers"
               element={
-                <AdminRoute>
-                  <ActiveWritersPage />
-                </AdminRoute>
+                emailVerified ? (
+                  <AdminRoute>
+                    <ActiveWritersPage />
+                  </AdminRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
             <Route
               path="admin/removed-writers"
               element={
-                <AdminRoute>
-                  <RemovedWritersPage />
-                </AdminRoute>
+                emailVerified ? (
+                  <AdminRoute>
+                    <RemovedWritersPage />
+                  </AdminRoute>
+                ) : (
+                  <Navigate to="/email-verify" replace />
+                )
               }
             />
           
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={
+              emailVerified ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Navigate to="/email-verify" replace />
+              )
+            } />
           </Route>
-        ) : isAuthenticated && !emailVerified ? (
-          <Route path="*" element={<Navigate to="/email-verify" replace />} />
         ) : (
           <Route path="*" element={<Navigate to="/auth" replace />} />
         )}

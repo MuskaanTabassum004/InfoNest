@@ -27,8 +27,14 @@ export const EmailVerificationPage: React.FC = () => {
       setVerificationEmail(state.email);
       setVerificationDisplayName(state.displayName || "");
     } else {
-      // If no email in state, redirect to auth page
-      navigate("/auth");
+      // If no email in state but user is authenticated, use their email
+      if (auth.currentUser) {
+        setVerificationEmail(auth.currentUser.email || "");
+        setVerificationDisplayName(auth.currentUser.displayName || "");
+      } else {
+        // If no email and no user, redirect to auth page
+        navigate("/auth");
+      }
     }
   }, [location.state, navigate]);
 
@@ -85,7 +91,7 @@ export const EmailVerificationPage: React.FC = () => {
           toast.success("Email verified! Welcome to InfoNest.");
 
           // Navigate to homepage
-          navigate("/", {
+          navigate("/dashboard", {
             replace: true,
           });
         }
@@ -105,7 +111,7 @@ export const EmailVerificationPage: React.FC = () => {
             toast.success(
               "Email verified from another device! Welcome to InfoNest."
             );
-            navigate("/", { replace: true }); // Navigate to homepage after verification
+            navigate("/dashboard", { replace: true }); // Navigate to dashboard after verification
           }
         } catch (error) {
           console.error("Error checking verification status:", error);
@@ -200,11 +206,10 @@ export const EmailVerificationPage: React.FC = () => {
               )}
             </button>
 
-            {!currentUser && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-yellow-800 text-sm">
-                  ⚠️ You've been signed out. Please sign in again to resend the
-                  verification email.
+            {currentUser && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-blue-800 text-sm">
+                  ✅ You're signed in as {currentUser.email}. Click the verification link in your email to complete setup.
                 </p>
               </div>
             )}

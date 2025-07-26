@@ -292,13 +292,32 @@ export const signUp = async (
   displayName?: string
 ) => {
   try {
-    // Create Firebase Auth user but DO NOT create Firestore profile yet
+    // Create Firebase Auth user and Firestore profile immediately
     const result = await createUserWithEmailAndPassword(auth, email, password);
 
-    // Store display name in Firebase Auth profile for later use
+    // Update Firebase Auth profile with display name
     if (displayName) {
       await updateProfile(result.user, { displayName });
     }
+
+    // Create Firestore profile immediately (before verification)
+    const userProfile: UserProfile = {
+      uid: result.user.uid,
+      email: result.user.email!,
+      role: "user",
+      displayName: displayName || result.user.email?.split("@")[0] || "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      requestedWriterAccess: false,
+      emailVerified: false, // Will be updated when verified
+    };
+
+    const profileRef = doc(firestore, "users", result.user.uid);
+    await setDoc(profileRef, {
+      ...userProfile,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
     // Send email verification immediately
     await sendEmailVerification(result.user, {
@@ -306,20 +325,31 @@ export const signUp = async (
       handleCodeInApp: true,
     });
 
-    // CRITICAL: Sign out immediately to prevent authenticated state for unverified users
-    await firebaseSignOut(auth);
+    // Keep user signed in but mark as unverified
+    console.log("✅ User created successfully, verification email sent");
 
     // Return user info for verification page display
     return { user: result.user, email, displayName };
   } catch (error: any) {
     console.error("Signup error:", error);
 
-    // If user creation failed, ensure no partial state exists
-    if (auth.currentUser) {
+    // Handle email already in use error
+    if (error.code === 'auth/email-already-in-use') {
+      // Check if user exists but is unverified
       try {
-        await auth.currentUser.delete();
-      } catch (deleteError) {
-        console.error("Failed to cleanup failed user creation:", deleteError);
+        const signInResult = await signInWithEmailAndPassword(auth, email, password);
+        if (!signInResult.user.emailVerified) {
+          // Resend verification email
+          await sendEmailVerification(signInResult.user, {
+            url: `${window.location.origin}/verify-email`,
+            handleCodeInApp: true,
+          });
+          return { user: signInResult.user, email, displayName };
+        } else {
+          throw new Error("An account with this email already exists and is verified. Please sign in instead.");
+        }
+      } catch (signInError) {
+        throw new Error("An account with this email already exists. Please sign in instead.");
       }
     }
 
@@ -327,26 +357,27 @@ export const signUp = async (
   }
 };
 
-// Create user profile in Firestore ONLY after email verification
-export const createUserProfileAfterVerification = async (
+// Update user profile verification status after email verification
+export const updateUserProfileAfterVerification = async (
   firebaseUser: User
 ) => {
-  // STRICT: Only create profile for verified users - NO EXCEPTIONS
+  // Update verification status for verified users
   if (!firebaseUser.emailVerified) {
-    // Force sign out unverified users
-    try {
-      await firebaseSignOut(auth);
-    } catch (signOutError) {
-      console.error("Failed to sign out unverified user:", signOutError);
-    }
     return;
   }
 
-  // Check if profile already exists
+  // Update existing profile with verification status
   const profileRef = doc(firestore, "users", firebaseUser.uid);
   const profileSnap = await getDoc(profileRef);
 
-  if (!profileSnap.exists()) {
+  if (profileSnap.exists()) {
+    // Update existing profile with verification status
+    await updateDoc(profileRef, {
+      emailVerified: true,
+      updatedAt: new Date(),
+    });
+  } else {
+    // Create profile if it doesn't exist (fallback)
     const userProfile: UserProfile = {
       uid: firebaseUser.uid,
       email: firebaseUser.email!,
@@ -364,22 +395,16 @@ export const createUserProfileAfterVerification = async (
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-  } else {
-    // Profile already exists
   }
 };
 
 export const signIn = async (email: string, password: string) => {
   const result = await signInWithEmailAndPassword(auth, email, password);
 
-  // STRICT: Check if email is verified before allowing sign in
+  // Allow sign in but redirect unverified users to verification page
   if (!result.user.emailVerified) {
-    // Sign out the unverified user immediately
-    await firebaseSignOut(auth);
-
-    throw new Error(
-      "Please verify your email address before signing in. Check your inbox for the verification link."
-    );
+    // Don't sign out, just let the app handle the redirect
+    console.log("User signed in but not verified, will redirect to verification page");
   }
 
   return result;
@@ -651,9 +676,9 @@ export const handleEmailVerification = async (
     if (auth.currentUser) {
       await auth.currentUser.reload();
 
-      // Create user profile now that email is verified (if verified)
+      // Update user profile verification status
       if (auth.currentUser.emailVerified) {
-        await createUserProfileAfterVerification(auth.currentUser);
+        await updateUserProfileAfterVerification(auth.currentUser);
         return true;
       } else {
         return false;
