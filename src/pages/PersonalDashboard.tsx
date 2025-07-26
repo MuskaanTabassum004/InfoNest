@@ -23,7 +23,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { getPublishedArticles, Article } from "../lib/articles";
+import { Article } from "../lib/articles";
 import { formatDistanceToNow } from "date-fns";
 import {
   onSnapshot,
