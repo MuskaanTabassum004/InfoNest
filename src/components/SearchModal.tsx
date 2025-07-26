@@ -34,7 +34,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   onResultClick
 }) => {
   const { userProfile } = useAuth();
-  const [query, setQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState<Article[]>([]);
   const [loading, setLoading] = useState(false);
   const [articles, setArticles] = useState<Article[]>([]);
@@ -109,6 +109,13 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     return () => unsubscribe();
   }, [isOpen]);
 
+  // Load recent searches when user profile changes
+  useEffect(() => {
+    if (userProfile) {
+      loadRecentSearches();
+    }
+  }, [userProfile]);
+
   // Global search shortcut listener
   useEffect(() => {
     const handleGlobalSearch = () => {
@@ -139,6 +146,9 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
+      } else if (e.key === "Enter" && searchQuery.trim()) {
+        // Save search when Enter is pressed
+        saveRecentSearch(searchQuery);
       }
     };
 
@@ -159,7 +169,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       document.removeEventListener("mousedown", handleClickOutside);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, searchQuery]);
 
   // Debounced search function
   const debouncedSearch = useCallback(
@@ -199,17 +209,28 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setQuery(value);
+    setSearchQuery(value);
     debouncedSearch(value);
   };
 
   // Load recent searches from localStorage
   const loadRecentSearches = () => {
     try {
-      const stored = localStorage.getItem(`recent_searches_${userProfile?.uid || 'anonymous'}`);
+      const userId = userProfile?.uid || 'anonymous';
+      const stored = localStorage.getItem(`recent_searches_${userId}`);
       if (stored) {
         const searches: RecentSearch[] = JSON.parse(stored);
-        setRecentSearches(searches.slice(0, 4));
+        // Filter out old searches (older than 30 days) and keep only 5 most recent
+        const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+        const validSearches = searches
+          .filter(search => search.timestamp > thirtyDaysAgo)
+          .slice(0, 5);
+        setRecentSearches(validSearches);
+
+        // Update localStorage with cleaned data
+        if (validSearches.length !== searches.length) {
+          localStorage.setItem(`recent_searches_${userId}`, JSON.stringify(validSearches));
+        }
       }
     } catch (error) {
       console.error("Error loading recent searches:", error);
@@ -217,26 +238,26 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   };
 
   // Save search to recent searches
-  const saveRecentSearch = (searchQuery: string) => {
-    if (!searchQuery.trim()) return;
+  const saveRecentSearch = (searchTerm: string) => {
+    if (!searchTerm.trim()) return;
 
     try {
       const userId = userProfile?.uid || 'anonymous';
       const stored = localStorage.getItem(`recent_searches_${userId}`);
       let searches: RecentSearch[] = stored ? JSON.parse(stored) : [];
-      
-      // Remove existing search if it exists
-      searches = searches.filter(s => s.query !== searchQuery);
-      
+
+      // Remove existing search if it exists (case-insensitive)
+      searches = searches.filter(s => s.query.toLowerCase() !== searchTerm.toLowerCase());
+
       // Add new search at the beginning
       searches.unshift({
-        query: searchQuery,
+        query: searchTerm,
         timestamp: Date.now()
       });
-      
-      // Keep only last 4 searches
-      searches = searches.slice(0, 4);
-      
+
+      // Keep only last 5 searches
+      searches = searches.slice(0, 5);
+
       localStorage.setItem(`recent_searches_${userId}`, JSON.stringify(searches));
       setRecentSearches(searches);
     } catch (error) {
@@ -246,26 +267,26 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
   // Handle result click
   const handleResultClick = (article: Article) => {
-    saveRecentSearch(query);
+    saveRecentSearch(searchQuery);
     onResultClick?.();
     onClose();
   };
 
   // Handle recent search click
-  const handleRecentSearchClick = (searchQuery: string) => {
-    setQuery(searchQuery);
-    debouncedSearch(searchQuery);
+  const handleRecentSearchClick = (searchTerm: string) => {
+    setSearchQuery(searchTerm);
+    debouncedSearch(searchTerm);
   };
 
   // Handle tag click
   const handleTagClick = (tag: string) => {
-    setQuery(tag);
+    setSearchQuery(tag);
     debouncedSearch(tag);
   };
 
   // Clear search
   const clearSearch = () => {
-    setQuery("");
+    setSearchQuery("");
     setResults([]);
   };
 
@@ -293,12 +314,12 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             <input
               ref={searchInputRef}
               type="text"
-              value={query}
+              value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Search articles, authors, categories..."
               className="w-full pl-12 pr-12 py-4 text-lg border-none outline-none bg-gray-50 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all"
             />
-            {query && (
+            {searchQuery && (
               <button
                 onClick={clearSearch}
                 className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
@@ -317,7 +338,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
         {/* Content */}
         <div className="max-h-96 overflow-y-auto">
-          {!query && (
+          {!searchQuery && (
             <div className="p-6 space-y-6">
               {/* Recent Searches */}
               {recentSearches.length > 0 && (
@@ -367,7 +388,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           )}
 
           {/* Search Results */}
-          {query && (
+          {searchQuery && (
             <div className="p-6">
               {loading ? (
                 <div className="flex items-center justify-center py-8">
