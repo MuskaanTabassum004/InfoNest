@@ -66,6 +66,11 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         });
       }
     }, (error) => {
+      // Silently handle permission errors - user might not have access to this profile
+      if (error.code === 'permission-denied') {
+        // Don't log permission errors as they're expected for some profiles
+        return;
+      }
       console.error(`Error subscribing to profile ${uid}:`, error);
     });
 
