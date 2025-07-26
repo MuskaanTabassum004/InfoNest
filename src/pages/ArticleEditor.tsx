@@ -1108,7 +1108,7 @@ export const ArticleEditor: React.FC = () => {
           {/* Back to Dashboard Button */}
           <button
             onClick={() =>
-              handleNavigation(isAdmin ? "/personal-dashboard" : "/dashboard")
+              handleNavigation(isAdmin ? "/dashboard" : "/dashboard")
             }
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             title="Back to Dashboard"
