@@ -492,89 +492,14 @@ export const WriterRequestPage: React.FC = () => {
           </div>
         </div>
 
-        {/* New Application Form */}
-        {!isAdmin &&
-          (!currentUserRequest || currentUserRequest.status !== "pending") && (
-            <div className="mb-8">
-              <WriterRequestForm onClose={() => navigate("/dashboard")} />
-            </div>
-          )}
-
-        {/* Current User Request Status */}
-        {!isAdmin && currentUserRequest && userProfile?.role !== 'infowriter' && (
+        {/* Application Form - Only show for non-admin users */}
+        {!isAdmin && (
           <div className="mb-8">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Your Request Status
-                </h2>
-                <div
-                  className={`flex items-center space-x-2 px-3 py-1 rounded-full border ${getStatusColor(
-                    currentUserRequest.status
-                  )}`}
-                >
-                  {getStatusIcon(currentUserRequest.status)}
-                  <span className="text-sm font-medium capitalize">
-                    {currentUserRequest.status}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>
-                    Submitted{" "}
-                    {formatDistanceToNow(currentUserRequest.requestedAt)} ago
-                  </span>
-                </div>
-
-                {currentUserRequest.processedAt && (
-                  <div className="flex items-center space-x-2">
-                    <Clock className="h-4 w-4" />
-                    <span>
-                      Processed{" "}
-                      {formatDistanceToNow(currentUserRequest.processedAt)} ago
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex items-center space-x-2">
-                  <Tag className="h-4 w-4" />
-                  <span>
-                    Source:{" "}
-                    {currentUserRequest.source === "new"
-                      ? "New System"
-                      : "Legacy System"}
-                  </span>
-                </div>
-
-                {currentUserRequest.requestId && (
-                  <div className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4" />
-                    <span>ID: {currentUserRequest.requestId}</span>
-                  </div>
-                )}
-              </div>
-
-              {currentUserRequest.adminNote && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start space-x-2">
-                    <MessageSquare className="h-4 w-4 text-blue-600 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-blue-900">
-                        Admin Note
-                      </p>
-                      <p className="text-sm text-blue-800 mt-1">
-                        {currentUserRequest.adminNote}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <WriterRequestForm onClose={() => navigate("/dashboard")} />
           </div>
         )}
+
+
 
         {/* Admin Panel */}
         {isAdmin && (
