@@ -10,6 +10,8 @@ import {
   updateDoc,
   addDoc,
   serverTimestamp,
+  getDocs,
+  deleteDoc,
 } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 import {
@@ -48,6 +50,8 @@ export const ActiveWritersPage: React.FC = () => {
   const [selectedWriter, setSelectedWriter] = useState<ActiveWriter | null>(
     null
   );
+  const [adminNote, setAdminNote] = useState<string>("");
+  const [showRemoveDialog, setShowRemoveDialog] = useState<ActiveWriter | null>(null);
 
   useEffect(() => {
     if (!userProfile || !isAdmin) return;
@@ -125,14 +129,42 @@ export const ActiveWritersPage: React.FC = () => {
     };
   }, [userProfile, isAdmin]);
 
-  const handleRemovePrivileges = async (writer: ActiveWriter) => {
-    if (!userProfile) return;
+  const handleRemovePrivileges = async (writer: ActiveWriter, adminNote: string) => {
+    if (!userProfile) {
+      toast.error("You must be logged in to perform this action");
+      return;
+    }
+
+    if (!adminNote.trim()) {
+      toast.error("Please provide a reason for removing writer privileges");
+      return;
+    }
 
     setProcessingId(writer.id);
+    let deletedArticlesCount = 0;
+
     try {
+      // First, delete all articles by this writer
+      const articlesQuery = query(
+        collection(firestore, "articles"),
+        where("authorId", "==", writer.uid)
+      );
+
+      const articlesSnapshot = await getDocs(articlesQuery);
+      deletedArticlesCount = articlesSnapshot.docs.length;
+
+      if (deletedArticlesCount > 0) {
+        const deletePromises = articlesSnapshot.docs.map((articleDoc) =>
+          deleteDoc(articleDoc.ref)
+        );
+
+        // Wait for all articles to be deleted
+        await Promise.all(deletePromises);
+      }
+
       const userRef = doc(firestore, "users", writer.id);
 
-      // Store previous role for tracking
+      // Store previous role for tracking and admin note
       const previousRoles = [writer.uid]; // Track that they were an infowriter
 
       // Update user role back to regular user
@@ -141,25 +173,34 @@ export const ActiveWritersPage: React.FC = () => {
         previousRoles: previousRoles,
         privilegesRemovedAt: serverTimestamp(),
         privilegesRemovedBy: userProfile.uid,
+        adminNote: adminNote.trim(),
+        articleCountAtRemoval: writer.articleCount, // Store the count for removed writers page
       });
 
-      // Create notification for the user
+      // Create notification for the user with admin note
+      const notificationMessage = `Your InfoWriter privileges have been removed by an administrator. Reason: ${adminNote.trim()}. ${deletedArticlesCount > 0 ? `All ${deletedArticlesCount} of your articles have been removed.` : 'You had no published articles.'} Contact support if you have questions.`;
+
       await addDoc(collection(firestore, "notifications"), {
         userId: writer.uid,
         type: "writer_privileges_removed",
-        title: "InfoWriter Privileges Updated",
-        message:
-          "Your InfoWriter privileges have been updated by an administrator. Your existing articles remain published, but you can no longer create new articles. Contact support if you have questions.",
+        title: "InfoWriter Privileges Removed",
+        message: notificationMessage,
         read: false,
         createdAt: serverTimestamp(),
         actionUrl: "/profile",
       });
 
-      toast.success(`InfoWriter privileges removed for ${writer.displayName}`);
-      setConfirmRemoval(null);
+      const successMessage = deletedArticlesCount > 0
+        ? `InfoWriter privileges removed for ${writer.displayName}. ${deletedArticlesCount} articles deleted.`
+        : `InfoWriter privileges removed for ${writer.displayName}. No articles to delete.`;
+
+      toast.success(successMessage);
+      setShowRemoveDialog(null);
+      setAdminNote("");
     } catch (error) {
       console.error("Error removing writer privileges:", error);
-      toast.error("Failed to remove writer privileges");
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      toast.error(`Failed to remove writer privileges: ${errorMessage}`);
     } finally {
       setProcessingId(null);
     }
@@ -312,45 +353,22 @@ export const ActiveWritersPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {confirmRemoval === writer.id ? (
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => handleRemovePrivileges(writer)}
-                              disabled={processingId === writer.id}
-                              className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 disabled:opacity-50"
-                            >
-                              {processingId === writer.id ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                "Confirm"
-                              )}
-                            </button>
-                            <button
-                              onClick={() => setConfirmRemoval(null)}
-                              className="bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs hover:bg-gray-400"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => setSelectedWriter(writer)}
-                              className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
-                              title="View Writer Details"
-                            >
-                              <Eye className="h-4 w-4" />
-
-                            </button>
-                            <button
-                              onClick={() => setConfirmRemoval(writer.id)}
-                              className="flex items-center space-x-1 text-red-600 hover:text-red-800"
-                            >
-                              <UserMinus className="h-4 w-4" />
-                              <span>Remove Privileges</span>
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setSelectedWriter(writer)}
+                            className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
+                            title="View Writer Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setShowRemoveDialog(writer)}
+                            className="flex items-center space-x-1 text-red-600 hover:text-red-800"
+                          >
+                            <UserMinus className="h-4 w-4" />
+                            <span>Remove Privileges</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -458,7 +476,7 @@ export const ActiveWritersPage: React.FC = () => {
                     <button
                       onClick={() => {
                         setSelectedWriter(null);
-                        setConfirmRemoval(selectedWriter.id);
+                        setShowRemoveDialog(selectedWriter);
                       }}
                       className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
                     >
@@ -467,6 +485,81 @@ export const ActiveWritersPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Remove Writer Dialog with Admin Note */}
+        {showRemoveDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <div className="flex items-center mb-4">
+                <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Remove Writer Privileges
+                </h3>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-gray-600 mb-2">
+                  You are about to remove InfoWriter privileges for{" "}
+                  <span className="font-semibold">{showRemoveDialog.displayName}</span>.
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  <p className="text-red-800 text-sm font-medium">
+                    ⚠️ Warning: This action will:
+                  </p>
+                  <ul className="text-red-700 text-sm mt-1 list-disc list-inside">
+                    <li>Remove their InfoWriter privileges</li>
+                    <li>Permanently delete ALL {showRemoveDialog.articleCount} of their articles</li>
+                    <li>Send them a notification with your reason</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="adminNote" className="block text-sm font-medium text-gray-700 mb-2">
+                  Admin Note (Reason for removal) *
+                </label>
+                <textarea
+                  id="adminNote"
+                  value={adminNote}
+                  onChange={(e) => setAdminNote(e.target.value)}
+                  placeholder="Please provide a reason for removing this writer's privileges..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowRemoveDialog(null);
+                    setAdminNote("");
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleRemovePrivileges(showRemoveDialog, adminNote)}
+                  disabled={processingId === showRemoveDialog.id || !adminNote.trim()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                >
+                  {processingId === showRemoveDialog.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Removing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserMinus className="h-4 w-4" />
+                      <span>Remove Privileges</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
