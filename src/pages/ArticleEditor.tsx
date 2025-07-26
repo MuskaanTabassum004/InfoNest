@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { useAutoSave } from "../hooks/useAutoSave"; // Import useAutoSave hook
-import { AutoSaveIndicator } from "../components/AutoSaveIndicator"; // Import AutoSaveIndicator
+
 import { DraftRecovery } from "../components/DraftRecovery"; // Import DraftRecovery
 import { draftStorage } from "../utils/draftStorage"; // Import draftStorage
 import {
@@ -36,6 +35,7 @@ import {
   EyeOff,
   FileText,
   Paperclip,
+  AlertCircle,
 } from "lucide-react";
 import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
@@ -61,24 +61,18 @@ export const ArticleEditor: React.FC = () => {
     attachments: [],
   });
 
-  // Auto-save functionality
-  const autoSaveData = {
-    title: article.title || '',
-    content: article.content || '',
-    excerpt: article.excerpt || '',
-    categories: article.categories || [],
-    tags: article.tags || [],
-    coverImage: article.coverImage || ''
-  };
 
-  const { saveState } = useAutoSave(id === "new" ? null : id, autoSaveData, {
-    debounceMs: 3000, // Save after 3 seconds of inactivity
-    maxRetries: 3,
-    retryDelayMs: 2000
-  });
 
   // Draft recovery state
   const [showDraftRecovery, setShowDraftRecovery] = useState(false);
+
+  // Editor key for forcing re-render when resetting
+  const [editorKey, setEditorKey] = useState(0);
+
+  // Unsaved changes tracking
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedData, setLastSavedData] = useState<string>("");
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
 
   // Enhanced form state
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -140,6 +134,24 @@ export const ArticleEditor: React.FC = () => {
     }
   }, [isEditing, id]);
 
+  // Track unsaved changes
+  useEffect(() => {
+    if (!userProfile) return;
+
+    const currentData = JSON.stringify({
+      title: article.title || '',
+      content: article.content || '',
+      excerpt: article.excerpt || '',
+      categories: article.categories || [],
+      tags: article.tags || [],
+      coverImage: article.coverImage || ''
+    });
+
+    // Check if data has changed from last saved state
+    const hasChanges = currentData !== lastSavedData && (article.title?.trim() || article.content?.trim());
+    setHasUnsavedChanges(hasChanges);
+  }, [article, lastSavedData, userProfile]);
+
   // Save draft to localStorage whenever article data changes
   useEffect(() => {
     if (!userProfile || (!article.title && !article.content)) return;
@@ -158,6 +170,34 @@ export const ArticleEditor: React.FC = () => {
       draftStorage.saveDraft(id === "new" ? null : id, draftData);
     }
   }, [article, userProfile, id]);
+
+  // Browser navigation warning for unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Handle navigation attempts when there are unsaved changes
+  const handleNavigation = (path?: string) => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedWarning(true);
+      return false;
+    }
+    if (path) {
+      navigate(path);
+    } else {
+      navigate(-1);
+    }
+    return true;
+  };
 
   // Handle file removal from both document and storage
   const handleFileRemoved = (removedFile: ManagedFile) => {
@@ -431,6 +471,44 @@ export const ArticleEditor: React.FC = () => {
     }
   };
 
+  // Comprehensive form reset function
+  const resetAllFields = () => {
+    // Reset article state
+    setArticle({
+      title: "",
+      content: "",
+      excerpt: "",
+      status: "draft",
+      categories: [],
+      tags: [],
+      coverImage: "",
+      attachments: [],
+    });
+
+    // Reset all form states
+    setSelectedCategory("");
+    setCustomCategory("");
+    setTagInput("");
+    setCoverImageUrl("");
+
+    // Force re-render of RichTextEditor by changing key
+    setEditorKey(prev => prev + 1);
+
+    // Clear any field errors
+    setFieldErrors({
+      title: "",
+      content: "",
+      category: "",
+      tags: "",
+    });
+
+    // Reset unsaved changes tracking
+    setLastSavedData("");
+    setHasUnsavedChanges(false);
+  };
+
+
+
   const handleSave = async (status: "draft" | "published" = "draft") => {
     if (!userProfile) {
       toast.error("User authentication error. Please refresh and try again.");
@@ -510,29 +588,30 @@ export const ArticleEditor: React.FC = () => {
             status === "published" ? "published" : "saved"
           } successfully`
         );
-        
+
+        // Update last saved data to track changes
+        setLastSavedData(JSON.stringify({
+          title: articleData.title || '',
+          content: articleData.content || '',
+          excerpt: articleData.excerpt || '',
+          categories: articleData.categories || [],
+          tags: articleData.tags || [],
+          coverImage: articleData.coverImage || ''
+        }));
+
         // Clean up auto-saved draft after successful save
         if (status === "published") {
           cleanupDraft();
+
+          // Reset all form fields after successful publishing
+          resetAllFields();
+
+          // Navigate to dashboard after publishing
+          navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
+          return;
         }
-        
-        // Reset form fields after successful save/publish
-        setArticle({
-          title: "",
-          content: "",
-          excerpt: "",
-          status: "draft",
-          categories: [],
-          tags: [],
-          coverImage: "",
-          attachments: [],
-        });
-        setSelectedCategory("");
-        setCustomCategory("");
-        setTagInput("");
-        setCoverImageUrl("");
-        
-        // Navigate to dashboard after saving draft
+
+        // For draft saves when editing, don't reset form - just navigate
         if (status === "draft") {
           navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
           return;
@@ -549,33 +628,31 @@ export const ArticleEditor: React.FC = () => {
             status === "published" ? "published" : "created"
           } successfully`
         );
-        
-        // Reset form fields after successful creation
-        setArticle({
-          title: "",
-          content: "",
-          excerpt: "",
-          status: "draft",
-          categories: [],
-          tags: [],
-          coverImage: "",
-          attachments: [],
-        });
-        setSelectedCategory("");
-        setCustomCategory("");
-        setTagInput("");
-        setCoverImageUrl("");
-        
+
+        // Update last saved data to track changes
+        setLastSavedData(JSON.stringify({
+          title: articleData.title || '',
+          content: articleData.content || '',
+          excerpt: articleData.excerpt || '',
+          categories: articleData.categories || [],
+          tags: articleData.tags || [],
+          coverImage: articleData.coverImage || ''
+        }));
+
         // Clean up auto-saved draft after successful creation
         if (status === "published") {
           cleanupDraft();
         }
-        
+
+        // Reset all form fields after successful creation (for both draft and published)
+        resetAllFields();
+
         // Navigate based on status
         if (status === "draft") {
           navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
         } else {
-          navigate(`/article/edit/${newId}`);
+          // For published articles, reset form and stay on new article page for next article
+          navigate("/article/new");
         }
       }
 
@@ -1014,13 +1091,7 @@ export const ArticleEditor: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Auto-Save Indicator */}
-      <AutoSaveIndicator
-        status={saveState.status}
-        lastSaved={saveState.lastSaved}
-        error={saveState.error}
-        hasUnsavedChanges={saveState.hasUnsavedChanges}
-      />
+
 
       {/* Draft Recovery Modal */}
       {showDraftRecovery && (
@@ -1037,7 +1108,7 @@ export const ArticleEditor: React.FC = () => {
           {/* Back to Dashboard Button */}
           <button
             onClick={() =>
-              navigate(isAdmin ? "/personal-dashboard" : "/dashboard")
+              handleNavigation(isAdmin ? "/personal-dashboard" : "/dashboard")
             }
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             title="Back to Dashboard"
@@ -1045,7 +1116,7 @@ export const ArticleEditor: React.FC = () => {
             <ArrowLeft className="h-5 w-5 text-gray-600" />
           </button>
           <button
-            onClick={() => navigate("/my-articles")}
+            onClick={() => handleNavigation("/my-articles")}
             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <FileText className="h-4 w-4" />
@@ -1247,6 +1318,7 @@ export const ArticleEditor: React.FC = () => {
               </div>
               <div className="p-6">
                 <RichTextEditor
+                  key={editorKey}
                   content={article.content || ""}
                   onChange={(content) => {
                     setArticle((prev) => ({ ...prev, content }))
@@ -1491,6 +1563,52 @@ export const ArticleEditor: React.FC = () => {
               files={articleFiles}
               onFileRemoved={handleFileRemoved}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Changes Warning Modal */}
+      {showUnsavedWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <AlertCircle className="h-6 w-6 text-yellow-600 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Unsaved Changes
+              </h3>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              You have unsaved changes. Would you like to save them as a draft before leaving?
+            </p>
+
+            <div className="flex items-center justify-end space-x-3">
+              <button
+                onClick={() => setShowUnsavedWarning(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowUnsavedWarning(false);
+                  setHasUnsavedChanges(false);
+                  navigate(-1);
+                }}
+                className="px-4 py-2 text-red-700 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"
+              >
+                Leave Without Saving
+              </button>
+              <button
+                onClick={async () => {
+                  setShowUnsavedWarning(false);
+                  await handleSave("draft");
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Save as Draft
+              </button>
+            </div>
           </div>
         </div>
       )}
