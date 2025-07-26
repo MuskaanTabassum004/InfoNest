@@ -302,23 +302,20 @@ export const InfoWriterDashboard: React.FC = () => {
                 </Link>
 
                 <Link
-                  to="/my-articles?status=unpublished"
-                  className="flex items-center justify-between p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+                  to="/saved-articles"
+                  className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
                 >
-                  <div className="flex items-center space-x-3">
-                    <div className="bg-red-100 p-2 rounded-lg group-hover:bg-red-200 transition-colors">
-                      <Clock className="h-4 w-4 text-red-600" />
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-900 group-hover:text-red-700">
-                        Unpublished
-                      </span>
-                      <p className="text-xs text-gray-600">Pending articles</p>
-                    </div>
+                  <div className="bg-yellow-100 p-2 rounded-lg group-hover:bg-yellow-200 transition-colors">
+                    <Star className="h-4 w-4 text-yellow-600" />
                   </div>
-                  <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                    {dashboardData.myStats.totalUnpublished}
-                  </span>
+                  <div>
+                    <span className="font-medium text-gray-900 group-hover:text-yellow-700">
+                      Saved Articles
+                    </span>
+                    <p className="text-xs text-gray-600">
+                      Your bookmarked content
+                    </p>
+                  </div>
                 </Link>
 
                 {/* Back to Dashboard - Not needed since we're already on the dashboard */}
@@ -344,22 +341,7 @@ export const InfoWriterDashboard: React.FC = () => {
 
                 
 
-                <Link
-                  to="/saved-articles"
-                  className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
-                >
-                  <div className="bg-yellow-100 p-2 rounded-lg group-hover:bg-yellow-200 transition-colors">
-                    <Star className="h-4 w-4 text-yellow-600" />
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-900 group-hover:text-yellow-700">
-                      Saved Articles
-                    </span>
-                    <p className="text-xs text-gray-600">
-                      Your bookmarked content
-                    </p>
-                  </div>
-                </Link>
+                
               </div>
             </div>
           </div>
