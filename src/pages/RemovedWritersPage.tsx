@@ -38,6 +38,7 @@ interface RemovedWriter {
   removedBy: string;
   articleCount: number;
   lastActive?: Date;
+  adminNote?: string;
 }
 
 export const RemovedWritersPage: React.FC = () => {
@@ -92,8 +93,9 @@ export const RemovedWritersPage: React.FC = () => {
                 joinedAt: data.createdAt?.toDate() || new Date(),
                 removedAt: data.privilegesRemovedAt?.toDate() || new Date(),
                 removedBy: data.privilegesRemovedBy || "Unknown",
-                articleCount: articleCounts[data.uid || doc.id] || 0,
+                articleCount: data.articleCountAtRemoval || 0, // Use stored count from when privileges were removed
                 lastActive: data.lastActive?.toDate(),
+                adminNote: data.adminNote || "No reason provided",
               });
             }
           });
@@ -119,7 +121,10 @@ export const RemovedWritersPage: React.FC = () => {
   }, [userProfile, isAdmin]);
 
   const handleRestorePrivileges = async (writer: RemovedWriter) => {
-    if (!userProfile) return;
+    if (!userProfile) {
+      toast.error("You must be logged in to perform this action");
+      return;
+    }
 
     setProcessingId(writer.id);
     try {
@@ -141,17 +146,18 @@ export const RemovedWritersPage: React.FC = () => {
         type: "writer_privileges_restored",
         title: "InfoWriter Privileges Restored! 🎉",
         message:
-          "Your InfoWriter privileges have been restored by an administrator. You can now create and publish articles again.",
+          `Your InfoWriter privileges have been restored by an administrator. You can now create and publish articles again. Note: ${writer.articleCount} previously deleted articles cannot be recovered.`,
         read: false,
         createdAt: serverTimestamp(),
         actionUrl: "/dashboard",
       });
 
-      toast.success(`InfoWriter privileges restored for ${writer.displayName}`);
+      toast.success(`InfoWriter privileges restored for ${writer.displayName}. Note: ${writer.articleCount} previously deleted articles cannot be recovered.`);
       setConfirmRestore(null);
     } catch (error) {
       console.error("Error restoring writer privileges:", error);
-      toast.error("Failed to restore writer privileges");
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      toast.error(`Failed to restore writer privileges: ${errorMessage}`);
     } finally {
       setProcessingId(null);
     }
@@ -239,6 +245,9 @@ export const RemovedWritersPage: React.FC = () => {
                       Articles
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Admin Note
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Removed
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -286,15 +295,16 @@ export const RemovedWritersPage: React.FC = () => {
                           <span className="text-sm font-medium text-gray-900">
                             {writer.articleCount}
                           </span>
-                          {writer.articleCount > 0 && (
-                            <Link
-                              to={`/author/${writer.uid}`}
-                              className="ml-2 text-gray-600 hover:text-gray-800"
-                              title="View articles"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Link>
-                          )}
+                          <span className="ml-1 text-xs text-gray-500">
+                            (deleted)
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="max-w-xs">
+                          <p className="text-sm text-gray-900 truncate" title={writer.adminNote}>
+                            {writer.adminNote}
+                          </p>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
