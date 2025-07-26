@@ -167,12 +167,12 @@ export const Layout: React.FC = () => {
                     </Link>
                     {isAdmin && (
                       <Link
-                        to="/personal-dashboard"
+                        to="/my-articles"
                         onClick={() => setIsDropdownOpen(false)}
                         className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
                       >
                         <UserCog className="h-4 w-4" />
-                        <span>Personal Dashboard</span>
+                        <span>My Articles</span>
                       </Link>
                     )}
                     {isInfoWriter && !isAdmin && (
