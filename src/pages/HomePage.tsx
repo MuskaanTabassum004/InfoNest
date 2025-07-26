@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getPublishedArticles, Article } from "../lib/articles";
+import { Article } from "../lib/articles";
+import { onSnapshot, collection, query, where } from "firebase/firestore";
+import { firestore } from "../lib/firebase";
 import {
   Search,
   BookOpen,
@@ -39,42 +41,65 @@ export const HomePage: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
 
-  const loadHomePageData = async (): Promise<void> => {
+  const loadHomePageData = (): (() => void) => {
     setLoading(true);
-    try {
-      const publishedArticles = await getPublishedArticles();
 
-      // Enhanced Featured Articles Selection with Priority System
-      const featuredArticles = selectFeaturedArticles(publishedArticles);
+    // Set up real-time listener for published articles
+    const articlesQuery = query(
+      collection(firestore, "articles"),
+      where("status", "==", "published")
+    );
 
-      const categoryMap = new Map<string, number>();
-      const allTags = new Set<string>();
+    const unsubscribe = onSnapshot(articlesQuery, (snapshot) => {
+      try {
+        const publishedArticles: Article[] = [];
 
-      publishedArticles.forEach((article) => {
-        article.categories.forEach((cat) => {
-          categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const article = {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate(),
+            publishedAt: data.publishedAt?.toDate(),
+          } as Article;
+          publishedArticles.push(article);
         });
-        article.tags.forEach((tag) => allTags.add(tag));
-      });
 
-      const categories = Array.from(categoryMap.entries())
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 8);
+        // Enhanced Featured Articles Selection with Priority System
+        const featuredArticles = selectFeaturedArticles(publishedArticles);
 
-      const tags = Array.from(allTags).slice(0, 20);
+        const categoryMap = new Map<string, number>();
+        const allTags = new Set<string>();
 
-      setHomeData({
-        articles: publishedArticles,
-        featuredArticles,
-        categories,
-        tags,
-      });
-    } catch (error) {
-      console.error("Error loading homepage data:", error);
-    } finally {
-      setLoading(false);
-    }
+        publishedArticles.forEach((article) => {
+          article.categories.forEach((cat) => {
+            categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
+          });
+          article.tags.forEach((tag) => allTags.add(tag));
+        });
+
+        const categories = Array.from(categoryMap.entries())
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8);
+
+        const tags = Array.from(allTags).slice(0, 20);
+
+        setHomeData({
+          articles: publishedArticles,
+          featuredArticles,
+          categories,
+          tags,
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading homepage data:", error);
+        setLoading(false);
+      }
+    });
+
+    return unsubscribe;
   };
 
   // Enhanced Featured Articles Selection Function
@@ -150,7 +175,8 @@ export const HomePage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadHomePageData();
+    const unsubscribe = loadHomePageData();
+    return () => unsubscribe();
   }, []);
 
   // Filter articles based on search query
