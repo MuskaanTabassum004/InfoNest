@@ -17,8 +17,9 @@ import { SaveArticleButton } from "./SaveArticleButton";
 import { ShareButton } from "./ShareButton";
 import { LikeButton } from "./LikeButton";
 
-import { getUserProfile, UserProfile } from "../lib/auth";
+import { UserProfile } from "../lib/auth";
 import { useAuth } from "../hooks/useAuth";
+import { useUserProfile } from "../contexts/ProfileContext";
 import { Article, deleteArticleByRole } from "../lib/articles";
 import { toast } from "react-hot-toast";
 
@@ -40,32 +41,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   className = "",
 }) => {
   const { userProfile, canEditArticle, canDeleteArticle } = useAuth();
-  const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
-  const [loadingAuthor, setLoadingAuthor] = useState(true);
+  const authorProfile = useUserProfile(article.authorId);
   const [profilePicError, setProfilePicError] = useState(false);
+
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  // Load author profile for profile picture
-  useEffect(() => {
-    const loadAuthorProfile = async () => {
-      if (!article.authorId) {
-        setLoadingAuthor(false);
-        return;
-      }
-
-      try {
-        const profile = await getUserProfile(article.authorId);
-        setAuthorProfile(profile);
-      } catch (error) {
-        setAuthorProfile(null);
-      } finally {
-        setLoadingAuthor(false);
-      }
-    };
-
-    loadAuthorProfile();
-  }, [article.authorId]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -202,21 +183,17 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         >
           {/* Author Profile Picture */}
           <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 relative group-hover:ring-2 group-hover:ring-blue-200 transition-all">
-            {loadingAuthor ? (
-              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                <div className="w-3 h-3 border border-gray-300 border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            ) : !profilePicError && authorProfile?.profilePicture ? (
+            {!profilePicError && authorProfile?.profilePicture ? (
               <img
                 src={authorProfile.profilePicture}
-                alt={`${article.authorName}'s profile`}
+                alt={`${authorProfile?.displayName || article.authorName}'s profile`}
                 className="w-full h-full object-cover"
                 onError={() => setProfilePicError(true)}
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center group-hover:from-blue-200 group-hover:to-blue-300 transition-all">
                 <span className="text-blue-700 text-xs font-semibold">
-                  {article.authorName.charAt(0).toUpperCase()}
+                  {(authorProfile?.displayName || article.authorName).charAt(0).toUpperCase()}
                 </span>
               </div>
             )}
@@ -225,7 +202,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           {/* Author Name */}
           <div className="flex flex-col">
             <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
-              {article.authorName}
+              {authorProfile?.displayName || article.authorName}
             </span>
             {authorProfile?.role && (
               <span className="text-xs text-gray-500 capitalize">
