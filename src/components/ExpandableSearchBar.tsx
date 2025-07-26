@@ -35,7 +35,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
 }) => {
   const { userProfile } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [query, setQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState<Article[]>([]);
   const [loading, setLoading] = useState(false);
   const [articles, setArticles] = useState<Article[]>([]);
@@ -98,12 +98,19 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
     loadRecentSearches();
   }, [isExpanded]);
 
+  // Load recent searches when user profile changes
+  useEffect(() => {
+    if (userProfile) {
+      loadRecentSearches();
+    }
+  }, [userProfile]);
+
   // Handle clicks outside to collapse
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsExpanded(false);
-        setQuery("");
+        setSearchQuery("");
         setResults([]);
       }
     };
@@ -155,17 +162,28 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setQuery(value);
+    setSearchQuery(value);
     debouncedSearch(value);
   };
 
   // Load recent searches from localStorage
   const loadRecentSearches = () => {
     try {
-      const stored = localStorage.getItem(`recent_searches_${userProfile?.uid || 'anonymous'}`);
+      const userId = userProfile?.uid || 'anonymous';
+      const stored = localStorage.getItem(`recent_searches_${userId}`);
       if (stored) {
         const searches: RecentSearch[] = JSON.parse(stored);
-        setRecentSearches(searches.slice(0, 4));
+        // Filter out old searches (older than 30 days) and keep only 5 most recent
+        const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+        const validSearches = searches
+          .filter(search => search.timestamp > thirtyDaysAgo)
+          .slice(0, 5);
+        setRecentSearches(validSearches);
+
+        // Update localStorage with cleaned data
+        if (validSearches.length !== searches.length) {
+          localStorage.setItem(`recent_searches_${userId}`, JSON.stringify(validSearches));
+        }
       }
     } catch (error) {
       console.error("Error loading recent searches:", error);
@@ -173,26 +191,26 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
   };
 
   // Save search to recent searches
-  const saveRecentSearch = (searchQuery: string) => {
-    if (!searchQuery.trim()) return;
+  const saveRecentSearch = (searchTerm: string) => {
+    if (!searchTerm.trim()) return;
 
     try {
       const userId = userProfile?.uid || 'anonymous';
       const stored = localStorage.getItem(`recent_searches_${userId}`);
       let searches: RecentSearch[] = stored ? JSON.parse(stored) : [];
-      
-      // Remove existing search if it exists
-      searches = searches.filter(s => s.query !== searchQuery);
-      
+
+      // Remove existing search if it exists (case-insensitive)
+      searches = searches.filter(s => s.query.toLowerCase() !== searchTerm.toLowerCase());
+
       // Add new search at the beginning
       searches.unshift({
-        query: searchQuery,
+        query: searchTerm,
         timestamp: Date.now()
       });
-      
-      // Keep only last 3 searches
-      searches = searches.slice(0, 4);
-      
+
+      // Keep only last 5 searches
+      searches = searches.slice(0, 5);
+
       localStorage.setItem(`recent_searches_${userId}`, JSON.stringify(searches));
       setRecentSearches(searches);
     } catch (error) {
@@ -202,28 +220,28 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
 
   // Handle result click
   const handleResultClick = (article: Article) => {
-    saveRecentSearch(query);
+    saveRecentSearch(searchQuery);
     onResultClick?.();
     setIsExpanded(false);
-    setQuery("");
+    setSearchQuery("");
     setResults([]);
   };
 
   // Handle recent search click
-  const handleRecentSearchClick = (searchQuery: string) => {
-    setQuery(searchQuery);
-    debouncedSearch(searchQuery);
+  const handleRecentSearchClick = (searchTerm: string) => {
+    setSearchQuery(searchTerm);
+    debouncedSearch(searchTerm);
   };
 
   // Handle tag click
   const handleTagClick = (tag: string) => {
-    setQuery(tag);
+    setSearchQuery(tag);
     debouncedSearch(tag);
   };
 
   // Clear search
   const clearSearch = () => {
-    setQuery("");
+    setSearchQuery("");
     setResults([]);
   };
 
@@ -288,13 +306,13 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
         <input
           ref={searchInputRef}
           type="text"
-          value={query}
+          value={searchQuery}
           onChange={handleSearchChange}
           placeholder={placeholder}
           className="flex-1 bg-transparent outline-none text-gray-700 placeholder-gray-500"
-          
+
         />
-        {query && (
+        {searchQuery && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -325,7 +343,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
         }}
       >
         <div className="p-4 max-h-80 overflow-y-auto">
-          {!query && (
+          {!searchQuery && (
             <div className="space-y-4">
               {/* Recent Searches */}
               {recentSearches.length > 0 && (
@@ -376,7 +394,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
           )}
 
           {/* Search Results */}
-          {query && (
+          {searchQuery && (
             <div>
               {loading ? (
                 <div className="flex items-center justify-center py-6">
@@ -407,10 +425,10 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
                         )}
                         <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-gray-900 group-hover:text-blue-700 transition-colors line-clamp-1">
-                            {highlightSearchTerms(article.title, query)}
+                            {highlightSearchTerms(article.title, searchQuery)}
                           </h3>
                           <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                            {highlightSearchTerms(article.excerpt, query)}
+                            {highlightSearchTerms(article.excerpt, searchQuery)}
                           </p>
                           <div className="flex items-center space-x-3 mt-2 text-xs text-gray-500">
                             <span>By {article.authorName}</span>
@@ -425,7 +443,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
                                   key={tag}
                                   className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full"
                                 >
-                                  {highlightSearchTerms(tag, query)}
+                                  {highlightSearchTerms(tag, searchQuery)}
                                 </span>
                               ))}
                             </div>
