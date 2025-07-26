@@ -8,6 +8,7 @@ import {
 import { Toaster } from "react-hot-toast";
 import { useAuth } from "./hooks/useAuth";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { ProfileProvider } from "./contexts/ProfileContext";
 import { Layout } from "./components/Layout";
 import { AuthForm } from "./components/AuthForm";
 import { EmailVerificationPage } from "./pages/EmailVerificationPage";
@@ -53,10 +54,12 @@ const useGlobalSearchShortcut = () => {
 function App() {
   // Main application component with notification system integrated
   useGlobalSearchShortcut();
-  
+
   return (
     <Router>
-      <AppWithAuth />
+      <ProfileProvider>
+        <AppWithAuth />
+      </ProfileProvider>
     </Router>
   );
 }
