@@ -80,20 +80,17 @@ service cloud.firestore {
       // Allow authenticated users to list/query users (needed for admin operations and article author loading)
       allow list: if request.auth != null;
 
-      // Allow user creation ONLY for verified users
+      // Allow user creation for authenticated users
       allow create: if request.auth != null &&
-        request.auth.uid == userId &&
-        request.auth.token.email_verified == true;
+        request.auth.uid == userId;
 
       // Allow users to update their own profile (except role)
       allow update: if request.auth != null &&
         request.auth.uid == userId &&
-        request.auth.token.email_verified == true &&
         (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
 
       // Allow admins to update any profile including roles
       allow update: if request.auth != null &&
-        request.auth.token.email_verified == true &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
