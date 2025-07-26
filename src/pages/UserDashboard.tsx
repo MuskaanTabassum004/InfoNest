@@ -15,7 +15,7 @@ import {
   Filter,
   Tag,
 } from "lucide-react";
-import { getPublishedArticles, Article } from "../lib/articles";
+import { Article } from "../lib/articles";
 import { ArticleCard } from "../components/ArticleCard";
 import { onSnapshot, collection, query, where } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
