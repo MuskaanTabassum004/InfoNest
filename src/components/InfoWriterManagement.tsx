@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   getInfoWriters,
   removeInfoWriterStatus,
@@ -19,6 +20,8 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
+import { onSnapshot, collection, query, where } from "firebase/firestore";
+import { firestore } from "../lib/firebase";
 
 interface InfoWriterManagementProps {
   onInfoWriterRemoved?: (removedWriter: UserProfile) => void;
@@ -43,37 +46,70 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
   );
 
   useEffect(() => {
-    loadInfoWriters();
+    return setupRealTimeListeners();
   }, []);
 
   useEffect(() => {
     filterWriters();
   }, [infoWriters, searchQuery]);
 
-  const loadInfoWriters = async () => {
+  const setupRealTimeListeners = () => {
     setLoading(true);
-    try {
-      const writers = await getInfoWriters();
-      setInfoWriters(writers);
+    const unsubscribes: (() => void)[] = [];
+    let writersData: UserProfile[] = [];
+    let articlesData: Record<string, number> = {};
 
-      // Load article counts for each writer
-      const counts: Record<string, number> = {};
-      await Promise.all(
-        writers.map(async (writer) => {
-          try {
-            const articles = await getUserArticles(writer.uid);
-            counts[writer.uid] = articles.length;
-          } catch (error) {
-            counts[writer.uid] = 0;
-          }
-        })
-      );
-      setWriterArticleCounts(counts);
-    } catch (error) {
-      toast.error("Error loading InfoWriters");
-    } finally {
+    // Listen to users with infowriter role
+    const writersQuery = query(
+      collection(firestore, "users"),
+      where("role", "==", "infowriter")
+    );
+
+    const writersUnsubscribe = onSnapshot(writersQuery, (snapshot) => {
+      writersData = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        writersData.push({
+          uid: data.uid || doc.id,
+          displayName: data.displayName || "Unknown Writer",
+          email: data.email || "",
+          profilePicture: data.profilePicture,
+          role: data.role,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          lastActive: data.lastActive?.toDate(),
+        } as UserProfile);
+      });
+      updateWritersData();
+    });
+
+    // Listen to published articles for real-time count updates
+    const articlesQuery = query(
+      collection(firestore, "articles"),
+      where("status", "==", "published")
+    );
+
+    const articlesUnsubscribe = onSnapshot(articlesQuery, (snapshot) => {
+      articlesData = {};
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.authorId) {
+          articlesData[data.authorId] = (articlesData[data.authorId] || 0) + 1;
+        }
+      });
+      updateWritersData();
+    });
+
+    const updateWritersData = () => {
+      setInfoWriters(writersData);
+      setWriterArticleCounts(articlesData);
       setLoading(false);
-    }
+    };
+
+    unsubscribes.push(writersUnsubscribe, articlesUnsubscribe);
+
+    return () => {
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
   };
 
   const filterWriters = () => {
@@ -195,9 +231,19 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                   <FileText className="h-5 w-5 text-gray-600 mx-auto mb-1" />
-                  <p className="text-lg font-semibold text-gray-900">
-                    {writerArticleCounts[writer.uid] || 0}
-                  </p>
+                  {(writerArticleCounts[writer.uid] || 0) > 0 ? (
+                    <Link
+                      to={`/author/${writer.uid}`}
+                      className="text-lg font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer block"
+                      title={`View ${writerArticleCounts[writer.uid]} published articles by ${writer.displayName}`}
+                    >
+                      {writerArticleCounts[writer.uid]}
+                    </Link>
+                  ) : (
+                    <p className="text-lg font-semibold text-gray-500">
+                      {writerArticleCounts[writer.uid] || 0}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-600">Articles</p>
                 </div>
                 <div className="text-center p-3 bg-gray-50 rounded-lg">
@@ -314,9 +360,20 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Articles Created
                   </label>
-                  <p className="text-gray-900">
-                    {writerArticleCounts[selectedWriter.uid] || 0}
-                  </p>
+                  {(writerArticleCounts[selectedWriter.uid] || 0) > 0 ? (
+                    <Link
+                      to={`/author/${selectedWriter.uid}`}
+                      className="text-blue-600 hover:text-blue-800 hover:underline transition-colors cursor-pointer font-medium"
+                      title={`View ${writerArticleCounts[selectedWriter.uid]} published articles by ${selectedWriter.displayName}`}
+                      onClick={() => setSelectedWriter(null)}
+                    >
+                      {writerArticleCounts[selectedWriter.uid]}
+                    </Link>
+                  ) : (
+                    <p className="text-gray-500">
+                      {writerArticleCounts[selectedWriter.uid] || 0}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
