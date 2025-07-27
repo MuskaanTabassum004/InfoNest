@@ -124,7 +124,7 @@ function AppContent({
       <GlobalUploadNotifications />
 
       <Routes>
-        {/* Public Routes */}
+        {/* Public Routes - Always accessible */}
         <Route path="/" element={<HomePage />} />
         <Route path="/verify-email" element={<EmailVerificationHandler />} />
         <Route
@@ -182,8 +182,8 @@ function AppContent({
                 </UserRoute>
               }
             />
-            
-            
+
+
 
             {/* InfoWriter and Admin only routes */}
             <Route
@@ -252,14 +252,34 @@ function AppContent({
                 </AdminRoute>
               }
             />
-          
+
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         ) : isAuthenticated && !emailVerified ? (
-          <Route path="*" element={<Navigate to="/email-verify" replace />} />
+          <>
+            {/* Redirect only protected routes to email verification */}
+            <Route path="/dashboard" element={<Navigate to="/email-verify" replace />} />
+            <Route path="/article/*" element={<Navigate to="/email-verify" replace />} />
+            <Route path="/profile" element={<Navigate to="/email-verify" replace />} />
+            <Route path="/saved-articles" element={<Navigate to="/email-verify" replace />} />
+            <Route path="/writer-request" element={<Navigate to="/email-verify" replace />} />
+            <Route path="/search" element={<Navigate to="/email-verify" replace />} />
+            <Route path="/my-articles" element={<Navigate to="/email-verify" replace />} />
+            <Route path="/admin/*" element={<Navigate to="/email-verify" replace />} />
+          </>
         ) : (
-          <Route path="*" element={<Navigate to="/auth" replace />} />
+          <>
+            {/* Redirect only protected routes to auth */}
+            <Route path="/dashboard" element={<Navigate to="/auth" replace />} />
+            <Route path="/article/*" element={<Navigate to="/auth" replace />} />
+            <Route path="/profile" element={<Navigate to="/auth" replace />} />
+            <Route path="/saved-articles" element={<Navigate to="/auth" replace />} />
+            <Route path="/writer-request" element={<Navigate to="/auth" replace />} />
+            <Route path="/search" element={<Navigate to="/auth" replace />} />
+            <Route path="/my-articles" element={<Navigate to="/auth" replace />} />
+            <Route path="/admin/*" element={<Navigate to="/auth" replace />} />
+          </>
         )}
       </Routes>
     </div>
