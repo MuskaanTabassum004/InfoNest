@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getArticle, Article } from "../lib/articles";
 import { UserProfile } from "../lib/auth";
-import { useUserProfile } from "../contexts/ProfileContext";
 import {
   ArrowLeft,
   Edit,
@@ -33,7 +32,7 @@ export const ArticleView: React.FC = () => {
   const navigate = useNavigate();
   const { userProfile, canEditArticle, canReadArticle, loading: authLoading } = useAuth();
   const [article, setArticle] = useState<Article | null>(null);
-  const authorProfile = useUserProfile(article?.authorId);
+  const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewsIncremented, setViewsIncremented] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -132,6 +131,40 @@ export const ArticleView: React.FC = () => {
 
     return () => unsubscribe();
   }, [id, userProfile?.uid]);
+
+  // Real-time author profile updates
+  useEffect(() => {
+    if (!article?.authorId) return;
+
+    const userRef = doc(firestore, "users", article.authorId);
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        const profile: UserProfile = {
+          uid: article.authorId,
+          email: data.email || '',
+          displayName: data.displayName || '',
+          role: data.role || 'user',
+          emailVerified: data.emailVerified || false,
+          profilePicture: data.profilePicture || '',
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+          requestedWriterAccess: data.requestedWriterAccess || false,
+        };
+        setAuthorProfile(profile);
+      } else {
+        setAuthorProfile(null);
+      }
+    }, (error) => {
+      // Silently handle permission errors
+      if (error.code !== 'permission-denied') {
+        console.error(`Error subscribing to author profile ${article.authorId}:`, error);
+      }
+      setAuthorProfile(null);
+    });
+
+    return () => unsubscribe();
+  }, [article?.authorId]);
 
   const canEdit = (article: Article): boolean => {
     if (!userProfile) return false;
