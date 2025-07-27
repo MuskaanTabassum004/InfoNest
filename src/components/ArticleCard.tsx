@@ -64,6 +64,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     return () => unsubscribe();
   }, [initialArticle.id]);
 
+  // Reset profile picture error when author profile updates
+  useEffect(() => {
+    if (authorProfile?.profilePicture) {
+      setProfilePicError(false);
+    }
+  }, [authorProfile?.profilePicture]);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "published":
