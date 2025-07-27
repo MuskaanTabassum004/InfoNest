@@ -77,6 +77,42 @@ export const createInfoWriterApprovalNotification = async (
   );
 };
 
+// Create InfoWriter rejection notification
+export const createInfoWriterRejectionNotification = async (
+  userId: string,
+  adminNote?: string
+): Promise<void> => {
+  const message = adminNote 
+    ? `Your InfoWriter request has been rejected. Reason: ${adminNote}. You can submit a new request after addressing the feedback.`
+    : "Your InfoWriter request has been rejected. You can submit a new request in the future.";
+
+  await createNotification(
+    userId,
+    "role_approval",
+    "InfoWriter Request Update",
+    message,
+    {
+      previousRole: "user",
+      newRole: "user",
+      status: "rejected",
+      adminNote: adminNote || undefined,
+    }
+  );
+};
+
+// Create general InfoWriter status notification
+export const createInfoWriterStatusNotification = async (
+  userId: string,
+  status: "approved" | "rejected",
+  adminNote?: string,
+  previousRole: string = "user"
+): Promise<void> => {
+  if (status === "approved") {
+    await createInfoWriterApprovalNotification(userId, previousRole);
+  } else {
+    await createInfoWriterRejectionNotification(userId, adminNote);
+  }
+};
 // Get user notifications
 export const getUserNotifications = async (
   userId: string

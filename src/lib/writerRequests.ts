@@ -155,12 +155,29 @@ export const processWriterRequest = async (
 ): Promise<void> => {
   const requestRef = doc(firestore, "writerRequests", id);
 
+  // Get the request data to access userId
+  const requestDoc = await getDoc(requestRef);
+  if (!requestDoc.exists()) {
+    throw new Error("Request not found");
+  }
+  
+  const requestData = requestDoc.data();
+  const userId = requestData.userId;
   await updateDoc(requestRef, {
     status,
     processedAt: Timestamp.fromDate(new Date()),
     processedBy: adminId,
     adminNotes: adminNotes || "",
   });
+
+  // Create notification for the user
+  try {
+    const { createInfoWriterStatusNotification } = await import("./notifications");
+    await createInfoWriterStatusNotification(userId, status, adminNotes);
+  } catch (error) {
+    console.error("Error creating InfoWriter status notification:", error);
+    // Don't throw error to avoid breaking the process
+  }
 };
 
 export const getUserWriterRequest = async (

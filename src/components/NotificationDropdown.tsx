@@ -57,9 +57,13 @@ export const NotificationDropdown: React.FC = () => {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case "role_approval":
-        return <Award className="h-5 w-5 text-green-600" />;
+        return <Award className="h-5 w-5 text-blue-600" />;
       case "system":
         return <AlertCircle className="h-5 w-5 text-blue-600" />;
+      case "writer_privileges_removed":
+        return <AlertCircle className="h-5 w-5 text-red-600" />;
+      case "writer_privileges_restored":
+        return <Award className="h-5 w-5 text-green-600" />;
       default:
         return <Bell className="h-5 w-5 text-gray-600" />;
     }
@@ -70,9 +74,13 @@ export const NotificationDropdown: React.FC = () => {
 
     switch (type) {
       case "role_approval":
-        return "bg-green-50 border-l-4 border-green-500";
+        return "bg-blue-50 border-l-4 border-blue-500";
       case "system":
         return "bg-blue-50 border-l-4 border-blue-500";
+      case "writer_privileges_removed":
+        return "bg-red-50 border-l-4 border-red-500";
+      case "writer_privileges_restored":
+        return "bg-green-50 border-l-4 border-green-500";
       default:
         return "bg-white border-l-4 border-gray-300";
     }

@@ -546,6 +546,17 @@ export const denyWriterRequest = async (uid: string) => {
     requestedWriterAccess: false,
     updatedAt: new Date(),
   });
+
+  // Create notification for the denied user
+  try {
+    const { createInfoWriterRejectionNotification } = await import(
+      "./notifications"
+    );
+    await createInfoWriterRejectionNotification(uid);
+  } catch (error) {
+    console.error("Error creating InfoWriter rejection notification:", error);
+    // Don't throw error to avoid breaking the denial process
+  }
 };
 
 export const getInfoWriters = async () => {
