@@ -13,8 +13,8 @@ import { format } from "date-fns";
 import { SaveArticleButton } from "./SaveArticleButton";
 import { LikeButton } from "./LikeButton";
 import { useAuth } from "../hooks/useAuth";
-import { useUserProfile } from "../contexts/ProfileContext";
 import { Article, deleteArticleByRole } from "../lib/articles";
+import { UserProfile } from "../lib/auth";
 import { toast } from "react-hot-toast";
 import { onSnapshot, doc } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
@@ -37,9 +37,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   className = "",
 }) => {
   const { userProfile, canEditArticle, canDeleteArticle } = useAuth();
-  const authorProfile = useUserProfile(initialArticle.authorId);
   const [profilePicError, setProfilePicError] = useState(false);
   const [article, setArticle] = useState(initialArticle);
+  const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -64,12 +64,44 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     return () => unsubscribe();
   }, [initialArticle.id]);
 
-  // Reset profile picture error when author profile updates
+  // Real-time author profile updates
   useEffect(() => {
-    if (authorProfile?.profilePicture) {
-      setProfilePicError(false);
-    }
-  }, [authorProfile?.profilePicture]);
+    if (!initialArticle.authorId) return;
+
+    const userRef = doc(firestore, "users", initialArticle.authorId);
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        const profile = {
+          uid: initialArticle.authorId,
+          email: data.email || '',
+          displayName: data.displayName || '',
+          role: data.role || 'user',
+          emailVerified: data.emailVerified || false,
+          profilePicture: data.profilePicture || '',
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+          requestedWriterAccess: data.requestedWriterAccess || false,
+        };
+        setAuthorProfile(profile);
+
+        // Reset profile picture error when new profile picture is available
+        if (data.profilePicture) {
+          setProfilePicError(false);
+        }
+      } else {
+        setAuthorProfile(null);
+      }
+    }, (error) => {
+      // Silently handle permission errors
+      if (error.code !== 'permission-denied') {
+        console.error(`Error subscribing to author profile ${initialArticle.authorId}:`, error);
+      }
+      setAuthorProfile(null);
+    });
+
+    return () => unsubscribe();
+  }, [initialArticle.authorId]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
