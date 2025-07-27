@@ -30,8 +30,6 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
       return;
     }
 
-    console.log(`📡 Subscribing to profile updates for user: ${uid}`);
-
     const userRef = doc(firestore, 'users', uid);
     const unsubscribe = onSnapshot(userRef, (doc) => {
       if (doc.exists()) {
@@ -43,8 +41,6 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
           role: data.role || 'user',
           emailVerified: data.emailVerified || false,
           profilePicture: data.profilePicture || '',
-          bio: data.bio || '',
-          socialLinks: data.socialLinks || {},
           createdAt: data.createdAt?.toDate(),
           updatedAt: data.updatedAt?.toDate(),
           requestedWriterAccess: data.requestedWriterAccess || false,
@@ -55,8 +51,6 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
           newProfiles.set(uid, profile);
           return newProfiles;
         });
-
-        console.log(`📡 Profile updated for user: ${uid}`, profile.displayName);
       } else {
         // Remove profile if document doesn't exist
         setProfiles(prev => {
@@ -84,7 +78,6 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
   const unsubscribeFromProfile = (uid: string) => {
     const unsubscribe = subscriptions.get(uid);
     if (unsubscribe) {
-      console.log(`📡 Unsubscribing from profile updates for user: ${uid}`);
       unsubscribe();
       setSubscriptions(prev => {
         const newSubscriptions = new Map(prev);
@@ -97,7 +90,6 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
   // Cleanup all subscriptions on unmount
   useEffect(() => {
     return () => {
-      console.log('📡 Cleaning up all profile subscriptions');
       subscriptions.forEach((unsubscribe) => unsubscribe());
     };
   }, []);
@@ -137,21 +129,18 @@ export const useUserProfile = (uid: string | null | undefined) => {
 
     // Subscribe to profile updates
     subscribeToProfile(uid);
-
-    // Get current profile from the profiles map
-    const currentProfile = profiles.get(uid) || null;
-    setProfile(currentProfile);
   }, [uid, subscribeToProfile]);
 
   // Update profile when profiles map changes
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setProfile(null);
+      return;
+    }
 
     const updatedProfile = profiles.get(uid) || null;
-    if (updatedProfile !== profile) {
-      setProfile(updatedProfile);
-    }
-  }, [profiles, uid, profile]);
+    setProfile(updatedProfile);
+  }, [profiles, uid]);
 
   return profile;
 };
