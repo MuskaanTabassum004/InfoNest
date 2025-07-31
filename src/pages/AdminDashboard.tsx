@@ -12,6 +12,7 @@ import {
   Search,
   Tag,
   Edit,
+  EyeOff,
 } from "lucide-react";
 import { Article } from "../lib/articles";
 import { ArticleCard } from "../components/ArticleCard";
@@ -215,7 +216,6 @@ export const AdminDashboard: React.FC = () => {
             placeholder="Search articles..."
             onResultClick={() => {}}
           />
-
         </div>
       </div>
 
@@ -331,18 +331,31 @@ export const AdminDashboard: React.FC = () => {
                   <Edit className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">
-                    My Articles
-                  </p>
+                  <p className="font-medium text-gray-900">My Articles</p>
                   <p className="text-sm text-gray-600">
                     Create and manage your own articles
                   </p>
                 </div>
               </Link>
 
-              {/* Note: No "Back to Dashboard" needed since this IS the Admin Dashboard */}
+              <Link
+                to="/my-articles?status=unpublished"
+                className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+              >
+                <div className="bg-orange-100 p-2 rounded-lg group-hover:bg-orange-200 transition-colors">
+                  <EyeOff className="h-4 w-4 text-orange-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    Unpublished Articles
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    View and manage unpublished content
+                  </p>
+                </div>
+              </Link>
 
-              
+              {/* Note: No "Back to Dashboard" needed since this IS the Admin Dashboard */}
             </div>
           </div>
         </div>
