@@ -427,6 +427,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               <LikeButton
                 key={`like-${article.id}`}
                 articleId={article.id}
+                articleStatus={article.status}
+                articleAuthorId={article.authorId}
                 initialLikes={article.likes || 0}
                 initialLikedBy={article.likedBy || []}
                 size="sm"

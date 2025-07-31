@@ -100,22 +100,11 @@ service cloud.firestore {
 
     // Saved articles collection (compound ID format: userId_articleId)
     match /savedArticles/{savedArticleId} {
-      // Simplified approach: Allow all authenticated users to read/write documents
-      // where the document data contains their userId OR the document ID starts with their userId
-      allow read, write, create, delete: if request.auth != null && (
-        // Check if document ID starts with user's UID (for compound ID format)
-        (savedArticleId.size() > request.auth.uid.size() &&
-         savedArticleId[0:request.auth.uid.size()] == request.auth.uid &&
-         savedArticleId[request.auth.uid.size()] == '_') ||
-        // Check document data userId (for existing documents)
-        (resource != null && request.auth.uid == resource.data.userId) ||
-        // Check request data userId (for new documents)
-        (request.resource != null && request.auth.uid == request.resource.data.userId)
-      );
-
-      // Allow list/query operations for authenticated users
-      // This covers queries like where('userId', '==', userId)
-      allow list: if request.auth != null;
+      // Only allow access to documents where the ID starts with the user's UID followed by underscore
+      allow read, write, create, delete, list: if request.auth != null &&
+        savedArticleId.size() > request.auth.uid.size() &&
+        savedArticleId[0:request.auth.uid.size()] == request.auth.uid &&
+        savedArticleId[request.auth.uid.size()] == '_';
 
       // Admins can read all saved articles
       allow read, write, list: if request.auth != null &&

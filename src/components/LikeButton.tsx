@@ -7,6 +7,8 @@ import toast from "react-hot-toast";
 
 interface LikeButtonProps {
   articleId: string;
+  articleStatus?: string;
+  articleAuthorId?: string;
   initialLikes?: number;
   initialLikedBy?: string[];
   size?: "sm" | "md" | "lg";
@@ -16,6 +18,8 @@ interface LikeButtonProps {
 
 export const LikeButton: React.FC<LikeButtonProps> = ({
   articleId,
+  articleStatus,
+  articleAuthorId,
   initialLikes = 0,
   initialLikedBy = [],
   size = "md",
@@ -43,6 +47,33 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
   useEffect(() => {
     if (!articleId) return;
 
+    // Check if user has permission to read this article based on Firestore rules
+    const hasReadPermission = () => {
+      if (!userProfile) return false;
+      
+      // Published articles can be read by anyone (including unauthenticated users)
+      if (articleStatus === 'published') return true;
+      
+      // Authors can read their own articles (any status)
+      if (userProfile.uid === articleAuthorId) return true;
+      
+      // Admins can read all articles (any status)
+      if (userProfile.role === 'admin') return true;
+      
+      return false;
+    };
+
+    // Only set up listener if user has read permission
+    if (!hasReadPermission()) {
+      // For articles without read permission, just use the initial values
+      setLikeCount(initialLikes);
+      setCurrentLikedBy(initialLikedBy);
+      if (userProfile?.uid) {
+        setIsLiked(initialLikedBy.includes(userProfile.uid));
+      }
+      return;
+    }
+
     const articleRef = doc(firestore, "articles", articleId);
     const unsubscribe = onSnapshot(articleRef, (doc) => {
       if (doc.exists()) {
@@ -65,7 +96,7 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
     });
 
     return () => unsubscribe();
-  }, [articleId, userProfile?.uid]);
+  }, [articleId, userProfile?.uid, userProfile?.role, articleStatus, articleAuthorId, initialLikes, initialLikedBy]);
 
   const handleLikeToggle = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation if button is inside a Link
