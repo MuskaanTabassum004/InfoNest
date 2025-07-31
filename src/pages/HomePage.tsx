@@ -37,7 +37,7 @@ export const HomePage: React.FC = () => {
   const loadHomePageData = (): (() => void) => {
     setLoading(true);
 
-    // Set up real-time listener for published articles
+    // Set up real-time listener for published articles (excluding archived)
     const articlesQuery = query(
       collection(firestore, "articles"),
       where("status", "==", "published")
@@ -99,8 +99,16 @@ export const HomePage: React.FC = () => {
   const selectFeaturedArticles = (articles: Article[]): Article[] => {
     // Define application categories for priority ranking
     const applicationCategories = [
-      "Technology", "Business", "Education", "Health", "Finance",
-      "Marketing", "Development", "Design", "Management", "Research"
+      "Technology",
+      "Business",
+      "Education",
+      "Health",
+      "Finance",
+      "Marketing",
+      "Development",
+      "Design",
+      "Management",
+      "Research",
     ];
 
     // Priority scoring function based on specified criteria
@@ -116,8 +124,8 @@ export const HomePage: React.FC = () => {
       }
 
       // Priority 2: Categories mentioned in the application (highest priority)
-      const hasApplicationCategory = article.categories.some(category =>
-        applicationCategories.some(appCat =>
+      const hasApplicationCategory = article.categories.some((category) =>
+        applicationCategories.some((appCat) =>
           category.toLowerCase().includes(appCat.toLowerCase())
         )
       );
@@ -125,8 +133,8 @@ export const HomePage: React.FC = () => {
         score += 5000;
 
         // Bonus for multiple application categories
-        const appCategoryCount = article.categories.filter(category =>
-          applicationCategories.some(appCat =>
+        const appCategoryCount = article.categories.filter((category) =>
+          applicationCategories.some((appCat) =>
             category.toLowerCase().includes(appCat.toLowerCase())
           )
         ).length;
@@ -141,8 +149,8 @@ export const HomePage: React.FC = () => {
         score += Math.min(article.tags.length * 100, 500);
 
         // Bonus for relevant tags
-        const relevantTags = article.tags.filter(tag =>
-          tag.length > 2 && !tag.includes(' ')
+        const relevantTags = article.tags.filter(
+          (tag) => tag.length > 2 && !tag.includes(" ")
         );
         score += relevantTags.length * 50;
       }
@@ -158,8 +166,14 @@ export const HomePage: React.FC = () => {
         }
 
         // Bonus for titles with keywords
-        const titleKeywords = ['guide', 'tutorial', 'how to', 'best practices', 'tips'];
-        const hasKeywords = titleKeywords.some(keyword =>
+        const titleKeywords = [
+          "guide",
+          "tutorial",
+          "how to",
+          "best practices",
+          "tips",
+        ];
+        const hasKeywords = titleKeywords.some((keyword) =>
           article.title.toLowerCase().includes(keyword)
         );
         if (hasKeywords) {
@@ -185,7 +199,8 @@ export const HomePage: React.FC = () => {
       // Additional factors
       // Bonus for recent articles
       if (article.publishedAt) {
-        const daysSincePublished = (Date.now() - article.publishedAt.getTime()) / (1000 * 60 * 60 * 24);
+        const daysSincePublished =
+          (Date.now() - article.publishedAt.getTime()) / (1000 * 60 * 60 * 24);
         if (daysSincePublished < 7) {
           score += 300; // Recent articles get priority
         } else if (daysSincePublished < 30) {
@@ -221,8 +236,6 @@ export const HomePage: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-
-
   const handleDocumentClick = (articleId?: string) => {
     if (isAuthenticated) {
       if (articleId) {
@@ -242,8 +255,6 @@ export const HomePage: React.FC = () => {
       window.location.href = "/";
     }
   };
-
-
 
   // Show loading state while data is loading
   if (loading || authLoading) {
@@ -305,7 +316,7 @@ export const HomePage: React.FC = () => {
               >
                 Docs
               </a>
-              
+
               <a
                 href="#about"
                 className="text-gray-600 hover:text-blue-600 transition-colors"
@@ -369,8 +380,7 @@ export const HomePage: React.FC = () => {
                         <Bookmark className="h-4 w-4" />
                         <span>Saved Articles</span>
                       </Link>
-                      
-                      
+
                       <div className="border-t border-gray-200 my-2"></div>
                       <button
                         onClick={handleLogout}
@@ -425,9 +435,7 @@ export const HomePage: React.FC = () => {
             Discover, search, and access all your important documents in one
             secure, organized platform.
           </p>
-          
-          
-          
+
           <div className="mt-8">
             {isAuthenticated ? (
               <Link
@@ -477,9 +485,9 @@ export const HomePage: React.FC = () => {
                 <div
                   key={article.id}
                   className={`
-                    ${index % 3 === 0 ? 'md:col-start-1' : ''}
-                    ${index % 3 === 1 ? 'md:col-start-2' : ''}
-                    ${index % 3 === 2 ? 'md:col-start-3' : ''}
+                    ${index % 3 === 0 ? "md:col-start-1" : ""}
+                    ${index % 3 === 1 ? "md:col-start-2" : ""}
+                    ${index % 3 === 2 ? "md:col-start-3" : ""}
                     cursor-pointer transition-transform hover:scale-105
                   `}
                   onClick={() => handleDocumentClick(article.id)}
@@ -507,9 +515,9 @@ export const HomePage: React.FC = () => {
               <button
                 onClick={() => {
                   if (isAuthenticated) {
-                    navigate('/dashboard');
+                    navigate("/dashboard");
                   } else {
-                    navigate('/auth?redirect=dashboard');
+                    navigate("/auth?redirect=dashboard");
                   }
                 }}
                 className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
