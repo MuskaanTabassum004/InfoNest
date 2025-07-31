@@ -171,6 +171,16 @@ export const MyArticles: React.FC = () => {
     setFilteredArticles(filtered);
   };
 
+  const handleCardClick = (
+    status: "all" | "published" | "unpublished" | "draft"
+  ) => {
+    if (status === "all") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ status });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     try {
       // Users can only delete their own articles (hard delete)
@@ -354,11 +364,15 @@ export const MyArticles: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center space-x-3 mb-2">
-            {/* Back to Dashboard Button */}
+            {/* Back Button */}
             <button
-              onClick={() => navigate(isAdmin ? "/dashboard" : "/dashboard")}
+              onClick={() =>
+                navigate(isInfoWriter && !isAdmin ? "/" : "/dashboard")
+              }
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Back to Dashboard"
+              title={
+                isInfoWriter && !isAdmin ? "Back to Home" : "Back to Dashboard"
+              }
             >
               <ArrowLeft className="h-5 w-5 text-gray-600" />
             </button>
@@ -410,30 +424,58 @@ export const MyArticles: React.FC = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
+        <button
+          onClick={() => handleCardClick("all")}
+          className={`bg-white/80 backdrop-blur-sm rounded-xl p-4 border transition-all duration-200 text-left hover:shadow-md hover:scale-105 ${
+            statusFilter === "all"
+              ? "border-blue-300 bg-blue-50"
+              : "border-gray-200"
+          }`}
+        >
           <div className="text-2xl font-bold text-gray-900">
             {articles.length}
           </div>
           <div className="text-sm text-gray-600">Total Articles</div>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-green-200">
+        </button>
+        <button
+          onClick={() => handleCardClick("published")}
+          className={`bg-white/80 backdrop-blur-sm rounded-xl p-4 border transition-all duration-200 text-left hover:shadow-md hover:scale-105 ${
+            statusFilter === "published"
+              ? "border-green-300 bg-green-50"
+              : "border-green-200"
+          }`}
+        >
           <div className="text-2xl font-bold text-green-700">
             {articles.filter((a) => a.status === "published").length}
           </div>
           <div className="text-sm text-green-600">Published</div>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-yellow-200">
+        </button>
+        <button
+          onClick={() => handleCardClick("draft")}
+          className={`bg-white/80 backdrop-blur-sm rounded-xl p-4 border transition-all duration-200 text-left hover:shadow-md hover:scale-105 ${
+            statusFilter === "draft"
+              ? "border-yellow-300 bg-yellow-50"
+              : "border-yellow-200"
+          }`}
+        >
           <div className="text-2xl font-bold text-yellow-700">
             {articles.filter((a) => a.status === "draft").length}
           </div>
           <div className="text-sm text-yellow-600">Drafts</div>
-        </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-red-200">
+        </button>
+        <button
+          onClick={() => handleCardClick("unpublished")}
+          className={`bg-white/80 backdrop-blur-sm rounded-xl p-4 border transition-all duration-200 text-left hover:shadow-md hover:scale-105 ${
+            statusFilter === "unpublished"
+              ? "border-red-300 bg-red-50"
+              : "border-red-200"
+          }`}
+        >
           <div className="text-2xl font-bold text-red-700">
             {articles.filter((a) => a.status === "unpublished").length}
           </div>
           <div className="text-sm text-red-600">Unpublished</div>
-        </div>
+        </button>
       </div>
 
       {/* Articles Loading State */}
