@@ -4,7 +4,7 @@ service cloud.firestore {
     // Articles collection - role-based permissions
     match /articles/{articleId} {
       // READ PERMISSIONS
-      // Anyone can read published articles (including unauthenticated users)
+      // Anyone can read published articles (including unauthenticated users), but not archived
       allow read: if resource.data.status == 'published';
 
       // Authors can read their own articles (any status)
