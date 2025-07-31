@@ -100,52 +100,56 @@ export const useAuth = () => {
 
         // Load from Firestore if cache miss or needs refresh
         const profileRef = doc(firestore, "users", firebaseUser.uid);
-        onSnapshot(profileRef, (doc) => {
-          if (doc.exists()) {
-            const data = doc.data();
-            const profile: UserProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || "",
-              displayName:
-                data.displayName ||
-                firebaseUser.displayName ||
-                firebaseUser.email?.split("@")[0] ||
-                "",
-              role: data.role || "user",
-              emailVerified: firebaseUser.emailVerified,
-              profilePicture: data.profilePicture || "",
-              bio: data.bio || "",
-              socialLinks: data.socialLinks || {},
-              createdAt: data.createdAt?.toDate(),
-              updatedAt: data.updatedAt?.toDate(),
-              requestedWriterAccess: data.requestedWriterAccess,
-            };
+        onSnapshot(
+          profileRef,
+          (doc) => {
+            if (doc.exists()) {
+              const data = doc.data();
+              const profile: UserProfile = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || "",
+                displayName:
+                  data.displayName ||
+                  firebaseUser.displayName ||
+                  firebaseUser.email?.split("@")[0] ||
+                  "",
+                role: data.role || "user",
+                emailVerified: firebaseUser.emailVerified,
+                profilePicture: data.profilePicture || "",
+                bio: data.bio || "",
+                socialLinks: data.socialLinks || {},
+                createdAt: data.createdAt?.toDate(),
+                updatedAt: data.updatedAt?.toDate(),
+                requestedWriterAccess: data.requestedWriterAccess,
+              };
 
-            // Cache the session with permissions
-            const session = authCache.cacheUserSession(profile);
+              // Cache the session with permissions
+              const session = authCache.cacheUserSession(profile);
 
-            setUserProfile(profile);
-            setPermissions(session.permissions);
-            setProfileLoading(false);
-          } else {
+              setUserProfile(profile);
+              setPermissions(session.permissions);
+              setProfileLoading(false);
+            } else {
+              setUserProfile(null);
+              setPermissions(null);
+              setProfileLoading(false);
+            }
+          },
+          (error) => {
+            // Handle Firestore permission errors silently
+            if (error.code === "permission-denied") {
+              // Silently handle permission errors for unverified users
+              setUserProfile(null);
+              setPermissions(null);
+              setProfileLoading(false);
+              return;
+            }
+            console.error("Error in profile snapshot:", error);
             setUserProfile(null);
             setPermissions(null);
             setProfileLoading(false);
           }
-        }, (error) => {
-          // Handle Firestore permission errors silently
-          if (error.code === 'permission-denied') {
-            // Silently handle permission errors for unverified users
-            setUserProfile(null);
-            setPermissions(null);
-            setProfileLoading(false);
-            return;
-          }
-          console.error("Error in profile snapshot:", error);
-          setUserProfile(null);
-          setPermissions(null);
-          setProfileLoading(false);
-        });
+        );
       } catch (error) {
         console.error("Error loading user profile:", error);
         setUserProfile(null);
@@ -169,7 +173,7 @@ export const useAuth = () => {
             await loadUserProfile(firebaseUser);
           } catch (error: any) {
             // Silently handle permission errors for unverified users
-            if (error.code === 'permission-denied') {
+            if (error.code === "permission-denied") {
               setUserProfile(null);
               setPermissions(null);
               authCache.clearAllSessions();
@@ -273,8 +277,12 @@ export const useAuth = () => {
   }, [permissions]);
 
   const canEditArticle = useCallback(
-    (authorId: string): boolean => {
+    (authorId: string, articleStatus?: string): boolean => {
       if (!userProfile) return false;
+
+      // Archived articles cannot be edited by anyone
+      if (articleStatus === "archive") return false;
+
       // Only authors can edit their own articles (including admins editing their own articles)
       // This matches the updated Firebase security rules
       return userProfile.uid === authorId;
@@ -306,6 +314,16 @@ export const useAuth = () => {
       // Anyone can read published articles (matches Firebase rules)
       if (articleStatus === "published") {
         return true;
+      }
+
+      // Archived articles can only be read by author or admin
+      if (articleStatus === "archive") {
+        if (!userProfile) return false;
+        // Authors can read their own archived articles
+        if (userProfile.uid === authorId) return true;
+        // Admins can read all archived articles
+        if (userProfile.role === "admin") return true;
+        return false;
       }
 
       // Must be authenticated to read non-published articles
