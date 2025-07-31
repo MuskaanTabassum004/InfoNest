@@ -10,6 +10,7 @@ import {
   Plus,
   Edit,
   Eye,
+  EyeOff,
   FileText,
   BarChart3,
   Calendar,
@@ -202,7 +203,6 @@ export const InfoWriterDashboard: React.FC = () => {
             placeholder="Search articles..."
             onResultClick={() => {}}
           />
-
         </div>
       </div>
 
@@ -302,6 +302,28 @@ export const InfoWriterDashboard: React.FC = () => {
                 </Link>
 
                 <Link
+                  to="/my-articles?status=unpublished"
+                  className="flex items-center justify-between p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-red-100 p-2 rounded-lg group-hover:bg-red-200 transition-colors">
+                      <EyeOff className="h-4 w-4 text-red-600" />
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-900 group-hover:text-red-700">
+                        Unpublished
+                      </span>
+                      <p className="text-xs text-gray-600">
+                        Removed from public
+                      </p>
+                    </div>
+                  </div>
+                  <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {dashboardData.myStats.totalUnpublished}
+                  </span>
+                </Link>
+
+                <Link
                   to="/saved-articles"
                   className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
                 >
@@ -338,10 +360,6 @@ export const InfoWriterDashboard: React.FC = () => {
                     </p>
                   </div>
                 </Link>
-
-                
-
-                
               </div>
             </div>
           </div>
