@@ -1,12 +1,20 @@
-﻿import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { UserDashboard } from "./UserDashboard";
 import { AdminDashboard } from "./AdminDashboard";
-import { InfoWriterDashboard } from "./InfoWriterDashboard";
 
 export const Dashboard: React.FC = () => {
   const { userProfile, isAdmin, isInfoWriter, isUser, loading, permissions } =
     useAuth();
+  const navigate = useNavigate();
+
+  // Redirect InfoWriters to My Articles page
+  useEffect(() => {
+    if (userProfile && isInfoWriter && !isAdmin) {
+      navigate("/my-articles", { replace: true });
+    }
+  }, [userProfile, isInfoWriter, isAdmin, navigate]);
 
   // Memoized dashboard component selection for performance
   const DashboardComponent = useMemo(() => {
@@ -17,16 +25,14 @@ export const Dashboard: React.FC = () => {
       return AdminDashboard;
     }
 
-    if (isInfoWriter) {
-      return InfoWriterDashboard;
-    }
-
+    // InfoWriters are now redirected to My Articles, so this won't be reached
+    // unless they are also admins
     if (isUser) {
       return UserDashboard;
     }
 
     return null;
-  }, [userProfile, isAdmin, isInfoWriter, isUser]);
+  }, [userProfile, isAdmin, isUser]);
 
   // Loading state - only show on initial load, not on cached data
   if (loading && !userProfile) {
