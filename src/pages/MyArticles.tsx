@@ -43,7 +43,7 @@ export const MyArticles: React.FC = () => {
   const [articlesLoading, setArticlesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "draft" | "published" | "unpublished"
+    "all" | "draft" | "published" | "unpublished" | "archive"
   >("all");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -54,9 +54,11 @@ export const MyArticles: React.FC = () => {
     const statusParam = searchParams.get("status");
     if (
       statusParam &&
-      ["draft", "published", "unpublished"].includes(statusParam)
+      ["draft", "published", "unpublished", "archive"].includes(statusParam)
     ) {
-      setStatusFilter(statusParam as "draft" | "published" | "unpublished");
+      setStatusFilter(
+        statusParam as "draft" | "published" | "unpublished" | "archive"
+      );
     } else {
       setStatusFilter("all");
     }
@@ -172,7 +174,7 @@ export const MyArticles: React.FC = () => {
   };
 
   const handleCardClick = (
-    status: "all" | "published" | "unpublished" | "draft"
+    status: "all" | "published" | "unpublished" | "draft" | "archive"
   ) => {
     if (status === "all") {
       setSearchParams({});
@@ -196,7 +198,7 @@ export const MyArticles: React.FC = () => {
 
   const handleStatusChange = async (
     id: string,
-    newStatus: "draft" | "published" | "unpublished"
+    newStatus: "draft" | "published" | "unpublished" | "archive"
   ) => {
     console.log(`Changing article ${id} status to ${newStatus}`);
 
@@ -250,6 +252,8 @@ export const MyArticles: React.FC = () => {
           ? "published"
           : newStatus === "unpublished"
           ? "marked as unpublished"
+          : newStatus === "archive"
+          ? "archived"
           : "saved as draft";
       toast.success(`Article ${statusText} successfully`);
     } catch (error) {
@@ -277,6 +281,8 @@ export const MyArticles: React.FC = () => {
         return "bg-yellow-100 text-yellow-800";
       case "unpublished":
         return "bg-red-100 text-red-800";
+      case "archive":
+        return "bg-purple-100 text-purple-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -417,13 +423,14 @@ export const MyArticles: React.FC = () => {
               <option value="draft">Draft</option>
               <option value="published">Published</option>
               <option value="unpublished">Unpublished</option>
+              <option value="archive">Archive</option>
             </select>
           </div>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <button
           onClick={() => handleCardClick("all")}
           className={`bg-white/80 backdrop-blur-sm rounded-xl p-4 border transition-all duration-200 text-left hover:shadow-md hover:scale-105 ${
@@ -476,6 +483,19 @@ export const MyArticles: React.FC = () => {
           </div>
           <div className="text-sm text-red-600">Unpublished</div>
         </button>
+        <button
+          onClick={() => handleCardClick("archive")}
+          className={`bg-white/80 backdrop-blur-sm rounded-xl p-4 border transition-all duration-200 text-left hover:shadow-md hover:scale-105 ${
+            statusFilter === "archive"
+              ? "border-purple-300 bg-purple-50"
+              : "border-purple-200"
+          }`}
+        >
+          <div className="text-2xl font-bold text-purple-700">
+            {articles.filter((a) => a.status === "archive").length}
+          </div>
+          <div className="text-sm text-purple-600">Archive</div>
+        </button>
       </div>
 
       {/* Articles Loading State */}
@@ -522,7 +542,7 @@ export const MyArticles: React.FC = () => {
                 article={article}
                 variant="default"
                 showStatus={true}
-                showActions={false}
+                showActions={true}
                 showEditButton={true}
               />
 
@@ -599,6 +619,22 @@ export const MyArticles: React.FC = () => {
                           >
                             <EyeOff className="h-4 w-4" />
                             <span>Unpublish</span>
+                          </button>
+                        )}
+
+                        {(article.status === "published" ||
+                          article.status === "unpublished" ||
+                          article.status === "draft") && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStatusChange(article.id, "archive");
+                            }}
+                            disabled={updatingStatus === article.id}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center space-x-2 disabled:opacity-50"
+                          >
+                            <FileText className="h-4 w-4" />
+                            <span>Archive</span>
                           </button>
                         )}
 
