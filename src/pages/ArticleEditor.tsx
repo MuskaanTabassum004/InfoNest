@@ -61,8 +61,6 @@ export const ArticleEditor: React.FC = () => {
     attachments: [],
   });
 
-
-
   // Draft recovery state
   const [showDraftRecovery, setShowDraftRecovery] = useState(false);
 
@@ -116,13 +114,14 @@ export const ArticleEditor: React.FC = () => {
   useEffect(() => {
     const checkForDrafts = () => {
       const drafts = draftStorage.getAllDrafts();
-      const hasRecoverableDrafts = drafts.some(draft => {
+      const hasRecoverableDrafts = drafts.some((draft) => {
         const isNotCurrent = !id || draft.id !== id;
         const hasContent = draft.content.trim().length > 50;
-        const isRecent = Date.now() - draft.lastModified.getTime() < 7 * 24 * 60 * 60 * 1000; // 7 days
+        const isRecent =
+          Date.now() - draft.lastModified.getTime() < 7 * 24 * 60 * 60 * 1000; // 7 days
         return isNotCurrent && hasContent && isRecent;
       });
-      
+
       if (hasRecoverableDrafts && !isEditing) {
         setShowDraftRecovery(true);
       }
@@ -139,16 +138,18 @@ export const ArticleEditor: React.FC = () => {
     if (!userProfile) return;
 
     const currentData = JSON.stringify({
-      title: article.title || '',
-      content: article.content || '',
-      excerpt: article.excerpt || '',
+      title: article.title || "",
+      content: article.content || "",
+      excerpt: article.excerpt || "",
       categories: article.categories || [],
       tags: article.tags || [],
-      coverImage: article.coverImage || ''
+      coverImage: article.coverImage || "",
     });
 
     // Check if data has changed from last saved state
-    const hasChanges = currentData !== lastSavedData && (article.title?.trim() || article.content?.trim());
+    const hasChanges =
+      currentData !== lastSavedData &&
+      (article.title?.trim() || article.content?.trim());
     setHasUnsavedChanges(hasChanges);
   }, [article, lastSavedData, userProfile]);
 
@@ -157,12 +158,12 @@ export const ArticleEditor: React.FC = () => {
     if (!userProfile || (!article.title && !article.content)) return;
 
     const draftData = {
-      title: article.title || '',
-      content: article.content || '',
-      excerpt: article.excerpt || '',
+      title: article.title || "",
+      content: article.content || "",
+      excerpt: article.excerpt || "",
       categories: article.categories || [],
       tags: article.tags || [],
-      coverImage: article.coverImage || ''
+      coverImage: article.coverImage || "",
     };
 
     // Only save if there's meaningful content
@@ -176,13 +177,14 @@ export const ArticleEditor: React.FC = () => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        e.returnValue =
+          "You have unsaved changes. Are you sure you want to leave?";
         return e.returnValue;
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
   // Handle navigation attempts when there are unsaved changes
@@ -242,21 +244,21 @@ export const ArticleEditor: React.FC = () => {
   // Handle draft recovery
   const handleDraftRecover = (draft: any) => {
     setArticle({
-      title: draft.title || '',
-      content: draft.content || '',
-      excerpt: draft.excerpt || '',
-      status: 'draft',
+      title: draft.title || "",
+      content: draft.content || "",
+      excerpt: draft.excerpt || "",
+      status: "draft",
       categories: draft.categories || [],
       tags: draft.tags || [],
-      coverImage: draft.coverImage || '',
-      attachments: []
+      coverImage: draft.coverImage || "",
+      attachments: [],
     });
-    
+
     // Set form state
-    setSelectedCategory(draft.categories?.[0] || '');
+    setSelectedCategory(draft.categories?.[0] || "");
     setShowDraftRecovery(false);
-    
-    toast.success('Draft recovered successfully!');
+
+    toast.success("Draft recovered successfully!");
   };
 
   // Helper functions for enhanced features
@@ -434,6 +436,13 @@ export const ArticleEditor: React.FC = () => {
           navigate("/my-articles");
           return;
         }
+
+        // Prevent editing archived articles
+        if (loadedArticle.status === "archive") {
+          toast.error("Archived articles cannot be edited");
+          navigate("/my-articles");
+          return;
+        }
         setArticle(loadedArticle);
         // Set form state from loaded article
         setSelectedCategory(loadedArticle.categories?.[0] || "");
@@ -451,7 +460,7 @@ export const ArticleEditor: React.FC = () => {
 
   const generateExcerpt = (content: string): string => {
     const plainText = stripHtmlTags(content);
-    const words = plainText.split(/\s+/).filter(word => word.length > 0); // Split by whitespace and filter empty strings
+    const words = plainText.split(/\s+/).filter((word) => word.length > 0); // Split by whitespace and filter empty strings
 
     const MAX_WORDS = 70; // Set the maximum word limit
 
@@ -492,7 +501,7 @@ export const ArticleEditor: React.FC = () => {
     setCoverImageUrl("");
 
     // Force re-render of RichTextEditor by changing key
-    setEditorKey(prev => prev + 1);
+    setEditorKey((prev) => prev + 1);
 
     // Clear any field errors
     setFieldErrors({
@@ -506,8 +515,6 @@ export const ArticleEditor: React.FC = () => {
     setLastSavedData("");
     setHasUnsavedChanges(false);
   };
-
-
 
   const handleSave = async (status: "draft" | "published" = "draft") => {
     if (!userProfile) {
@@ -530,7 +537,7 @@ export const ArticleEditor: React.FC = () => {
       category: "",
       tags: "",
     };
-    
+
     let hasErrors = false;
 
     if (!article.title?.trim()) {
@@ -590,14 +597,16 @@ export const ArticleEditor: React.FC = () => {
         );
 
         // Update last saved data to track changes
-        setLastSavedData(JSON.stringify({
-          title: articleData.title || '',
-          content: articleData.content || '',
-          excerpt: articleData.excerpt || '',
-          categories: articleData.categories || [],
-          tags: articleData.tags || [],
-          coverImage: articleData.coverImage || ''
-        }));
+        setLastSavedData(
+          JSON.stringify({
+            title: articleData.title || "",
+            content: articleData.content || "",
+            excerpt: articleData.excerpt || "",
+            categories: articleData.categories || [],
+            tags: articleData.tags || [],
+            coverImage: articleData.coverImage || "",
+          })
+        );
 
         // Clean up auto-saved draft after successful save
         if (status === "published") {
@@ -630,14 +639,16 @@ export const ArticleEditor: React.FC = () => {
         );
 
         // Update last saved data to track changes
-        setLastSavedData(JSON.stringify({
-          title: articleData.title || '',
-          content: articleData.content || '',
-          excerpt: articleData.excerpt || '',
-          categories: articleData.categories || [],
-          tags: articleData.tags || [],
-          coverImage: articleData.coverImage || ''
-        }));
+        setLastSavedData(
+          JSON.stringify({
+            title: articleData.title || "",
+            content: articleData.content || "",
+            excerpt: articleData.excerpt || "",
+            categories: articleData.categories || [],
+            tags: articleData.tags || [],
+            coverImage: articleData.coverImage || "",
+          })
+        );
 
         // Clean up auto-saved draft after successful creation
         if (status === "published") {
@@ -1038,7 +1049,9 @@ export const ArticleEditor: React.FC = () => {
             <div
               className="prose prose-lg max-w-none article-content"
               dangerouslySetInnerHTML={{
-                __html: processLayoutSpecificCaptions(article.content || "<p>Start writing your article...</p>"),
+                __html: processLayoutSpecificCaptions(
+                  article.content || "<p>Start writing your article...</p>"
+                ),
               }}
             />
           </div>
@@ -1091,8 +1104,6 @@ export const ArticleEditor: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-
-
       {/* Draft Recovery Modal */}
       {showDraftRecovery && (
         <DraftRecovery
@@ -1194,7 +1205,6 @@ export const ArticleEditor: React.FC = () => {
                 <div className="space-y-4">
                   {/* Method Toggle */}
                   <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-                    
                     <button
                       onClick={() => setCoverImageMethod("url")}
                       className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
@@ -1277,7 +1287,8 @@ export const ArticleEditor: React.FC = () => {
             {/* Title */}
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Article Title <span className="text-s text-red-500 mr-0">*</span>
+                Article Title{" "}
+                <span className="text-s text-red-500 mr-0">*</span>
               </label>
               <input
                 type="text"
@@ -1285,7 +1296,9 @@ export const ArticleEditor: React.FC = () => {
                 onChange={(e) =>
                   setArticle((prev) => ({ ...prev, title: e.target.value }))
                 }
-                onFocus={() => setFieldErrors(prev => ({ ...prev, title: "" }))}
+                onFocus={() =>
+                  setFieldErrors((prev) => ({ ...prev, title: "" }))
+                }
                 placeholder="Article title..."
                 className={`w-full text-3xl font-bold border-none outline-none bg-transparent placeholder-gray-400 resize-none ${
                   fieldErrors.title ? "border-b-2 border-red-500" : ""
@@ -1301,13 +1314,16 @@ export const ArticleEditor: React.FC = () => {
             </div>
 
             {/* Rich Text Editor */}
-            <div className={`bg-white rounded-2xl border overflow-hidden ${
-              fieldErrors.content ? "border-red-500" : "border-gray-200"
-            }`}>
+            <div
+              className={`bg-white rounded-2xl border overflow-hidden ${
+                fieldErrors.content ? "border-red-500" : "border-gray-200"
+              }`}
+            >
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
-                  Article Content <span className="text-s text-red-500 mr-0">*</span>
+                  Article Content{" "}
+                  <span className="text-s text-red-500 mr-0">*</span>
                 </h3>
                 {fieldErrors.content && (
                   <p className="text-red-500 text-sm mt-1 flex items-center">
@@ -1321,9 +1337,9 @@ export const ArticleEditor: React.FC = () => {
                   key={editorKey}
                   content={article.content || ""}
                   onChange={(content) => {
-                    setArticle((prev) => ({ ...prev, content }))
+                    setArticle((prev) => ({ ...prev, content }));
                     if (fieldErrors.content) {
-                      setFieldErrors(prev => ({ ...prev, content: "" }))
+                      setFieldErrors((prev) => ({ ...prev, content: "" }));
                     }
                   }}
                   placeholder="Start writing your article..."
@@ -1335,9 +1351,11 @@ export const ArticleEditor: React.FC = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Category Selection */}
-            <div className={`bg-white rounded-2xl p-6 border ${
-              fieldErrors.category ? "border-red-500" : "border-gray-200"
-            }`}>
+            <div
+              className={`bg-white rounded-2xl p-6 border ${
+                fieldErrors.category ? "border-red-500" : "border-gray-200"
+              }`}
+            >
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Folder className="h-5 w-5 mr-2" />
                 Category <span className="text-s text-red-500 mr-0">*</span>
@@ -1346,9 +1364,9 @@ export const ArticleEditor: React.FC = () => {
               <select
                 value={selectedCategory}
                 onChange={(e) => {
-                  handleCategoryChange(e.target.value)
+                  handleCategoryChange(e.target.value);
                   if (fieldErrors.category) {
-                    setFieldErrors(prev => ({ ...prev, category: "" }))
+                    setFieldErrors((prev) => ({ ...prev, category: "" }));
                   }
                 }}
                 className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
@@ -1366,7 +1384,8 @@ export const ArticleEditor: React.FC = () => {
               {selectedCategory === "Other" && (
                 <div className="mt-3">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Enter Custom Category <span className="text-red-500">*</span>
+                    Enter Custom Category{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1383,7 +1402,9 @@ export const ArticleEditor: React.FC = () => {
                     }}
                     placeholder="Type your custom category..."
                     className={`w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      fieldErrors.category ? "border-red-500" : "border-gray-300"
+                      fieldErrors.category
+                        ? "border-red-500"
+                        : "border-gray-300"
                     }`}
                   />
                 </div>
@@ -1399,7 +1420,9 @@ export const ArticleEditor: React.FC = () => {
               {selectedCategory && (
                 <div className="mt-3">
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    {selectedCategory === "Other" ? customCategory || "Other" : selectedCategory}
+                    {selectedCategory === "Other"
+                      ? customCategory || "Other"
+                      : selectedCategory}
                     <button
                       onClick={() => handleCategoryChange("")}
                       className="hover:text-blue-600"
@@ -1412,9 +1435,11 @@ export const ArticleEditor: React.FC = () => {
             </div>
 
             {/* Tags */}
-            <div className={`bg-white rounded-2xl p-6 border ${
-              fieldErrors.tags ? "border-red-500" : "border-gray-200"
-            }`}>
+            <div
+              className={`bg-white rounded-2xl p-6 border ${
+                fieldErrors.tags ? "border-red-500" : "border-gray-200"
+              }`}
+            >
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Tag className="h-5 w-5 mr-2" />
                 Tags<span className="text-s text-red-500 mr-0">*</span>
@@ -1451,9 +1476,13 @@ export const ArticleEditor: React.FC = () => {
                   type="text"
                   value={tagInput}
                   onChange={(e) => {
-                    setTagInput(e.target.value)
-                    if (fieldErrors.tags && article.tags && article.tags.length > 0) {
-                      setFieldErrors(prev => ({ ...prev, tags: "" }))
+                    setTagInput(e.target.value);
+                    if (
+                      fieldErrors.tags &&
+                      article.tags &&
+                      article.tags.length > 0
+                    ) {
+                      setFieldErrors((prev) => ({ ...prev, tags: "" }));
                     }
                   }}
                   onKeyPress={(e) => {
@@ -1470,9 +1499,9 @@ export const ArticleEditor: React.FC = () => {
                 />
                 <button
                   onClick={() => {
-                    addTag()
+                    addTag();
                     if (fieldErrors.tags && tagInput.trim()) {
-                      setFieldErrors(prev => ({ ...prev, tags: "" }))
+                      setFieldErrors((prev) => ({ ...prev, tags: "" }));
                     }
                   }}
                   disabled={
@@ -1488,7 +1517,9 @@ export const ArticleEditor: React.FC = () => {
               <p className="text-xs text-gray-500 mt-2 flex items-center">
                 <span className="text-red-500 mr-1">*</span>
                 {article.tags?.length || 0}/4 tags used
-                {article.tags && article.tags.length === 0 && " - At least one tag is required"}
+                {article.tags &&
+                  article.tags.length === 0 &&
+                  " - At least one tag is required"}
               </p>
             </div>
 
@@ -1579,7 +1610,8 @@ export const ArticleEditor: React.FC = () => {
             </div>
 
             <p className="text-gray-600 mb-6">
-              You have unsaved changes. Would you like to save them as a draft before leaving?
+              You have unsaved changes. Would you like to save them as a draft
+              before leaving?
             </p>
 
             <div className="flex items-center justify-end space-x-3">
