@@ -161,7 +161,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
   const canEdit = () => {
     if (!userProfile) return false;
-    return canEditArticle(article.authorId);
+    return canEditArticle(article.authorId, article.status);
   };
 
   const canDelete = () => {
