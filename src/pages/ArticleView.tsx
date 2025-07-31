@@ -21,7 +21,11 @@ import { formatDistanceToNow, format } from "date-fns";
 import toast from "react-hot-toast";
 import { SaveArticleButton } from "../components/SaveArticleButton";
 import { ShareButton } from "../components/ShareButton";
-import { CommentSection, CommentButton, useCommentSection } from "../components/CommentSection";
+import {
+  CommentSection,
+  CommentButton,
+  useCommentSection,
+} from "../components/CommentSection";
 import { onSnapshot, doc, updateDoc, increment } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 
@@ -30,7 +34,12 @@ import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProces
 export const ArticleView: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { userProfile, canEditArticle, canReadArticle, loading: authLoading } = useAuth();
+  const {
+    userProfile,
+    canEditArticle,
+    canReadArticle,
+    loading: authLoading,
+  } = useAuth();
   const [article, setArticle] = useState<Article | null>(null);
   const [authorProfile, setAuthorProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +74,10 @@ export const ArticleView: React.FC = () => {
             return;
           }
           // If userProfile is loaded, check permissions
-          if (userProfile && !canReadArticle(loadedArticle.status, loadedArticle.authorId)) {
+          if (
+            userProfile &&
+            !canReadArticle(loadedArticle.status, loadedArticle.authorId)
+          ) {
             toast.error("Article not found or not accessible");
             navigate("/dashboard");
             return;
@@ -75,7 +87,9 @@ export const ArticleView: React.FC = () => {
 
         // Initialize like state
         setLikeCount(loadedArticle.likes || 0);
-        setIsLiked(loadedArticle.likedBy?.includes(userProfile?.uid || '') || false);
+        setIsLiked(
+          loadedArticle.likedBy?.includes(userProfile?.uid || "") || false
+        );
 
         // Author profile is now loaded via real-time hook
 
@@ -121,7 +135,9 @@ export const ArticleView: React.FC = () => {
 
         // Update like state in real-time
         setLikeCount(updatedArticle.likes || 0);
-        setIsLiked(updatedArticle.likedBy?.includes(userProfile?.uid || '') || false);
+        setIsLiked(
+          updatedArticle.likedBy?.includes(userProfile?.uid || "") || false
+        );
       } else {
         // Article has been deleted - redirect to dashboard
         toast.error("This article has been removed");
@@ -137,38 +153,45 @@ export const ArticleView: React.FC = () => {
     if (!article?.authorId) return;
 
     const userRef = doc(firestore, "users", article.authorId);
-    const unsubscribe = onSnapshot(userRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        const profile: UserProfile = {
-          uid: article.authorId,
-          email: data.email || '',
-          displayName: data.displayName || '',
-          role: data.role || 'user',
-          emailVerified: data.emailVerified || false,
-          profilePicture: data.profilePicture || '',
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
-          requestedWriterAccess: data.requestedWriterAccess || false,
-        };
-        setAuthorProfile(profile);
-      } else {
+    const unsubscribe = onSnapshot(
+      userRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          const profile: UserProfile = {
+            uid: article.authorId,
+            email: data.email || "",
+            displayName: data.displayName || "",
+            role: data.role || "user",
+            emailVerified: data.emailVerified || false,
+            profilePicture: data.profilePicture || "",
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
+            requestedWriterAccess: data.requestedWriterAccess || false,
+          };
+          setAuthorProfile(profile);
+        } else {
+          setAuthorProfile(null);
+        }
+      },
+      (error) => {
+        // Silently handle permission errors
+        if (error.code !== "permission-denied") {
+          console.error(
+            `Error subscribing to author profile ${article.authorId}:`,
+            error
+          );
+        }
         setAuthorProfile(null);
       }
-    }, (error) => {
-      // Silently handle permission errors
-      if (error.code !== 'permission-denied') {
-        console.error(`Error subscribing to author profile ${article.authorId}:`, error);
-      }
-      setAuthorProfile(null);
-    });
+    );
 
     return () => unsubscribe();
   }, [article?.authorId]);
 
   const canEdit = (article: Article): boolean => {
     if (!userProfile) return false;
-    return canEditArticle(article.authorId);
+    return canEditArticle(article.authorId, article.status);
   };
 
   const handleLikeToggle = async () => {
@@ -189,13 +212,13 @@ export const ArticleView: React.FC = () => {
         // Unlike: remove user from likedBy array and decrement likes
         await updateDoc(articleRef, {
           likes: increment(-1),
-          likedBy: currentLikedBy.filter(id => id !== userId)
+          likedBy: currentLikedBy.filter((id) => id !== userId),
         });
       } else {
         // Like: add user to likedBy array and increment likes
         await updateDoc(articleRef, {
           likes: increment(1),
-          likedBy: [...currentLikedBy, userId]
+          likedBy: [...currentLikedBy, userId],
         });
       }
     } catch (error) {
@@ -564,250 +587,256 @@ export const ArticleView: React.FC = () => {
       `}</style>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back</span>
-        </button>
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back</span>
+          </button>
 
-        <div className="flex items-center space-x-3">
-          {/* Save Article Button for Users */}
-          <SaveArticleButton article={article} />
+          <div className="flex items-center space-x-3">
+            {/* Save Article Button for Users */}
+            <SaveArticleButton article={article} />
 
-          {/* Share Article Button */}
-          <ShareButton
-            articleId={article.id}
-            articleTitle={article.title}
-            showLabel={true}
-          />
+            {/* Share Article Button */}
+            <ShareButton
+              articleId={article.id}
+              articleTitle={article.title}
+              showLabel={true}
+            />
 
-          {canEdit(article) && (
-            <Link
-              to={`/article/edit/${article.id}`}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-            >
-              <Edit className="h-4 w-4" />
-              <span>Edit</span>
-            </Link>
-          )}
+            {canEdit(article) && (
+              <Link
+                to={`/article/edit/${article.id}`}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                <Edit className="h-4 w-4" />
+                <span>Edit</span>
+              </Link>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Article Content */}
-      <article className="bg-white/80 backdrop-blur-sm rounded-2xl overflow-hidden border border-gray-200">
-        {/* Cover Image */}
-        {article.coverImage && (
-          <div className="aspect-video bg-gray-100 overflow-hidden">
-            <img
-              src={article.coverImage}
-              alt={article.title}
-              className="w-full h-full object-cover"
+        {/* Article Content */}
+        <article className="bg-white/80 backdrop-blur-sm rounded-2xl overflow-hidden border border-gray-200">
+          {/* Cover Image */}
+          {article.coverImage && (
+            <div className="aspect-video bg-gray-100 overflow-hidden">
+              <img
+                src={article.coverImage}
+                alt={article.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+
+          <div className="p-8">
+            {/* Status Badge */}
+            {article.status !== "published" && (
+              <div className="mb-6">
+                <span
+                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    article.status === "draft"
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  {article.status === "draft" ? "Draft" : "Unpublished"}
+                </span>
+              </div>
+            )}
+
+            {/* Title */}
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6 leading-tight">
+              {article.title}
+            </h1>
+
+            {/* Author Profile & Metadata */}
+            <div className="flex items-start justify-between mb-8">
+              <div className="flex items-center space-x-4">
+                {/* Author Profile */}
+                <Link
+                  to={`/author/${article.authorId}`}
+                  className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors group"
+                >
+                  {authorProfile?.profilePicture ? (
+                    <img
+                      src={authorProfile.profilePicture}
+                      alt={authorProfile.displayName || article.authorName}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-300 transition-colors"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all">
+                      <User className="h-6 w-6 text-white" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                      {authorProfile?.displayName || article.authorName}
+                    </p>
+                    <p className="text-sm text-gray-600 capitalize">
+                      {authorProfile?.role
+                        ? authorProfile.role === "infowriter"
+                          ? "InfoWriter"
+                          : authorProfile.role === "admin"
+                          ? "InfoWriter"
+                          : authorProfile.role
+                        : "Author"}
+                    </p>
+                  </div>
+                </Link>
+              </div>
+
+              {/* Article Actions */}
+              <div className="flex items-center space-x-3">
+                <CommentButton
+                  commentCount={commentSection.commentCount}
+                  onClick={commentSection.toggle}
+                  className="data-comment-button"
+                />
+
+                <button
+                  onClick={handleLikeToggle}
+                  disabled={likingInProgress}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                    isLiked
+                      ? "text-red-600 hover:text-red-700 hover:bg-red-50"
+                      : "text-gray-600 hover:text-red-600 hover:bg-red-50"
+                  }`}
+                >
+                  <Heart
+                    className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`}
+                  />
+                  <span className="text-sm">{likeCount}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Article Stats */}
+            <div className="flex flex-wrap items-center gap-6 mb-8 text-sm text-gray-600 bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4" />
+                <span>Updated: {format(article.updatedAt, "dd/MM/yyyy")}</span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Eye className="h-4 w-4" />
+                <span>{article.views || 0} views</span>
+              </div>
+            </div>
+
+            {/* Categories and Tags */}
+            {(article.categories.length > 0 || article.tags.length > 0) && (
+              <div className="mb-4 space-y-4">
+                {article.categories.length > 0 && (
+                  <div>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Folder className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">
+                        Categories
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {article.categories.map((category) => (
+                        <span
+                          key={category}
+                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        >
+                          {category}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {article.tags.length > 0 && (
+                  <div>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Tag className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">
+                        Tags
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {article.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Content */}
+            <div className="w-full pt-2 pb-6">
+              <div
+                className="prose prose-lg max-w-none mx-auto px-8"
+                style={{
+                  fontSize: "18px",
+                  lineHeight: "1.8",
+                  letterSpacing: "0.01em",
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: processLayoutSpecificCaptions(article.content),
+                }}
+              />
+            </div>
+
+            {/* Attachments */}
+            {article.attachments && article.attachments.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Download className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Attachments
+                  </h3>
+                </div>
+                <div className="space-y-3">
+                  {article.attachments.map((attachment, index) => (
+                    <a
+                      key={index}
+                      href={attachment}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200 group"
+                    >
+                      <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all">
+                        <Download className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors block truncate">
+                          {attachment.split("/").pop() || "Download"}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Click to download
+                        </span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </article>
+
+        {/* Comment Section */}
+        {article && (
+          <div className="mt-8" data-comment-section>
+            <CommentSection
+              articleId={article.id}
+              isOpen={commentSection.isOpen}
+              onToggle={commentSection.toggle}
             />
           </div>
         )}
-
-        <div className="p-8">
-          {/* Status Badge */}
-          {article.status !== "published" && (
-            <div className="mb-6">
-              <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  article.status === "draft"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {article.status === "draft" ? "Draft" : "Unpublished"}
-              </span>
-            </div>
-          )}
-
-          {/* Title */}
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6 leading-tight">
-            {article.title}
-          </h1>
-
-          {/* Author Profile & Metadata */}
-          <div className="flex items-start justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              {/* Author Profile */}
-              <Link
-                to={`/author/${article.authorId}`}
-                className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors group"
-              >
-                {authorProfile?.profilePicture ? (
-                  <img
-                    src={authorProfile.profilePicture}
-                    alt={authorProfile.displayName || article.authorName}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-300 transition-colors"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all">
-                    <User className="h-6 w-6 text-white" />
-                  </div>
-                )}
-                <div>
-                  <p className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
-                    {authorProfile?.displayName || article.authorName}
-                  </p>
-                  <p className="text-sm text-gray-600 capitalize">
-                    {authorProfile?.role ?
-                     (authorProfile.role === "infowriter" ? "InfoWriter" : authorProfile.role === "admin" ? "InfoWriter" : authorProfile.role) :
-                     "Author"}
-                  </p>
-                </div>
-              </Link>
-            </div>
-
-            {/* Article Actions */}
-            <div className="flex items-center space-x-3">
-              <CommentButton
-                commentCount={commentSection.commentCount}
-                onClick={commentSection.toggle}
-                className="data-comment-button"
-              />
-
-              <button
-                onClick={handleLikeToggle}
-                disabled={likingInProgress}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                  isLiked
-                    ? 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                    : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
-                }`}
-              >
-                <Heart
-                  className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`}
-                />
-                <span className="text-sm">{likeCount}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Article Stats */}
-          <div className="flex flex-wrap items-center gap-6 mb-8 text-sm text-gray-600 bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4" />
-              <span>Updated: {format(article.updatedAt, 'dd/MM/yyyy')}</span>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Eye className="h-4 w-4" />
-              <span>{article.views || 0} views</span>
-            </div>
-          </div>
-
-          {/* Categories and Tags */}
-          {(article.categories.length > 0 || article.tags.length > 0) && (
-            <div className="mb-4 space-y-4">
-              {article.categories.length > 0 && (
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Folder className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-700">
-                      Categories
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {article.categories.map((category) => (
-                      <span
-                        key={category}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                      >
-                        {category}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {article.tags.length > 0 && (
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Tag className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm font-medium text-gray-700">
-                      Tags
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {article.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Content */}
-          <div className="w-full pt-2 pb-6">
-            <div
-              className="prose prose-lg max-w-none mx-auto px-8"
-              style={{
-                fontSize: '18px',
-                lineHeight: '1.8',
-                letterSpacing: '0.01em'
-              }}
-              dangerouslySetInnerHTML={{ __html: processLayoutSpecificCaptions(article.content) }}
-            />
-          </div>
-
-          {/* Attachments */}
-          {article.attachments && article.attachments.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <div className="flex items-center space-x-2 mb-4">
-                <Download className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Attachments
-                </h3>
-              </div>
-              <div className="space-y-3">
-                {article.attachments.map((attachment, index) => (
-                  <a
-                    key={index}
-                    href={attachment}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200 group"
-                  >
-                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all">
-                      <Download className="h-5 w-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors block truncate">
-                        {attachment.split("/").pop() || "Download"}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        Click to download
-                      </span>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </article>
-
-      {/* Comment Section */}
-      {article && (
-        <div className="mt-8" data-comment-section>
-          <CommentSection
-            articleId={article.id}
-            isOpen={commentSection.isOpen}
-            onToggle={commentSection.toggle}
-          />
-        </div>
-      )}
-    </div>
+      </div>
     </>
   );
 };
