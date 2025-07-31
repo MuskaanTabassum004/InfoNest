@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-
 interface ProfileFormData {
   displayName: string;
   profilePicture?: string;
@@ -56,7 +55,7 @@ export const ProfilePage: React.FC = () => {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [tempDisplayName, setTempDisplayName] = useState("");
-  const [nameEditLoading, setNameEditLoading] = useState(false);
+
   const [nameError, setNameError] = useState("");
   const [realtimeUpdateReceived, setRealtimeUpdateReceived] = useState(false);
 
@@ -106,7 +105,9 @@ export const ProfilePage: React.FC = () => {
           updateFormData(updatedProfile);
           console.log("📡 Real-time profile update received and applied");
         } else {
-          console.log("📡 Real-time profile update received but not applied (user is editing)");
+          console.log(
+            "📡 Real-time profile update received but not applied (user is editing)"
+          );
         }
       }
     });
@@ -214,6 +215,12 @@ export const ProfilePage: React.FC = () => {
       await refreshProfile();
       console.log("✅ Profile refresh completed");
 
+      // Update form data to reflect the new profile picture URL
+      setFormData((prev) => ({
+        ...prev,
+        profilePicture: profilePictureUrl,
+      }));
+
       setSelectedFile(null);
       setPreviewUrl("");
     } catch (error: any) {
@@ -247,7 +254,7 @@ export const ProfilePage: React.FC = () => {
     return "";
   };
 
-  const handleDisplayNameEdit = async () => {
+  const handleDisplayNameEdit = () => {
     if (!userProfile) {
       setNameError("User not authenticated");
       return;
@@ -260,53 +267,23 @@ export const ProfilePage: React.FC = () => {
       return;
     }
 
-    setNameEditLoading(true);
+    // Update local form data only - don't save to Firestore yet
+    setFormData((prev) => ({
+      ...prev,
+      displayName: tempDisplayName.trim(),
+    }));
+
     setNameError("");
-
-    try {
-      const userRef = doc(firestore, "users", userProfile.uid);
-      const updateData = {
-        displayName: tempDisplayName.trim(),
-        updatedAt: new Date(),
-      };
-
-      console.log("🔄 Updating display name:", {
-        userId: userProfile.uid,
-        oldName: userProfile.displayName,
-        newName: tempDisplayName.trim(),
-      });
-
-      await updateDoc(userRef, updateData);
-      console.log("✅ Display name updated successfully in Firestore");
-
-      // Refresh the profile to ensure immediate sync across all components
-      await refreshProfile();
-      console.log("✅ Profile refresh completed");
-
-      setIsEditing(false);
-    } catch (error: any) {
-      console.error("❌ Error updating name:", error);
-
-      // Provide specific error messages
-      if (error.code === 'permission-denied') {
-        setNameError("Permission denied. Please check your authentication status.");
-      } else if (error.code === 'not-found') {
-        setNameError("User profile not found. Please try logging out and back in.");
-      } else if (error.code === 'network-error') {
-        setNameError("Network error. Please check your connection.");
-      } else {
-        setNameError(`Failed to update name: ${error.message || 'Unknown error'}`);
-      }
-    } finally {
-      setNameEditLoading(false);
-    }
+    setIsEditing(false);
+    console.log(
+      "✅ Display name updated locally, will save when 'Save Changes' is clicked"
+    );
   };
 
   const cancelEdit = () => {
-    setTempDisplayName(userProfile?.displayName || "");
+    setTempDisplayName(formData.displayName || "");
     setIsEditing(false);
     setNameError("");
-    setNameEditLoading(false);
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -369,9 +346,9 @@ export const ProfilePage: React.FC = () => {
               <div className="flex-shrink-0">
                 <div className="relative">
                   <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 border-4 border-white shadow-lg">
-                    {previewUrl ? (
+                    {previewUrl || userProfile?.profilePicture ? (
                       <img
-                        src={previewUrl}
+                        src={previewUrl || userProfile?.profilePicture || ""}
                         alt="Profile"
                         className="w-full h-full object-cover"
                       />
@@ -446,25 +423,21 @@ export const ProfilePage: React.FC = () => {
                           }`}
                           placeholder="Enter your display name"
                           autoFocus
-                          disabled={nameEditLoading}
+                          disabled={false}
                           maxLength={50}
                         />
                         <button
                           type="button"
                           onClick={handleDisplayNameEdit}
-                          disabled={nameEditLoading || !tempDisplayName.trim()}
+                          disabled={!tempDisplayName.trim()}
                           className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {nameEditLoading ? (
-                            <div className="animate-spin h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full" />
-                          ) : (
-                            <Check className="h-4 w-4" />
-                          )}
+                          <Check className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
                           onClick={cancelEdit}
-                          disabled={nameEditLoading}
+                          disabled={false}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <X className="h-4 w-4" />
@@ -485,14 +458,14 @@ export const ProfilePage: React.FC = () => {
                       <div className="flex items-center">
                         <input
                           type="text"
-                          value={userProfile?.displayName || "Not set"}
+                          value={formData.displayName || "Not set"}
                           className="flex-1 pl-10 pr-12 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-700 cursor-not-allowed"
                           disabled
                         />
                         <button
                           type="button"
                           onClick={() => {
-                            setTempDisplayName(userProfile?.displayName || "");
+                            setTempDisplayName(formData.displayName || "");
                             setIsEditing(true);
                           }}
                           className="absolute right-3 p-1 text-gray-400 hover:text-blue-600 transition-colors"
@@ -561,7 +534,9 @@ export const ProfilePage: React.FC = () => {
                 <MessageSquare className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <textarea
                   value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, bio: e.target.value })
+                  }
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
                   placeholder="Tell others about yourself..."
                   rows={3}
@@ -588,10 +563,15 @@ export const ProfilePage: React.FC = () => {
                     <input
                       type="url"
                       value={formData.socialLinks?.twitter || ""}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        socialLinks: { ...formData.socialLinks, twitter: e.target.value }
-                      })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          socialLinks: {
+                            ...formData.socialLinks,
+                            twitter: e.target.value,
+                          },
+                        })
+                      }
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="https://twitter.com/username"
                     />
@@ -607,10 +587,15 @@ export const ProfilePage: React.FC = () => {
                     <input
                       type="url"
                       value={formData.socialLinks?.linkedin || ""}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        socialLinks: { ...formData.socialLinks, linkedin: e.target.value }
-                      })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          socialLinks: {
+                            ...formData.socialLinks,
+                            linkedin: e.target.value,
+                          },
+                        })
+                      }
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="https://linkedin.com/in/username"
                     />
@@ -626,10 +611,15 @@ export const ProfilePage: React.FC = () => {
                     <input
                       type="url"
                       value={formData.socialLinks?.github || ""}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        socialLinks: { ...formData.socialLinks, github: e.target.value }
-                      })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          socialLinks: {
+                            ...formData.socialLinks,
+                            github: e.target.value,
+                          },
+                        })
+                      }
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="https://github.com/username"
                     />
@@ -645,10 +635,15 @@ export const ProfilePage: React.FC = () => {
                     <input
                       type="url"
                       value={formData.socialLinks?.website || ""}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        socialLinks: { ...formData.socialLinks, website: e.target.value }
-                      })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          socialLinks: {
+                            ...formData.socialLinks,
+                            website: e.target.value,
+                          },
+                        })
+                      }
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       placeholder="https://yourwebsite.com"
                     />
