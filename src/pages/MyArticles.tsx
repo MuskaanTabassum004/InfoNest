@@ -1,17 +1,15 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import {
-  getUserArticles,
-  hardDeleteArticle,
-  updateArticle,
-  Article,
-} from "../lib/articles";
+import { hardDeleteArticle, updateArticle, Article } from "../lib/articles";
+import { onSnapshot, collection, query, where } from "firebase/firestore";
+import { firestore } from "../lib/firebase";
 import {
   Plus,
   Edit,
   Trash2,
   Eye,
+  EyeOff,
   Calendar,
   Search,
   Filter,
@@ -71,27 +69,49 @@ export const MyArticles: React.FC = () => {
   const shouldShowContent =
     userProfile && !authLoading && canCreateArticles === true;
 
-  const loadArticles = useCallback(async (): Promise<void> => {
-    if (!userProfile?.uid) return;
+  // Real-time articles loading with Firebase snapshots
+  useEffect(() => {
+    if (!shouldShowContent || !userProfile?.uid) return;
 
     setArticlesLoading(true);
-    try {
-      const userArticles = await getUserArticles(userProfile.uid);
-      setArticles(userArticles);
-    } catch (error) {
-      console.error("Error loading articles:", error);
-      toast.error("Error loading articles");
-    } finally {
-      setArticlesLoading(false);
-    }
-  }, [userProfile?.uid]);
 
-  // Load articles only when we have confirmed InfoWriter access
-  useEffect(() => {
-    if (shouldShowContent && userProfile?.uid) {
-      loadArticles();
-    }
-  }, [shouldShowContent, userProfile?.uid, loadArticles]);
+    const articlesQuery = query(
+      collection(firestore, "articles"),
+      where("authorId", "==", userProfile.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      articlesQuery,
+      (snapshot) => {
+        const userArticles: Article[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          userArticles.push({
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+            publishedAt: data.publishedAt?.toDate(),
+          } as Article);
+        });
+
+        // Sort articles by createdAt in memory
+        userArticles.sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        );
+
+        setArticles(userArticles);
+        setArticlesLoading(false);
+      },
+      (error) => {
+        console.error("Error loading articles:", error);
+        toast.error("Error loading articles");
+        setArticlesLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [shouldShowContent, userProfile?.uid]);
 
   // Filter articles whenever articles, search, or status filter changes
   useEffect(() => {
@@ -177,7 +197,7 @@ export const MyArticles: React.FC = () => {
     }
 
     // Check if user can create articles (infowriter role)
-    if (!canCreateArticles()) {
+    if (!canCreateArticles) {
       toast.error("You don't have permission to update articles");
       return;
     }
@@ -336,9 +356,7 @@ export const MyArticles: React.FC = () => {
           <div className="flex items-center space-x-3 mb-2">
             {/* Back to Dashboard Button */}
             <button
-              onClick={() =>
-                navigate(isAdmin ? "/dashboard" : "/dashboard")
-              }
+              onClick={() => navigate(isAdmin ? "/dashboard" : "/dashboard")}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               title="Back to Dashboard"
             >
@@ -528,6 +546,19 @@ export const MyArticles: React.FC = () => {
                           </button>
                         )}
 
+                        {article.status === "published" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStatusChange(article.id, "unpublished");
+                            }}
+                            disabled={updatingStatus === article.id}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center space-x-2 disabled:opacity-50"
+                          >
+                            <EyeOff className="h-4 w-4" />
+                            <span>Unpublish</span>
+                          </button>
+                        )}
 
                         <div className="border-t border-gray-100 my-1"></div>
 
