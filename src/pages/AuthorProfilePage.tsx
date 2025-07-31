@@ -19,7 +19,6 @@ import { formatDistanceToNow } from "date-fns";
 import { onSnapshot, collection, query, where } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 
-
 export const AuthorProfilePage: React.FC = () => {
   const { authorId } = useParams<{ authorId: string }>();
   const { userProfile: currentUser, loading: authLoading } = useAuth();
@@ -27,8 +26,6 @@ export const AuthorProfilePage: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [articlesLoading, setArticlesLoading] = useState(true);
-
-
 
   // Profile is now loaded via real-time hook
   useEffect(() => {
@@ -43,55 +40,62 @@ export const AuthorProfilePage: React.FC = () => {
 
     setArticlesLoading(true);
 
-    // Query for published articles by this author - using pattern from InfoWriterDashboard
+    // Query for published articles by this author (excluding archived)
     const articlesQuery = query(
       collection(firestore, "articles"),
       where("authorId", "==", authorId),
       where("status", "==", "published")
     );
 
-    const unsubscribe = onSnapshot(articlesQuery, (snapshot) => {
-      const authorArticles: Article[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        authorArticles.push({
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate(),
-          publishedAt: data.publishedAt?.toDate(),
-        } as Article);
-      });
+    const unsubscribe = onSnapshot(
+      articlesQuery,
+      (snapshot) => {
+        const authorArticles: Article[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          authorArticles.push({
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate(),
+            publishedAt: data.publishedAt?.toDate(),
+          } as Article);
+        });
 
-      // Sort articles by publishedAt or createdAt (newest first)
-      authorArticles.sort((a, b) => {
-        const dateA = a.publishedAt || a.createdAt || new Date(0);
-        const dateB = b.publishedAt || b.createdAt || new Date(0);
-        return dateB.getTime() - dateA.getTime();
-      });
+        // Sort articles by publishedAt or createdAt (newest first)
+        authorArticles.sort((a, b) => {
+          const dateA = a.publishedAt || a.createdAt || new Date(0);
+          const dateB = b.publishedAt || b.createdAt || new Date(0);
+          return dateB.getTime() - dateA.getTime();
+        });
 
-      setArticles(authorArticles);
-      setArticlesLoading(false);
-    }, (error) => {
-      console.error("Error loading author articles:", error);
-      setArticles([]);
-      setArticlesLoading(false);
-    });
+        setArticles(authorArticles);
+        setArticlesLoading(false);
+      },
+      (error) => {
+        console.error("Error loading author articles:", error);
+        setArticles([]);
+        setArticlesLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [authorId]);
 
   const getSocialIcon = (platform: string) => {
     switch (platform) {
-      case 'twitter': return <Twitter className="h-4 w-4" />;
-      case 'linkedin': return <Linkedin className="h-4 w-4" />;
-      case 'github': return <Github className="h-4 w-4" />;
-      case 'website': return <Globe className="h-4 w-4" />;
-      default: return null;
+      case "twitter":
+        return <Twitter className="h-4 w-4" />;
+      case "linkedin":
+        return <Linkedin className="h-4 w-4" />;
+      case "github":
+        return <Github className="h-4 w-4" />;
+      case "website":
+        return <Globe className="h-4 w-4" />;
+      default:
+        return null;
     }
   };
-
-
 
   if (loading) {
     return (
@@ -156,19 +160,22 @@ export const AuthorProfilePage: React.FC = () => {
               <h1 className="text-3xl font-bold text-white mb-2">
                 {authorProfile.displayName || "Unknown Author"}
               </h1>
-              
+
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-4">
                 <span
                   className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
-                    authorProfile.role === "admin" || authorProfile.role === "infowriter"
+                    authorProfile.role === "admin" ||
+                    authorProfile.role === "infowriter"
                       ? "bg-blue-100 text-blue-800 border-blue-200"
                       : "bg-gray-100 text-gray-800 border-gray-200"
                   } bg-white/90`}
                 >
-                  {authorProfile.role === "infowriter" ? "InfoWriter" : authorProfile.role === "admin" ? "InfoWriter" : authorProfile.role}
+                  {authorProfile.role === "infowriter"
+                    ? "InfoWriter"
+                    : authorProfile.role === "admin"
+                    ? "InfoWriter"
+                    : authorProfile.role}
                 </span>
-                
-                
               </div>
 
               {authorProfile.bio && (
@@ -178,25 +185,33 @@ export const AuthorProfilePage: React.FC = () => {
               )}
 
               {/* Social Links */}
-              {authorProfile.socialLinks && Object.entries(authorProfile.socialLinks).some(([_, url]) => url) && (
-                <div className="flex items-center justify-center md:justify-start space-x-3">
-                  {Object.entries(authorProfile.socialLinks).map(([platform, url]) => {
-                    if (!url) return null;
-                    return (
-                      <a
-                        key={platform}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-                        title={`${platform.charAt(0).toUpperCase() + platform.slice(1)}`}
-                      >
-                        {getSocialIcon(platform)}
-                      </a>
-                    );
-                  })}
-                </div>
-              )}
+              {authorProfile.socialLinks &&
+                Object.entries(authorProfile.socialLinks).some(
+                  ([_, url]) => url
+                ) && (
+                  <div className="flex items-center justify-center md:justify-start space-x-3">
+                    {Object.entries(authorProfile.socialLinks).map(
+                      ([platform, url]) => {
+                        if (!url) return null;
+                        return (
+                          <a
+                            key={platform}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+                            title={`${
+                              platform.charAt(0).toUpperCase() +
+                              platform.slice(1)
+                            }`}
+                          >
+                            {getSocialIcon(platform)}
+                          </a>
+                        );
+                      }
+                    )}
+                  </div>
+                )}
             </div>
           </div>
         </div>
@@ -212,7 +227,6 @@ export const AuthorProfilePage: React.FC = () => {
               ({articles.length})
             </span>
           </h2>
-
         </div>
 
         {articlesLoading ? (
@@ -248,8 +262,8 @@ export const AuthorProfilePage: React.FC = () => {
                 <p className="text-sm text-blue-700 text-center">
                   <Link to="/auth" className="font-medium hover:underline">
                     Sign in
-                  </Link>
-                  {" "}to like and save articles
+                  </Link>{" "}
+                  to like and save articles
                 </p>
               </div>
             )}
