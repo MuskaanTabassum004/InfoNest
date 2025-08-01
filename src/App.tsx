@@ -224,7 +224,7 @@ function AppContent({
               path="admin"
               element={
                 <AdminRoute>
-                  <AdminPanel />
+                  <AdminDashboard />
                 </AdminRoute>
               }
             />

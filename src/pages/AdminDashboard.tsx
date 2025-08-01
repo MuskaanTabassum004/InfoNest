@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-
 import {
   BookOpen,
   PenTool,
@@ -13,6 +12,8 @@ import {
   Tag,
   Edit,
   EyeOff,
+  ArrowLeft,
+  Shield,
 } from "lucide-react";
 import { Article } from "../lib/articles";
 import { ArticleCard } from "../components/ArticleCard";
@@ -207,6 +208,30 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center space-x-3 mb-2">
+            <Link
+              to="/dashboard"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
+            </Link>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Admin Dashboard
+            </h1>
+          </div>
+          <p className="text-gray-600">
+            Manage platform content and user permissions
+          </p>
+        </div>
+
+        <div className="bg-gradient-to-r from-amber-100 to-orange-100 p-3 rounded-xl">
+          <Shield className="h-8 w-8 text-amber-600" />
+        </div>
+      </div>
+
       {/* Search Engine */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
         <div className="space-y-4">
@@ -363,6 +388,11 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Popular Articles */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
+        <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+          <BookOpen className="h-5 w-5 mr-2 text-blue-500" />
+          Recent Articles
+        </h2>
+
         {!dashboardData.publishedArticles ||
         dashboardData.publishedArticles.length === 0 ? (
           <div className="text-center py-12">

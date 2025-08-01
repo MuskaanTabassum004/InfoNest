@@ -22,7 +22,7 @@ export const Dashboard: React.FC = () => {
 
     // Use cached permissions for faster routing
     if (isAdmin) {
-      return AdminDashboard;
+      return UserDashboard; // Admins see user dashboard by default
     }
 
     // InfoWriters are now redirected to My Articles, so this won't be reached
