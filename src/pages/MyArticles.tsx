@@ -22,11 +22,11 @@ import {
   Shield,
   AlertCircle,
   ArrowLeft,
+  X,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 import { ArticleCard } from "../components/ArticleCard";
-import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
 
 export const MyArticles: React.FC = () => {
   const {
@@ -42,6 +42,7 @@ export const MyArticles: React.FC = () => {
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [articlesLoading, setArticlesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [statusFilter, setStatusFilter] = useState<
     "all" | "draft" | "published" | "unpublished" | "archive"
   >("all");
@@ -146,10 +147,6 @@ export const MyArticles: React.FC = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [activeDropdown]);
-
-  const filterArticles = () => {
     let filtered = articles;
 
     // Filter by status
@@ -171,7 +168,7 @@ export const MyArticles: React.FC = () => {
     }
 
     setFilteredArticles(filtered);
-  };
+  }, [articles, searchQuery, statusFilter]);
 
   const handleCardClick = (
     status: "all" | "published" | "unpublished" | "draft" | "archive"
@@ -271,6 +268,26 @@ export const MyArticles: React.FC = () => {
 
   const toggleDropdown = (articleId: string) => {
     setActiveDropdown(activeDropdown === articleId ? null : articleId);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setIsSearchExpanded(false);
+  };
+
+  const handleSearchFocus = () => {
+    setIsSearchExpanded(true);
+  };
+
+  const handleSearchBlur = () => {
+    // Only collapse if search is empty
+    if (!searchQuery.trim()) {
+      setIsSearchExpanded(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -400,37 +417,98 @@ export const MyArticles: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-        <div className="flex flex-col md:flex-row gap-4">
-          {/* Search */}
-          <div className="flex-1">
-            <ExpandableSearchBar
-              variant="minimal"
-              placeholder="Search my articles..."
-              onResultClick={() => {}}
-            />
-          </div>
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200 overflow-hidden transition-all duration-300 ease-out">
+        <div className={`p-6 transition-all duration-300 ease-out ${isSearchExpanded ? 'pb-4' : ''}`}>
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Custom Search Bar for My Articles */}
+            <div className="flex-1">
+              <div className="relative">
+                <div className={`
+                  relative transition-all duration-300 ease-out
+                  ${isSearchExpanded ? 'transform scale-105' : ''}
+                `}>
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onFocus={handleSearchFocus}
+                    onBlur={handleSearchBlur}
+                    placeholder="Search my articles by title, content, category, or tag..."
+                    className={`
+                      w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl 
+                      focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+                      transition-all duration-300 ease-out
+                      ${isSearchExpanded 
+                        ? 'bg-white shadow-lg border-blue-300' 
+                        : 'bg-gray-50 hover:bg-white hover:border-blue-300'
+                      }
+                    `}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={clearSearch}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <X className="h-4 w-4 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
 
-          {/* Status Filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-            >
-              <option value="all">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="unpublished">Unpublished</option>
-              <option value="archive">Archive</option>
-            </select>
+            {/* Status Filter */}
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="pl-10 pr-8 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white transition-all duration-200 hover:border-blue-300"
+              >
+                <option value="all">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="unpublished">Unpublished</option>
+                <option value="archive">Archive</option>
+              </select>
+            </div>
           </div>
         </div>
+
+        {/* Search Results Info - Only show when searching */}
+        {searchQuery.trim() && (
+          <div className={`
+            px-6 pb-4 border-t border-gray-100 bg-gray-50/50
+            transition-all duration-300 ease-out
+            ${isSearchExpanded ? 'opacity-100 max-h-20' : 'opacity-0 max-h-0 overflow-hidden'}
+          `}>
+            <div className="flex items-center justify-between pt-3">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <Search className="h-4 w-4" />
+                <span>
+                  Found {filteredArticles.length} article{filteredArticles.length !== 1 ? 's' : ''} 
+                  {statusFilter !== 'all' && ` in ${statusFilter} status`}
+                </span>
+              </div>
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className={`
+        grid grid-cols-1 md:grid-cols-5 gap-4 
+        transition-all duration-300 ease-out
+        ${isSearchExpanded ? 'transform translate-y-2' : ''}
+      `}>
         <button
           onClick={() => handleCardClick("all")}
           className={`bg-white/80 backdrop-blur-sm rounded-xl p-4 border transition-all duration-200 text-left hover:shadow-md hover:scale-105 ${
@@ -500,7 +578,11 @@ export const MyArticles: React.FC = () => {
 
       {/* Articles Loading State */}
       {articlesLoading ? (
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 border border-gray-200">
+        <div className={`
+          bg-white/80 backdrop-blur-sm rounded-2xl p-12 border border-gray-200
+          transition-all duration-300 ease-out
+          ${isSearchExpanded ? 'transform translate-y-2' : ''}
+        `}>
           <div className="text-center">
             <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -512,17 +594,25 @@ export const MyArticles: React.FC = () => {
           </div>
         </div>
       ) : filteredArticles.length === 0 ? (
-        <div className="text-center py-12 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200">
+        <div className={`
+          text-center py-12 bg-white/80 backdrop-blur-sm rounded-2xl border border-gray-200
+          transition-all duration-300 ease-out
+          ${isSearchExpanded ? 'transform translate-y-2' : ''}
+        `}>
           <div className="text-6xl mb-4">📝</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             {articles.length === 0
               ? "No articles yet"
-              : "No articles match your filters"}
+              : searchQuery.trim() 
+                ? "No articles match your search"
+                : "No articles match your filters"}
           </h3>
           <p className="text-gray-600 mb-6">
             {articles.length === 0
               ? "Start creating your first article to share knowledge with your team."
-              : "Try adjusting your search or filter criteria."}
+              : searchQuery.trim()
+                ? "Try different search terms or check your spelling."
+                : "Try adjusting your filter criteria."}
           </p>
           {articles.length === 0 && (
             <Link
@@ -535,7 +625,11 @@ export const MyArticles: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={`
+          grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6
+          transition-all duration-300 ease-out
+          ${isSearchExpanded ? 'transform translate-y-2' : ''}
+        `}>
           {filteredArticles.map((article) => (
             <div key={article.id} className="relative">
               <ArticleCard
