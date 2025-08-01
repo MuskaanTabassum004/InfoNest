@@ -98,6 +98,7 @@ export const Layout: React.FC = () => {
                 placeholder="Search articles, guides, documentation..."
                 onResultClick={() => {}}
                 className="w-full"
+                isHeaderSearch={true}
               />
             </div>
 

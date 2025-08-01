@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Search, X, Clock, Tag, ArrowRight } from "lucide-react";
-import { getPublishedArticles, Article } from "../lib/articles";
+import { getPublishedArticles, getUserArticles, Article } from "../lib/articles";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { formatDistanceToNow } from "date-fns";
@@ -16,6 +16,8 @@ interface ExpandableSearchBarProps {
   className?: string;
   onResultClick?: () => void;
   variant?: "default" | "minimal" | "hero";
+  filterByCurrentUser?: boolean; // New prop to filter articles by current user
+  isHeaderSearch?: boolean; // New prop to indicate if this is the header search bar
 }
 
 interface RecentSearch {
@@ -36,6 +38,8 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
   className = "",
   onResultClick,
   variant = "default",
+  filterByCurrentUser = false,
+  isHeaderSearch = false,
 }) => {
   const { userProfile } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -52,11 +56,20 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
   useEffect(() => {
     const loadArticles = async () => {
       try {
-        const publishedArticles = await getPublishedArticles();
-        setArticles(publishedArticles);
+        let articlesToSearch: Article[];
+
+        if (filterByCurrentUser && userProfile?.uid) {
+          // Get only articles by the current user
+          articlesToSearch = await getUserArticles(userProfile.uid);
+        } else {
+          // Get all published articles (default behavior)
+          articlesToSearch = await getPublishedArticles();
+        }
+
+        setArticles(articlesToSearch);
 
         // Initialize Fuse.js with fuzzy search configuration
-        const fuseInstance = new Fuse(publishedArticles, {
+        const fuseInstance = new Fuse(articlesToSearch, {
           keys: [
             { name: "title", weight: 0.4 },
             { name: "categories", weight: 0.3 },
@@ -90,7 +103,7 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
 
     loadArticles();
     loadRecentSearches();
-  }, []);
+  }, [filterByCurrentUser, userProfile?.uid]);
 
   // Focus input when expanded
   useEffect(() => {
@@ -314,9 +327,9 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full transition-all duration-300 ease-out ${className}`}
+      className={`w-full transition-all duration-300 ease-out ${isHeaderSearch ? 'relative' : ''} ${className}`}
       style={{
-        zIndex: isExpanded ? 50 : "auto",
+        zIndex: isExpanded ? 9999 : "auto",
       }}
     >
       {/* Search Input with Gradient Border */}
@@ -325,8 +338,11 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
         className={`
           w-full cursor-pointer transition-all duration-300 ease-out
           ${getVariantStyles()}
-          ${isExpanded ? "shadow-lg" : ""}
+          ${isExpanded ? "shadow-xl transform scale-[1.01]" : "shadow-sm hover:shadow-md"}
         `}
+        style={{
+          zIndex: isExpanded ? 9999 : "auto",
+        }}
       >
         <div
           className={`
@@ -335,14 +351,14 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
           ${getInputSize()}
         `}
         >
-          <Search className={`text-gray-400 flex-shrink-0 ${getIconSize()}`} />
+          <Search className={`text-gray-400 flex-shrink-0 transition-all duration-300 ease-out ${getIconSize()} ${isExpanded ? 'text-blue-500' : ''}`} />
           <input
             ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
             placeholder={placeholder}
-            className="flex-1 bg-transparent outline-none text-gray-700 placeholder-gray-500"
+            className="flex-1 bg-transparent outline-none text-gray-700 placeholder-gray-500 transition-all duration-300 ease-out"
           />
           {searchQuery && (
             <button
@@ -350,17 +366,17 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
                 e.stopPropagation();
                 clearSearch();
               }}
-              className="p-1 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+              className="p-1 hover:bg-gray-100 rounded-full transition-all duration-200 flex-shrink-0 transform hover:scale-110"
             >
-              <X className="h-4 w-4 text-gray-400" />
+              <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
             </button>
           )}
           {!isExpanded && (
-            <div className="hidden md:flex items-center space-x-1 text-xs text-gray-400 flex-shrink-0">
-              <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
+            <div className="hidden md:flex items-center space-x-1 text-xs text-gray-400 flex-shrink-0 transition-opacity duration-300">
+              <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs transition-all duration-200 hover:bg-gray-200">
                 ⌘
               </kbd>
-              <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs">
+              <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs transition-all duration-200 hover:bg-gray-200">
                 K
               </kbd>
             </div>
@@ -371,17 +387,23 @@ export const ExpandableSearchBar: React.FC<ExpandableSearchBarProps> = ({
       {/* Expanded Content with Gradient Border - Dropdown */}
       <div
         className={`
-          absolute top-full left-0 right-0 z-50 overflow-hidden transition-all duration-300 ease-out
-          bg-gradient-to-r from-[#1D4ED8] via-[#7C3AED] to-[#EC4899] p-[1px] rounded-b-xl shadow-lg
-          ${isExpanded ? "max-h-96 opacity-100 mt-1" : "max-h-0 opacity-0 mt-0"}
+          overflow-hidden
+          bg-gradient-to-r from-[#1D4ED8] via-[#7C3AED] to-[#EC4899] p-[1px] rounded-b-xl
+          transition-all duration-300 ease-out
+          ${isHeaderSearch ? 'absolute top-full left-0 right-0 mt-1' : ''}
+          ${isExpanded ? "opacity-100 shadow-2xl" : "opacity-0 shadow-none pointer-events-none"}
+          ${!isHeaderSearch && isExpanded ? "mt-2" : ""}
+          ${!isHeaderSearch && !isExpanded ? "mt-0" : ""}
         `}
         style={{
-          transformOrigin: "top",
-          transform: isExpanded ? "scaleY(1)" : "scaleY(0.95)",
+          transformOrigin: "top center",
+          transform: isExpanded ? "scaleY(1)" : "scaleY(0)",
+          height: isHeaderSearch ? (isExpanded ? "auto" : "0") : (isExpanded ? "auto" : "0"),
+          zIndex: isHeaderSearch ? 9998 : "auto",
         }}
       >
-        <div className="bg-white/95 backdrop-blur-sm rounded-b-xl">
-          <div className="p-4 max-h-80 overflow-y-auto">
+        <div className="bg-white/95 backdrop-blur-sm rounded-b-xl transition-all duration-300 ease-out">
+          <div className="p-4 max-h-80 overflow-y-auto transition-all duration-300 ease-out">
             {!searchQuery && (
               <div className="space-y-4">
                 {/* Recent Searches */}

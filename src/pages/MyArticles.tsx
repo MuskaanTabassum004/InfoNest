@@ -408,6 +408,7 @@ export const MyArticles: React.FC = () => {
               variant="minimal"
               placeholder="Search my articles..."
               onResultClick={() => {}}
+              filterByCurrentUser={true}
             />
           </div>
 

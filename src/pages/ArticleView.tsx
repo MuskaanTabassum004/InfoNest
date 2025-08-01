@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { getArticle, Article } from "../lib/articles";
 import { UserProfile } from "../lib/auth";
@@ -34,6 +34,7 @@ import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProces
 export const ArticleView: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     userProfile,
     canEditArticle,
@@ -262,14 +263,51 @@ export const ArticleView: React.FC = () => {
           border-radius: 8px;
           transition: all 0.2s ease;
           height: auto;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .prose .custom-image:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Enhanced prose styling */
+        .prose h2 {
+          margin-top: 2.5rem;
+          margin-bottom: 1.5rem;
+          position: relative;
+        }
+
+        .prose h2::before {
+          content: '';
+          position: absolute;
+          left: -1rem;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 4px;
+          height: 1.5rem;
+          background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
+          border-radius: 2px;
+        }
+
+        .prose p {
+          margin-bottom: 1.5rem;
+        }
+
+        .prose ul, .prose ol {
+          margin-bottom: 1.5rem;
+        }
+
+        .prose li {
+          margin-bottom: 0.5rem;
         }
 
         /* Full Column Width Layout */
         .prose .image-full-column {
-          max-width: calc(100% + 64px);
+          max-width: calc(100% + 32px);
           width: auto;
           display: block;
-          margin: 16px -32px;
+          margin: 16px -16px;
           border-radius: 8px;
         }
 
@@ -283,15 +321,13 @@ export const ArticleView: React.FC = () => {
           margin-right: -10%;
         }
 
-        /* Full Screen Width Layout */
+        /* Full Screen Width Layout - Constrained to content area */
         .prose .image-full-screen {
-          width: 100vw;
-          max-width: none;
+          width: calc(100% + 32px);
+          max-width: calc(100% + 32px);
           display: block;
-          margin: 16px 0;
-          margin-left: calc(-50vw + 50%);
-          margin-right: calc(-50vw + 50%);
-          padding: 0 20px;
+          margin: 16px -16px;
+          border-radius: 8px;
           box-sizing: border-box;
         }
 
@@ -589,8 +625,16 @@ export const ArticleView: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
-            onClick={() => navigate(-1)}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+            onClick={() => {
+              // Use browser back navigation to preserve authentication state
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                // Fallback to homepage if no history
+                navigate("/");
+              }
+            }}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors hover:bg-gray-50 px-3 py-2 rounded-lg"
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Back</span>
@@ -620,7 +664,7 @@ export const ArticleView: React.FC = () => {
         </div>
 
         {/* Article Content */}
-        <article className="bg-white/80 backdrop-blur-sm rounded-2xl overflow-hidden border border-gray-200">
+        <article className="bg-white/90 backdrop-blur-sm rounded-2xl overflow-hidden border border-gray-200 shadow-xl hover:shadow-2xl transition-shadow duration-300">
           {/* Cover Image */}
           {article.coverImage && (
             <div className="aspect-video bg-gray-100 overflow-hidden">
@@ -632,7 +676,7 @@ export const ArticleView: React.FC = () => {
             </div>
           )}
 
-          <div className="p-8">
+          <div className="p-8 lg:p-12">
             {/* Status Badge */}
             {article.status !== "published" && (
               <div className="mb-6">
@@ -649,7 +693,7 @@ export const ArticleView: React.FC = () => {
             )}
 
             {/* Title */}
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6 leading-tight">
+            <h1 className="text-5xl lg:text-6xl font-bold bg-gradient-to-r from-[#1D4ED8] via-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent mb-8 leading-tight tracking-tight">
               {article.title}
             </h1>
 
@@ -729,55 +773,57 @@ export const ArticleView: React.FC = () => {
 
             {/* Categories and Tags */}
             {(article.categories.length > 0 || article.tags.length > 0) && (
-              <div className="mb-4 space-y-4">
-                {article.categories.length > 0 && (
-                  <div>
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Folder className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700">
-                        Categories
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {article.categories.map((category) => (
-                        <span
-                          key={category}
-                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                        >
-                          {category}
+              <div className="mb-6">
+                <div className="flex flex-wrap items-center gap-6">
+                  {article.categories.length > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center space-x-2">
+                        <Folder className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">
+                          Categories:
                         </span>
-                      ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {article.categories.map((category) => (
+                          <span
+                            key={category}
+                            className="px-3 py-1 border border-[#1D4ED8] text-[#1D4ED8] rounded-full text-sm font-medium hover:text-[#1D4ED8]/80 transition-colors"
+                          >
+                            {category}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {article.tags.length > 0 && (
-                  <div>
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Tag className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700">
-                        Tags
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {article.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-                        >
-                          #{tag}
+                  {article.tags.length > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center space-x-2">
+                        <Tag className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">
+                          Tags:
                         </span>
-                      ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {article.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-3 py-1 border border-[#7C3AED] text-[#7C3AED] rounded-full text-sm hover:text-[#7C3AED]/80 transition-colors"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 
             {/* Content */}
-            <div className="w-full pt-2 pb-6">
+            <div className="w-full pt-4 pb-8 px-4">
               <div
-                className="prose prose-lg max-w-none mx-auto px-8"
+                className="prose prose-lg max-w-none mx-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-purple-600 prose-code:bg-purple-50 prose-pre:bg-gray-900 prose-blockquote:border-blue-500 prose-blockquote:bg-blue-50"
                 style={{
                   fontSize: "18px",
                   lineHeight: "1.8",

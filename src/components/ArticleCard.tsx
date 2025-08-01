@@ -267,7 +267,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
   return (
     <div
-      className={`bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 hover:border-blue-200 transition-all duration-200 hover:shadow-lg group flex flex-col h-full ${getVariantClasses()} ${className}`}
+      className={`bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 hover:border-transparent transition-all duration-300 hover:shadow-lg group flex flex-col h-full relative overflow-hidden ${getVariantClasses()} ${className}`}
+      style={{
+        background: 'white',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'linear-gradient(white, white) padding-box, linear-gradient(to right, #1D4ED8, #7C3AED, #EC4899) border-box';
+        e.currentTarget.style.border = '2px solid transparent';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'white';
+        e.currentTarget.style.border = '1px solid #e5e7eb';
+      }}
     >
       <Link to={`/article/${article.id}`} className="flex-1 flex flex-col">
         {/* Cover Image - Only show if exists */}
@@ -290,12 +301,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         {/* Title and Status - Fixed Height */}
         <div className="flex items-start justify-between mb-3 min-h-[3rem]">
           <h3
-            className={`font-semibold text-gray-900 group-hover:text-blue-700 transition-colors line-clamp-2 ${
+            className={`font-semibold bg-gradient-to-r from-[#1D4ED8] via-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent transition-colors line-clamp-2 ${
               variant === "featured"
-                ? "text-xl"
+                ? "text-2xl"
                 : variant === "compact"
-                ? "text-base"
-                : "text-lg"
+                ? "text-lg"
+                : "text-xl"
             }`}
           >
             {article.title}
