@@ -17,7 +17,7 @@ import { HomePage } from "./pages/HomePage";
 import { Dashboard } from "./pages/Dashboard";
 import { ArticleEditor } from "./pages/ArticleEditor";
 import { ArticleView } from "./pages/ArticleView";
-import MyArticles from "./pages/MyArticles";
+import { MyArticles } from "./pages/MyArticles";
 
 import { SearchPage } from "./pages/SearchPage";
 import { AdminPanel } from "./pages/AdminPanel";
