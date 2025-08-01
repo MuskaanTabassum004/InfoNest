@@ -28,10 +28,7 @@ import {
   Home,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-<<<<<<< HEAD
-=======
 import { Link } from "react-router-dom";
->>>>>>> fbd82a0 (Saved local changes before pulling from origin)
 
 interface ProfileFormData {
   displayName: string;
@@ -226,8 +223,6 @@ export const ProfilePage: React.FC = () => {
       await refreshProfile();
       console.log("✅ Profile refresh completed");
 
-<<<<<<< HEAD
-=======
       // Clean up old profile picture if a new one was uploaded
       if (
         selectedFile &&
@@ -247,7 +242,6 @@ export const ProfilePage: React.FC = () => {
         }
       }
 
->>>>>>> fbd82a0 (Saved local changes before pulling from origin)
       // Update form data to reflect the new profile picture URL
       setFormData((prev) => ({
         ...prev,
