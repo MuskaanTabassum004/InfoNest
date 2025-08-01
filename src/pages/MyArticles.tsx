@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { getUserArticles } from '../lib/articles';
 import { ArticleCard } from '../components/ArticleCard';
-import { Layout } from '../components/Layout';
+//import { Layout } from '../components/Layout';
 import { FileText, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -48,18 +48,18 @@ export default function MyArticles() {
     fetchMyArticles();
   }, [user]);
 
-  //if (!user) {
-    //return (
-      //<Layout>
-        //<div className="max-w-4xl mx-auto px-4 py-8">
-          //<div className="text-center">
-            //<h1 className="text-2xl font-bold text-gray-900 mb-4">Please Sign In</h1>
-            //<p className="text-gray-600">You need to be signed in to view your articles.</p>
-          //</div>
-        //</div>
-      //</Layout>
-   // );
- // }
+  if (!user) {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Please Sign In</h1>
+            <p className="text-gray-600">You need to be signed in to view your articles.</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (loading) {
     return (
