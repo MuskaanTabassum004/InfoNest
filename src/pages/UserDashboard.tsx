@@ -218,37 +218,17 @@ export const UserDashboard: React.FC = () => {
                   </div>
                 </Link>
 
-                {/* Admin Panel Link for Admins */}
-                {userProfile?.role === "admin" && (
-                  <Link
-                    to="/admin"
-                    className="flex items-center space-x-3 p-3 hover:bg-white rounded-lg transition-colors duration-150 group"
-                  >
-                    <div className="bg-red-100 p-2 rounded-lg group-hover:bg-red-200 transition-colors">
-                      <Shield className="h-4 w-4 text-red-600" />
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-900 group-hover:text-red-700">
-                        Admin Panel
-                      </span>
-                      <p className="text-xs text-gray-600">
-                        Manage users and platform settings
-                      </p>
-                    </div>
-                  </Link>
-                )}
+                
               </div>
             </div>
           </div>
         </div>
       </div>
+    
+    
 
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200">
-
-        <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-          <BookOpen className="h-5 w-5 mr-2 text-blue-500" />
-          Latest Articles
-        </h2>
+        
 
         {filteredArticles.length === 0 ? (
           <div className="text-center py-12">
@@ -268,6 +248,9 @@ export const UserDashboard: React.FC = () => {
                 article={article}
                 variant="default"
                 showActions={true}
+                title={article.title}
+                author={article.author}
+                date={article.date}
               />
             ))}
           </div>

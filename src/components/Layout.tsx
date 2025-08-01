@@ -165,7 +165,7 @@ export const Layout: React.FC = () => {
                       <Shield className="h-4 w-4" />
                       <span>Dashboard</span>
                     </Link>
-                    {(isInfoWriter || isAdmin) && (
+                    {isAdmin && (
                       <Link
                         to="/my-articles"
                         onClick={() => setIsDropdownOpen(false)}
@@ -175,7 +175,7 @@ export const Layout: React.FC = () => {
                         <span>My Articles</span>
                       </Link>
                     )}
-                    {(isInfoWriter || isAdmin) && (
+                    {isInfoWriter && !isAdmin && (
                       <Link
                         to="/article/new"
                         onClick={() => setIsDropdownOpen(false)}
@@ -183,16 +183,6 @@ export const Layout: React.FC = () => {
                       >
                         <PenTool className="h-4 w-4" />
                         <span>Create New Article</span>
-                      </Link>
-                    )}
-                    {isAdmin && (
-                      <Link
-                        to="/admin"
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        <Shield className="h-4 w-4" />
-                        <span>Admin Panel</span>
                       </Link>
                     )}
 
