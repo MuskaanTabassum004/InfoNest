@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { getUserArticles } from '../lib/articles';
 import { ArticleCard } from '../components/ArticleCard';
-//import { Layout } from '../components/Layout';
+import { Layout } from '../components/Layout';
 import { FileText, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
