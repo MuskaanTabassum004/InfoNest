@@ -63,21 +63,36 @@ export const validateFile = (
 
 export const generateFileName = (
   originalName: string,
-  userId: string
+  userId: string,
+  articleId?: string,
+  folder?: string
 ): string => {
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(2, 15);
   const extension = originalName.split(".").pop();
-  return `${userId}/${timestamp}_${randomString}.${extension}`;
+
+  // For articles folder, ALWAYS require articleId (new structure only)
+  if (folder === "articles") {
+    if (!articleId) {
+      throw new Error(
+        "Article ID is required for article file uploads. Please save the article first to get an ID."
+      );
+    }
+    // New structure: articles/{userId}/{articleId}/{timestamp}_{randomString}.{extension}
+    return `${userId}/${articleId}/${timestamp}_${randomString}.${extension}`;
+  } else {
+    // For profiles folder, use simple structure: {userId}/{timestamp}_{randomString}.{extension}
+    return `${userId}/${timestamp}_${randomString}.${extension}`;
+  }
 };
 
 export const uploadFile = async (
   file: File,
   userId: string,
   folder: "articles" | "profiles" = "articles",
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  articleId?: string
 ): Promise<UploadResult> => {
-
   // Validate file
   const validation = validateFile(file);
   if (!validation.isValid) {
@@ -85,10 +100,9 @@ export const uploadFile = async (
     throw new Error(validation.error);
   }
 
-  // Generate unique filename
-  const fileName = generateFileName(file.name, userId);
+  // Generate unique filename with article organization
+  const fileName = generateFileName(file.name, userId, articleId, folder);
   const filePath = `${folder}/${fileName}`;
-
 
   // Create storage reference
   const storageRef = ref(storage, filePath);
@@ -135,7 +149,6 @@ export const uploadFile = async (
 
 export const deleteFile = async (filePath: string): Promise<void> => {
   try {
-
     const storageRef = ref(storage, filePath);
 
     await deleteObject(storageRef);
@@ -143,11 +156,13 @@ export const deleteFile = async (filePath: string): Promise<void> => {
     console.error("Error deleting file:", error);
 
     // If file doesn't exist, consider it already deleted (success)
-    if (error?.code === 'storage/object-not-found') {
+    if (error?.code === "storage/object-not-found") {
       return; // Don't throw error for already deleted files
     }
 
-    throw new Error(`Failed to delete file: ${error?.message || 'Unknown error'}`);
+    throw new Error(
+      `Failed to delete file: ${error?.message || "Unknown error"}`
+    );
   }
 };
 
@@ -155,14 +170,187 @@ export const isImageFile = (fileType: string): boolean => {
   return ALLOWED_IMAGE_TYPES.includes(fileType);
 };
 
+export const extractFilePathFromUrl = (url: string): string | null => {
+  if (!url || typeof url !== "string") return null;
+
+  try {
+    // Handle Firebase Storage URLs
+    if (url.includes("firebasestorage.googleapis.com")) {
+      const urlObj = new URL(url);
+      const pathMatch = urlObj.pathname.match(/\/o\/(.+?)\?/);
+      if (pathMatch) {
+        return decodeURIComponent(pathMatch[1]);
+      }
+    }
+
+    // Handle gs:// URLs
+    if (url.startsWith("gs://")) {
+      return url.replace(/^gs:\/\/[^\/]+\//, "");
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error extracting file path from URL:", url, error);
+    return null;
+  }
+};
+
+// Delete entire article folder and all its contents
+export const deleteArticleFolder = async (
+  userId: string,
+  articleId: string
+): Promise<void> => {
+  try {
+    const { listAll } = await import("firebase/storage");
+    const folderPath = `articles/${userId}/${articleId}`;
+    const folderRef = ref(storage, folderPath);
+
+    console.log(`🗑️ Deleting article folder: ${folderPath}`);
+
+    // List all files in the article folder
+    const listResult = await listAll(folderRef);
+
+    if (listResult.items.length > 0) {
+      // Delete all files in the folder
+      await Promise.all(
+        listResult.items.map(async (fileRef) => {
+          try {
+            await deleteObject(fileRef);
+            console.log(`✅ Deleted file: ${fileRef.fullPath}`);
+          } catch (error) {
+            console.error(
+              `⚠️ Failed to delete file: ${fileRef.fullPath}`,
+              error
+            );
+            // Continue with other deletions
+          }
+        })
+      );
+
+      console.log(
+        `✅ Deleted ${listResult.items.length} files from article folder: ${folderPath}`
+      );
+    } else {
+      console.log(`📁 Article folder is empty: ${folderPath}`);
+    }
+  } catch (error: any) {
+    console.error(
+      `❌ Error deleting article folder: articles/${userId}/${articleId}`,
+      error
+    );
+
+    // If folder doesn't exist, consider it already deleted (success)
+    if (error?.code === "storage/object-not-found") {
+      console.log(
+        `📁 Article folder already deleted: articles/${userId}/${articleId}`
+      );
+      return;
+    }
+
+    throw new Error(
+      `Failed to delete article folder: ${error?.message || "Unknown error"}`
+    );
+  }
+};
+
+// Delete entire user folder and all its contents (for InfoWriter privilege removal)
+export const deleteUserArticlesFolder = async (
+  userId: string
+): Promise<void> => {
+  try {
+    const { listAll } = await import("firebase/storage");
+    const userFolderPath = `articles/${userId}`;
+    const userFolderRef = ref(storage, userFolderPath);
+
+    console.log(`🗑️ Deleting user articles folder: ${userFolderPath}`);
+
+    // List all items in the user folder (including subfolders)
+    const listResult = await listAll(userFolderRef);
+
+    let totalFilesDeleted = 0;
+
+    // Delete all files in the user folder
+    if (listResult.items.length > 0) {
+      await Promise.all(
+        listResult.items.map(async (fileRef) => {
+          try {
+            await deleteObject(fileRef);
+            console.log(`✅ Deleted file: ${fileRef.fullPath}`);
+            totalFilesDeleted++;
+          } catch (error) {
+            console.error(
+              `⚠️ Failed to delete file: ${fileRef.fullPath}`,
+              error
+            );
+            // Continue with other deletions
+          }
+        })
+      );
+    }
+
+    // Recursively delete all subfolders (article folders)
+    if (listResult.prefixes.length > 0) {
+      await Promise.all(
+        listResult.prefixes.map(async (folderRef) => {
+          try {
+            const subListResult = await listAll(folderRef);
+            await Promise.all(
+              subListResult.items.map(async (fileRef) => {
+                try {
+                  await deleteObject(fileRef);
+                  console.log(`✅ Deleted file: ${fileRef.fullPath}`);
+                  totalFilesDeleted++;
+                } catch (error) {
+                  console.error(
+                    `⚠️ Failed to delete file: ${fileRef.fullPath}`,
+                    error
+                  );
+                }
+              })
+            );
+          } catch (error) {
+            console.error(
+              `⚠️ Failed to delete subfolder: ${folderRef.fullPath}`,
+              error
+            );
+          }
+        })
+      );
+    }
+
+    console.log(
+      `✅ Deleted ${totalFilesDeleted} files from user folder: ${userFolderPath}`
+    );
+  } catch (error: any) {
+    console.error(
+      `❌ Error deleting user articles folder: articles/${userId}`,
+      error
+    );
+
+    // If folder doesn't exist, consider it already deleted (success)
+    if (error?.code === "storage/object-not-found") {
+      console.log(
+        `📁 User articles folder already deleted: articles/${userId}`
+      );
+      return;
+    }
+
+    throw new Error(
+      `Failed to delete user articles folder: ${
+        error?.message || "Unknown error"
+      }`
+    );
+  }
+};
+
 export const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
 
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
 // Hook for file upload with progress
@@ -175,14 +363,21 @@ export const useFileUpload = () => {
   const uploadFileWithProgress = async (
     file: File,
     userId: string,
-    folder: "articles" | "profiles" = "articles"
+    folder: "articles" | "profiles" = "articles",
+    articleId?: string
   ): Promise<UploadResult> => {
     setUploadProgress({ progress: 0, isUploading: true });
 
     try {
-      const result = await uploadFile(file, userId, folder, (progress) => {
-        setUploadProgress({ progress, isUploading: true });
-      });
+      const result = await uploadFile(
+        file,
+        userId,
+        folder,
+        (progress) => {
+          setUploadProgress({ progress, isUploading: true });
+        },
+        articleId
+      );
 
       setUploadProgress({ progress: 100, isUploading: false });
       return result;

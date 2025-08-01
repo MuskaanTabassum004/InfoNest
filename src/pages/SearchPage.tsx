@@ -145,9 +145,7 @@ export const SearchPage: React.FC = () => {
         {(isInfoWriter || isAdmin) && (
           <div className="flex justify-start mb-6">
             <button
-              onClick={() =>
-                navigate(isAdmin ? "/my-articles" : "/dashboard")
-              }
+              onClick={() => navigate(isAdmin ? "/my-articles" : "/dashboard")}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               title="Back to Dashboard"
             >

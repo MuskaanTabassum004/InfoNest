@@ -41,18 +41,20 @@ interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
   placeholder?: string;
+  articleId?: string;
 }
 
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   content,
   onChange,
   placeholder = "Start writing your article...",
+  articleId,
 }) => {
   const { userProfile } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const gridManagerRef = useRef<ImageGridManager | null>(null);
-  
+
   // Predefined colors like MS Word
   const textColors = [
     { name: "Black", value: "#000000" },
@@ -80,6 +82,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         bulletList: false,
         orderedList: false,
         listItem: false,
+        // Disable the default codeBlock to avoid conflicts with CodeBlockLowlight
+        codeBlock: false,
       }),
       TextStyle,
       Color.configure({
@@ -228,8 +232,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (url) {
       editor.commands.setImage({
         src: url,
-        alt: '',
-        layout: 'full-column'
+        alt: "",
+        layout: "full-column",
       });
     }
   };
@@ -246,9 +250,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       // Insert image using custom image extension with default layout
       editor.commands.setImage({
         src: result.url,
-        alt: result.name || '',
-        title: result.name || '',
-        layout: 'full-column',
+        alt: result.name || "",
+        title: result.name || "",
+        layout: "full-column",
       });
     } else {
       // Insert link for non-image files (PDFs, documents, etc.)
@@ -268,7 +272,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   const handleMultipleImageUpload = (results: UploadResult[]) => {
-    const imageResults = results.filter(result => result.type.startsWith("image/"));
+    const imageResults = results.filter((result) =>
+      result.type.startsWith("image/")
+    );
 
     if (imageResults.length === 0) {
       return;
@@ -279,10 +285,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       handleFileUpload(imageResults[0]);
     } else {
       // Multiple images - create grid
-      const images = imageResults.map(result => ({
+      const images = imageResults.map((result) => ({
         src: result.url,
-        alt: result.name || '',
-        title: result.name || '',
+        alt: result.name || "",
+        title: result.name || "",
       }));
 
       if (gridManagerRef.current) {
@@ -795,7 +801,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
         <div className="w-px h-6 bg-gray-300 mx-1" />
 
-
         <FileUploadButton
           onUploadComplete={handleFileUpload}
           onUploadError={handleUploadError}
@@ -803,6 +808,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           folder="articles"
           className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
           useResumable={true}
+          articleId={articleId}
         >
           <Upload className="h-4 w-4" title="Upload File" />
         </FileUploadButton>

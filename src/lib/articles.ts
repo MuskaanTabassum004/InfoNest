@@ -14,8 +14,18 @@ import {
   increment,
 } from "firebase/firestore";
 import { firestore } from "./firebase";
+import {
+  deleteFile,
+  extractFilePathFromUrl,
+  deleteArticleFolder,
+} from "./fileUpload";
 
-export type ArticleStatus = "draft" | "published" | "unpublished" | "deleted";
+export type ArticleStatus =
+  | "draft"
+  | "published"
+  | "unpublished"
+  | "deleted"
+  | "archive";
 
 export interface Article {
   id: string;
@@ -134,12 +144,82 @@ export const updateArticle = async (
 };
 
 export const deleteArticle = async (id: string): Promise<void> => {
-  await deleteDoc(doc(firestore, "articles", id));
+  // Get article data before deletion to clean up files
+  const articleRef = doc(firestore, "articles", id);
+  const articleDoc = await getDoc(articleRef);
+
+  if (articleDoc.exists()) {
+    const articleData = articleDoc.data();
+    const userId = articleData.authorId;
+
+    // Delete the article document first
+    await deleteDoc(articleRef);
+
+    // Clean up entire article folder (new organized structure)
+    if (userId) {
+      try {
+        await deleteArticleFolder(userId, id);
+        console.log(`✅ Deleted article folder: articles/${userId}/${id}`);
+      } catch (error) {
+        console.error(
+          `⚠️ Failed to delete article folder: articles/${userId}/${id}`,
+          error
+        );
+
+        // Fallback: try individual file cleanup for legacy structure
+        try {
+          const filesToDelete: string[] = [];
+
+          // Collect cover image
+          if (articleData.coverImage) {
+            filesToDelete.push(articleData.coverImage);
+          }
+
+          // Collect attachments
+          if (
+            articleData.attachments &&
+            Array.isArray(articleData.attachments)
+          ) {
+            filesToDelete.push(...articleData.attachments);
+          }
+
+          // Clean up individual files (legacy cleanup)
+          if (filesToDelete.length > 0) {
+            await Promise.all(
+              filesToDelete.map(async (url) => {
+                try {
+                  const filePath = extractFilePathFromUrl(url);
+                  if (filePath && filePath.startsWith("articles/")) {
+                    await deleteFile(filePath);
+                    console.log("✅ Deleted article file (legacy):", filePath);
+                  }
+                } catch (error) {
+                  console.error(
+                    "⚠️ Failed to delete article file:",
+                    url,
+                    error
+                  );
+                  // Don't throw error - article deletion was successful
+                }
+              })
+            );
+          }
+        } catch (legacyError) {
+          console.error("⚠️ Legacy file cleanup also failed:", legacyError);
+          // Don't throw error - article deletion was successful
+        }
+      }
+    }
+  } else {
+    // Article doesn't exist, just try to delete the document
+    await deleteDoc(articleRef);
+  }
 };
 
 // Hard delete - permanently removes article from database
 export const hardDeleteArticle = async (id: string): Promise<void> => {
-  await deleteDoc(doc(firestore, "articles", id));
+  // Use the same cleanup logic as deleteArticle
+  await deleteArticle(id);
 };
 
 // Soft delete - changes status to unpublished (for admin moderation)

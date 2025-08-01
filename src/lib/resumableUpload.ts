@@ -82,6 +82,21 @@ class ResumableUploadManager {
   }
 
   constructor() {
+    // Clear localStorage on startup to prevent quota issues
+    try {
+      const storedData = localStorage.getItem(this.STORAGE_KEY);
+      if (storedData && storedData.length > 2 * 1024 * 1024) {
+        // 2MB threshold
+        console.warn("Clearing large upload data from localStorage");
+        localStorage.removeItem(this.STORAGE_KEY);
+      }
+    } catch (error) {
+      console.warn("Clearing corrupted upload data from localStorage");
+      localStorage.removeItem(this.STORAGE_KEY);
+    }
+
+    this.isOnline = navigator.onLine;
+
     this.setupNetworkListeners();
     this.loadPersistedUploads();
     this.startUploadProcessor();
@@ -207,19 +222,84 @@ class ResumableUploadManager {
 
   private persistUploads(): void {
     try {
+      // Only persist essential data to avoid localStorage quota issues
       const uploadsArray = Array.from(this.uploads.values()).map((upload) => ({
-        ...upload,
-        uploadTask: undefined, // Don't persist Firebase task
-        file: undefined, // Don't persist File object
-        // Convert ArrayBuffer to base64 for storage
-        fileData: upload.fileData
-          ? this.arrayBufferToBase64(upload.fileData)
-          : undefined,
+        id: upload.id,
+        fileName: upload.fileName,
+        filePath: upload.filePath,
+        userId: upload.userId,
+        folder: upload.folder,
+        startTime: upload.startTime,
+        lastProgressTime: upload.lastProgressTime,
+        bytesTransferred: upload.bytesTransferred,
+        totalBytes: upload.totalBytes,
+        state: upload.state,
+        fileType: upload.fileType,
+        fileLastModified: upload.fileLastModified,
+        context: upload.context,
+        needsProcessing: upload.needsProcessing,
+        // Don't persist fileData to save space - will be re-read from file if needed
+        uploadTask: undefined,
+        file: undefined,
+        fileData: undefined,
       }));
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(uploadsArray));
+
+      // Check if data is too large for localStorage
+      const dataString = JSON.stringify(uploadsArray);
+      if (dataString.length > 4 * 1024 * 1024) {
+        // 4MB limit
+        console.warn(
+          "Upload data too large for localStorage, clearing old uploads"
+        );
+        this.clearCompletedUploads();
+        return;
+      }
+
+      localStorage.setItem(this.STORAGE_KEY, dataString);
     } catch (error) {
       console.error("Failed to persist uploads:", error);
+      // Clear storage and try again with just active uploads
+      try {
+        this.clearCompletedUploads();
+        const activeUploads = Array.from(this.uploads.values())
+          .filter(
+            (upload) =>
+              upload.state === "uploading" || upload.state === "paused"
+          )
+          .map((upload) => ({
+            id: upload.id,
+            fileName: upload.fileName,
+            filePath: upload.filePath,
+            userId: upload.userId,
+            folder: upload.folder,
+            startTime: upload.startTime,
+            lastProgressTime: upload.lastProgressTime,
+            bytesTransferred: upload.bytesTransferred,
+            totalBytes: upload.totalBytes,
+            state: upload.state,
+            fileType: upload.fileType,
+            fileLastModified: upload.fileLastModified,
+            context: upload.context,
+            needsProcessing: upload.needsProcessing,
+          }));
+
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(activeUploads));
+      } catch (retryError) {
+        console.error("Failed to persist even active uploads:", retryError);
+        // Clear all localStorage data for uploads
+        localStorage.removeItem(this.STORAGE_KEY);
+      }
     }
+  }
+
+  private clearCompletedUploads(): void {
+    const completedStates = ["completed", "failed", "cancelled"];
+    for (const [id, upload] of this.uploads.entries()) {
+      if (completedStates.includes(upload.state)) {
+        this.uploads.delete(id);
+      }
+    }
+    console.log("Cleared completed uploads to free localStorage space");
   }
 
   private startUploadProcessor(): void {
@@ -229,7 +309,9 @@ class ResumableUploadManager {
   }
 
   private processUploadQueue(): void {
-    if (!this.isOnline) return;
+    if (!this.isOnline) {
+      return;
+    }
 
     while (
       this.activeUploads.size < this.MAX_CONCURRENT_UPLOADS &&
@@ -251,8 +333,24 @@ class ResumableUploadManager {
     context?: UploadContext
   ): Promise<string> {
     const uploadId = this.generateUploadId();
-    const fileName = this.generateFileName(file.name, userId);
-    const filePath = `${folder}/${fileName}`;
+    const articleId = context?.articleId;
+
+    let fileName: string;
+    let filePath: string;
+
+    try {
+      const generatedPath = this.generateFileName(
+        file.name,
+        userId,
+        articleId,
+        folder
+      );
+      fileName = generatedPath.split("/").pop() || file.name; // Extract just the filename
+      filePath = `${folder}/${generatedPath}`; // Full path with folder prefix
+    } catch (error) {
+      console.error(`Error generating filename:`, error);
+      throw error;
+    }
 
     // Convert file to ArrayBuffer for persistence
     const fileData = await file.arrayBuffer();
@@ -327,6 +425,10 @@ class ResumableUploadManager {
     upload.lastProgressTime = Date.now();
 
     try {
+      console.log(
+        `🚀 Starting upload: ${upload.fileName} → ${upload.filePath}`
+      );
+
       const storageRef = ref(storage, upload.filePath);
 
       // Create new upload task only if one doesn't exist
@@ -399,7 +501,15 @@ class ResumableUploadManager {
     const upload = this.uploads.get(uploadId);
     if (!upload) return;
 
-    console.error("Upload error:", error);
+    console.error(`❌ Upload error for ${upload.filePath}:`, error);
+    console.error(`📋 Upload details:`, {
+      fileName: upload.fileName,
+      filePath: upload.filePath,
+      userId: upload.userId,
+      articleId: upload.context?.articleId,
+      bytesTransferred: upload.bytesTransferred,
+      totalBytes: upload.totalBytes,
+    });
 
     upload.state = "error";
     upload.error = error.message;
@@ -576,6 +686,25 @@ class ResumableUploadManager {
     this.cleanupUpload(uploadId);
   }
 
+  public deleteCompletedUpload(uploadId: string): void {
+    const upload = this.uploads.get(uploadId);
+    if (!upload) return;
+
+    // Only allow deletion of completed, failed, or cancelled uploads
+    if (!["completed", "failed", "canceled"].includes(upload.state)) {
+      console.warn("Cannot delete active upload");
+      return;
+    }
+
+    // Remove from uploads map
+    this.uploads.delete(uploadId);
+
+    // Persist changes
+    this.persistUploads();
+
+    console.log(`Deleted upload record: ${uploadId}`);
+  }
+
   public getUploadStatus(uploadId: string): UploadMetadata | null {
     return this.uploads.get(uploadId) || null;
   }
@@ -621,11 +750,29 @@ class ResumableUploadManager {
       .substring(2, 15)}`;
   }
 
-  private generateFileName(originalName: string, userId: string): string {
+  private generateFileName(
+    originalName: string,
+    userId: string,
+    articleId?: string,
+    folder?: string
+  ): string {
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
     const extension = originalName.split(".").pop();
-    return `${userId}/${timestamp}_${randomString}.${extension}`;
+
+    // For articles folder
+    if (folder === "articles") {
+      if (articleId) {
+        // New structure: articles/{userId}/{articleId}/{timestamp}_{randomString}.{extension}
+        return `${userId}/${articleId}/${timestamp}_${randomString}.${extension}`;
+      } else {
+        // For new articles, use flat structure under userId (allowed by storage rules)
+        return `${userId}/temp_${timestamp}_${randomString}.${extension}`;
+      }
+    } else {
+      // For profiles folder, use simple structure: {userId}/{timestamp}_{randomString}.{extension}
+      return `${userId}/${timestamp}_${randomString}.${extension}`;
+    }
   }
 
   public formatFileSize(bytes: number): string {
@@ -715,10 +862,31 @@ class ResumableUploadManager {
       const { updateArticle, getArticle } = await import("./articles");
 
       if (context.targetField === "coverImage") {
+        // Get current article data before updating
+        const currentArticle = await getArticle(context.articleId);
+        const oldCoverImage = currentArticle?.coverImage;
+
         // Update article cover image
         await updateArticle(context.articleId, {
           coverImage: result.url,
         });
+
+        // Clean up old cover image if it exists and is different
+        if (oldCoverImage && oldCoverImage !== result.url) {
+          try {
+            const { deleteFile, extractFilePathFromUrl } = await import(
+              "./fileUpload"
+            );
+            const oldFilePath = extractFilePathFromUrl(oldCoverImage);
+            if (oldFilePath && oldFilePath.startsWith("articles/")) {
+              await deleteFile(oldFilePath);
+              console.log("✅ Deleted old cover image:", oldFilePath);
+            }
+          } catch (error) {
+            console.error("⚠️ Failed to delete old cover image:", error);
+            // Don't throw error - cover image update was successful
+          }
+        }
       } else if (context.autoSave) {
         // Auto-save article as draft with attachment
         const currentArticle = await getArticle(context.articleId);
@@ -745,14 +913,38 @@ class ResumableUploadManager {
   ): Promise<void> {
     try {
       // Import Firestore functions dynamically
-      const { doc, updateDoc } = await import("firebase/firestore");
+      const { doc, updateDoc, getDoc } = await import("firebase/firestore");
       const { firestore } = await import("./firebase");
+      const { deleteFile, extractFilePathFromUrl } = await import(
+        "./fileUpload"
+      );
 
       const userRef = doc(firestore, "users", upload.userId);
+
+      // Get current profile picture before updating
+      const userDoc = await getDoc(userRef);
+      const oldProfilePicture = userDoc.exists()
+        ? userDoc.data()?.profilePicture
+        : null;
+
       await updateDoc(userRef, {
         profilePicture: result.url,
         updatedAt: new Date(),
       });
+
+      // Clean up old profile picture if it exists and is different
+      if (oldProfilePicture && oldProfilePicture !== result.url) {
+        try {
+          const oldFilePath = extractFilePathFromUrl(oldProfilePicture);
+          if (oldFilePath && oldFilePath.startsWith("profiles/")) {
+            await deleteFile(oldFilePath);
+            console.log("✅ Deleted old profile picture:", oldFilePath);
+          }
+        } catch (error) {
+          console.error("⚠️ Failed to delete old profile picture:", error);
+          // Don't throw error - profile update was successful
+        }
+      }
     } catch (error) {
       console.error("Error updating profile with upload:", error);
     }
@@ -846,6 +1038,219 @@ class ResumableUploadManager {
       upload.needsProcessing = false;
       this.persistUploads();
     }
+  }
+
+  // Update pending uploads with article ID (for new articles)
+  public async updatePendingUploadsWithArticleId(
+    articleId: string
+  ): Promise<void> {
+    const tempUploads = Array.from(this.uploads.entries()).filter(
+      ([_, upload]) =>
+        !upload.context?.articleId &&
+        upload.folder === "articles" &&
+        upload.state === "success" &&
+        upload.filePath.includes("temp_")
+    );
+
+    if (tempUploads.length === 0) {
+      console.log("No temp uploads to reorganize");
+      return;
+    }
+
+    console.log(
+      `Moving ${tempUploads.length} temp files to organized structure`
+    );
+
+    for (const [uploadId, upload] of tempUploads) {
+      try {
+        // Generate new organized file path
+        const newFileName = this.generateFileName(
+          upload.fileName.replace(/^temp_\d+_[a-z0-9]+\./, "") ||
+            upload.fileName,
+          upload.userId,
+          articleId,
+          upload.folder
+        );
+        const newFilePath = `${upload.folder}/${newFileName}`;
+
+        // Move file in Firebase Storage
+        await this.moveFileInStorage(upload.filePath, newFilePath);
+
+        // Update upload metadata
+        upload.context = {
+          ...upload.context,
+          articleId: articleId,
+        };
+        upload.filePath = newFilePath;
+        upload.needsProcessing = false;
+
+        console.log(`✅ Moved: ${upload.filePath} → ${newFilePath}`);
+      } catch (error) {
+        console.error(`❌ Failed to move temp file ${upload.filePath}:`, error);
+      }
+    }
+
+    this.persistUploads();
+  }
+
+  // Move file from one location to another in Firebase Storage
+  private async moveFileInStorage(
+    oldPath: string,
+    newPath: string
+  ): Promise<void> {
+    try {
+      const { ref, uploadBytes, getDownloadURL, deleteObject } = await import(
+        "firebase/storage"
+      );
+      const { storage } = await import("./firebase");
+
+      // Get the old file
+      const oldRef = ref(storage, oldPath);
+      const oldFile = await fetch(await getDownloadURL(oldRef));
+      const fileBlob = await oldFile.blob();
+
+      // Upload to new location
+      const newRef = ref(storage, newPath);
+      await uploadBytes(newRef, fileBlob);
+
+      // Delete old file
+      await deleteObject(oldRef);
+
+      console.log(`📁 File moved: ${oldPath} → ${newPath}`);
+    } catch (error) {
+      console.error(
+        `❌ Error moving file from ${oldPath} to ${newPath}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  // Clean up temp files for a specific user (when article creation is cancelled)
+  public async cleanupTempFiles(userId: string): Promise<void> {
+    const tempUploads = Array.from(this.uploads.entries()).filter(
+      ([_, upload]) =>
+        upload.userId === userId &&
+        upload.folder === "articles" &&
+        upload.filePath.includes("temp_") &&
+        !upload.context?.articleId
+    );
+
+    if (tempUploads.length === 0) {
+      return;
+    }
+
+    console.log(
+      `🧹 Cleaning up ${tempUploads.length} temp files for user ${userId}`
+    );
+
+    for (const [uploadId, upload] of tempUploads) {
+      try {
+        // Delete file from Firebase Storage
+        const { ref, deleteObject } = await import("firebase/storage");
+        const { storage } = await import("./firebase");
+
+        const fileRef = ref(storage, upload.filePath);
+        await deleteObject(fileRef);
+
+        // Remove from upload manager
+        this.uploads.delete(uploadId);
+
+        console.log(`🗑️ Deleted temp file: ${upload.filePath}`);
+      } catch (error) {
+        console.error(
+          `❌ Failed to delete temp file ${upload.filePath}:`,
+          error
+        );
+      }
+    }
+
+    this.persistUploads();
+  }
+
+  // Clean up unused files by comparing with article content
+  public async cleanupUnusedFiles(
+    userId: string,
+    articleId: string,
+    articleContent: string,
+    coverImage?: string,
+    attachments?: string[]
+  ): Promise<void> {
+    const articleUploads = Array.from(this.uploads.entries()).filter(
+      ([_, upload]) =>
+        upload.userId === userId &&
+        upload.context?.articleId === articleId &&
+        upload.state === "success"
+    );
+
+    if (articleUploads.length === 0) {
+      return;
+    }
+
+    const usedUrls = new Set<string>();
+
+    // Add cover image URL
+    if (coverImage) {
+      usedUrls.add(coverImage);
+    }
+
+    // Add attachment URLs
+    if (attachments) {
+      attachments.forEach((url) => usedUrls.add(url));
+    }
+
+    // Extract image URLs from article content
+    const contentImageUrls = this.extractImageUrlsFromContent(articleContent);
+    contentImageUrls.forEach((url) => usedUrls.add(url));
+
+    // Find unused uploads
+    const unusedUploads = articleUploads.filter(
+      ([_, upload]) => upload.downloadURL && !usedUrls.has(upload.downloadURL)
+    );
+
+    if (unusedUploads.length === 0) {
+      return;
+    }
+
+    console.log(
+      `🧹 Cleaning up ${unusedUploads.length} unused files for article ${articleId}`
+    );
+
+    for (const [uploadId, upload] of unusedUploads) {
+      try {
+        // Delete file from Firebase Storage
+        const { ref, deleteObject } = await import("firebase/storage");
+        const { storage } = await import("./firebase");
+
+        const fileRef = ref(storage, upload.filePath);
+        await deleteObject(fileRef);
+
+        // Remove from upload manager
+        this.uploads.delete(uploadId);
+
+        console.log(`🗑️ Deleted unused file: ${upload.filePath}`);
+      } catch (error) {
+        console.error(
+          `❌ Failed to delete unused file ${upload.filePath}:`,
+          error
+        );
+      }
+    }
+
+    this.persistUploads();
+  }
+
+  // Extract image URLs from HTML content
+  private extractImageUrlsFromContent(content: string): string[] {
+    const urls: string[] = [];
+    const imgRegex = /<img[^>]+src="([^"]+)"/g;
+    let match;
+
+    while ((match = imgRegex.exec(content)) !== null) {
+      urls.push(match[1]);
+    }
+
+    return urls;
   }
 
   // Get upload notifications

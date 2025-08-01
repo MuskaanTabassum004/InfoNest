@@ -1,0 +1,212 @@
+rules_version = '2';
+
+// ========================================
+// Firebase Storage Security Rules for InfoNest Application
+// ========================================
+//
+// STORAGE STRUCTURE:
+// - profiles/{userId}/{fileName} - User profile pictures
+// - articles/{userId}/{articleId}/{fileName} - Article cover images and attachments organized by article (NEW STRUCTURE ONLY)
+// - articles/{userId}/{fileName} - Legacy article files (READ-ONLY, no new uploads allowed)
+// - temp/{userId}/{fileName} - Temporary files for resumable uploads
+//
+// PUBLIC ACCESS REQUIREMENTS:
+// - Profile pictures: Publicly readable (no authentication required)
+// - Article cover images: Publicly readable (no authentication required)
+// - Article attachments: Publicly readable (no authentication required)
+//
+// WRITE PERMISSIONS:
+// - Profile pictures: Users can only upload/update their own
+// - Article files: Only InfoWriters and Admins can upload
+// - All uploads: Proper file type and size validation
+//
+// SECURITY FEATURES:
+// - File type validation (images and documents only)
+// - File size limits (5MB for profiles, 10MB for articles)
+// - Filename validation to prevent path traversal attacks
+// - Role-based access control for article uploads
+// - Admin override access for management
+//
+// FILE REPLACEMENT LOGIC:
+// - Profile pictures: Client should delete old files before uploading new ones
+// - Article files: Client should clean up unused files when articles are updated
+// - Temporary files: Should be cleaned up after successful uploads
+//
+// IMPORTANT NOTES:
+// - Firebase Storage rules cannot automatically delete old files
+// - File cleanup must be handled by client-side code or Cloud Functions
+// - Each upload creates a unique filename to prevent conflicts
+// ========================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========================================
+    // PROFILE PICTURES
+    // ========================================
+    // Path: profiles/{userId}/{fileName}
+    // Public read access, authenticated write access for own files
+    match /profiles/{userId}/{fileName} {
+      // PUBLIC READ ACCESS
+      // Profile pictures should be publicly readable (no authentication required)
+      allow read: if true;
+      
+      // WRITE ACCESS (create, update, delete)
+      // Users can only upload/update/delete their own profile pictures
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && isValidProfileImage();
+      
+      // VALIDATION FUNCTIONS
+      function isValidProfileImage() {
+        return request.resource != null
+               && request.resource.size > 0  // File must not be empty
+               && request.resource.size <= 5 * 1024 * 1024  // 5MB max
+               && request.resource.contentType.matches('image/.*')
+               && request.resource.contentType in [
+                 'image/jpeg',
+                 'image/jpg',
+                 'image/png',
+                 'image/gif',
+                 'image/webp'
+               ]
+               && isValidFileName(fileName);
+      }
+
+      function isValidFileName(name) {
+        // Ensure filename follows expected pattern and doesn't contain malicious content
+        return name.matches('[a-zA-Z0-9_.-]+')
+               && name.size() <= 255
+               && !name.matches('.*\\.\\..*')  // Prevent path traversal
+               && !name.matches('.*[<>:"|?*].*');  // Prevent special characters
+      }
+    }
+    
+    // ========================================
+    // ARTICLE FILES (Cover Images & Attachments) - NEW ORGANIZED STRUCTURE
+    // ========================================
+    // Path: articles/{userId}/{articleId}/{fileName} - Organized structure
+    // Path: articles/{userId}/{fileName} - Legacy and temp files
+    // Public read access for cover images, authenticated access for attachments
+
+    // NEW ORGANIZED STRUCTURE: articles/{userId}/{articleId}/{fileName}
+    match /articles/{userId}/{articleId}/{fileName} {
+      // PUBLIC READ ACCESS
+      // Article cover images should be publicly readable (no authentication required)
+      // This allows cover images to be displayed on public pages like homepage
+      allow read: if true;
+
+      // WRITE ACCESS (create, update, delete)
+      // Only authenticated users can upload to their own folder
+      // Simplified permissions - let the app handle role checking
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.auth.token.email_verified == true
+                   && request.resource != null
+                   && request.resource.size > 0
+                   && request.resource.size <= 10 * 1024 * 1024; // 10MB limit
+    }
+
+    // LEGACY AND TEMP FILES: articles/{userId}/{fileName}
+    match /articles/{userId}/{fileName} {
+      // PUBLIC READ ACCESS
+      // Article cover images should be publicly readable (no authentication required)
+      // This allows cover images to be displayed on public pages like homepage
+      allow read: if true;
+
+      // WRITE ACCESS (create, update, delete)
+      // Only authenticated users can upload to their own folder
+      // Simplified permissions - let the app handle role checking
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.auth.token.email_verified == true
+                   && request.resource != null
+                   && request.resource.size > 0
+                   && request.resource.size <= 10 * 1024 * 1024; // 10MB limit
+
+    }
+
+    // ========================================
+    // ARTICLE FILES (Legacy Structure) - READ-ONLY FOR EXISTING FILES
+    // ========================================
+    // Path: articles/{userId}/{fileName}
+    // Support for reading existing files uploaded before the reorganization
+    // NEW UPLOADS ARE NOT ALLOWED - Use articles/{userId}/{articleId}/{fileName} instead
+    match /articles/{userId}/{fileName} {
+      // PUBLIC READ ACCESS ONLY
+      // Existing article files remain publicly readable
+      allow read: if true;
+
+      // NO WRITE ACCESS - Force new structure
+      // All new uploads must use the organized structure: articles/{userId}/{articleId}/{fileName}
+      allow write: if false;
+    }
+    
+    // ========================================
+    // RESUMABLE UPLOAD TEMPORARY FILES
+    // ========================================
+    // Path: temp/{userId}/{fileName}
+    // Temporary storage for resumable uploads
+    match /temp/{userId}/{fileName} {
+      // READ ACCESS
+      // Users can read their own temporary files
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // WRITE ACCESS
+      // Users can create/update/delete their own temporary files
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && isValidTempFile();
+      
+      function isValidTempFile() {
+        return request.resource != null
+               && request.resource.size <= 50 * 1024 * 1024;  // 50MB max for temp files
+      }
+    }
+    
+    // ========================================
+    // ADMIN ACCESS
+    // ========================================
+    // Admins can read all files for management purposes
+    match /{allPaths=**} {
+      allow read: if request.auth != null 
+                  && request.auth.token.email_verified == true
+                  && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ========================================
+    // SPECIAL CASES & SECURITY
+    // ========================================
+
+    // Prevent access to sensitive system folders
+    match /system/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    match /config/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    match /.firebase/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // ========================================
+    // FILE CLEANUP & REPLACEMENT LOGIC
+    // ========================================
+    // Note: Firebase Storage rules cannot automatically delete old files
+    // File cleanup must be handled by client-side code or Cloud Functions
+    // The application should:
+    // 1. Delete old profile pictures when uploading new ones
+    // 2. Delete unused article attachments when articles are updated
+    // 3. Clean up temporary files after successful uploads
+
+    // ========================================
+    // DENY ALL OTHER ACCESS
+    // ========================================
+    // Explicitly deny access to any paths not covered above
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

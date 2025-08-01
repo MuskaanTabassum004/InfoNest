@@ -9,7 +9,10 @@ import {
 } from "../lib/fileUpload";
 import { useAuth } from "../hooks/useAuth";
 import toast from "react-hot-toast";
-import { ResumableFileUpload, ResumableFileUploadButton } from "./ResumableFileUpload";
+import {
+  ResumableFileUpload,
+  ResumableFileUploadButton,
+} from "./ResumableFileUpload";
 import { ResumableUploadResult } from "../lib/resumableUpload";
 
 interface FileUploadProps {
@@ -21,6 +24,7 @@ interface FileUploadProps {
   className?: string;
   children?: React.ReactNode;
   useResumable?: boolean;
+  articleId?: string; // For organizing files by article
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
@@ -31,6 +35,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   className = "",
   children,
   useResumable = true,
+  articleId,
 }) => {
   const { userProfile } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
@@ -51,7 +56,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             path: result.path,
             name: result.name,
             size: result.size,
-            type: result.type
+            type: result.type,
           };
           onUploadComplete(compatibleResult);
         }}
@@ -59,6 +64,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         accept={accept}
         folder={folder}
         className={className}
+        articleId={articleId}
       >
         {children}
       </ResumableFileUpload>
@@ -88,16 +94,19 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
     // Prevent uploading the same file twice in a row
     if (lastUploadedFile === fileId) {
-      toast.error("This file was just uploaded. Please wait before uploading again.");
+      toast.error(
+        "This file was just uploaded. Please wait before uploading again."
+      );
       return;
     }
 
     // Prevent uploading the same file multiple times (by content signature)
     if (uploadedFiles.has(fileHash)) {
-      toast.error("A file with the same name, size, and type has already been uploaded.");
+      toast.error(
+        "A file with the same name, size, and type has already been uploaded."
+      );
       return;
     }
-
 
     // Validate file
     const validation = validateFile(file);
@@ -119,11 +128,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         folder,
         (progress) => {
           setUploadProgress(progress);
-        }
+        },
+        articleId
       );
 
       setLastUploadedFile(fileId); // Track this file as uploaded
-      setUploadedFiles(prev => new Set([...prev, fileHash])); // Track file content signature
+      setUploadedFiles((prev) => new Set([...prev, fileHash])); // Track file content signature
 
       // Clear the recent upload tracking after 5 seconds to allow re-uploading if needed
       setTimeout(() => {
@@ -144,7 +154,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       // Clear the file input to allow re-uploading the same file later if needed
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -282,14 +292,23 @@ export const FileUploadButton: React.FC<{
   className?: string;
   children: React.ReactNode;
   useResumable?: boolean;
+  articleId?: string;
 }> = ({ children, ...props }) => {
   const { useResumable = true, ...otherProps } = props;
-  
+
   if (useResumable) {
-    return <ResumableFileUploadButton {...otherProps}>{children}</ResumableFileUploadButton>;
+    return (
+      <ResumableFileUploadButton {...otherProps}>
+        {children}
+      </ResumableFileUploadButton>
+    );
   }
-  
-  return <FileUpload useResumable={false} {...otherProps}>{children}</FileUpload>;
+
+  return (
+    <FileUpload useResumable={false} {...otherProps}>
+      {children}
+    </FileUpload>
+  );
 };
 
 // File preview component

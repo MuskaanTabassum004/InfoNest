@@ -2,7 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { updateDoc, doc, onSnapshot } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
-import { uploadFile } from "../lib/fileUpload";
+import {
+  uploadFile,
+  deleteFile,
+  extractFilePathFromUrl,
+} from "../lib/fileUpload";
 import {
   User,
   Mail,
@@ -20,8 +24,14 @@ import {
   Github,
   Globe,
   MessageSquare,
+  ArrowLeft,
+  Home,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+<<<<<<< HEAD
+=======
+import { Link } from "react-router-dom";
+>>>>>>> fbd82a0 (Saved local changes before pulling from origin)
 
 interface ProfileFormData {
   displayName: string;
@@ -178,6 +188,7 @@ export const ProfilePage: React.FC = () => {
 
     try {
       let profilePictureUrl = formData.profilePicture;
+      const oldProfilePictureUrl = userProfile.profilePicture;
 
       // Upload new profile picture if selected
       if (selectedFile) {
@@ -215,6 +226,28 @@ export const ProfilePage: React.FC = () => {
       await refreshProfile();
       console.log("✅ Profile refresh completed");
 
+<<<<<<< HEAD
+=======
+      // Clean up old profile picture if a new one was uploaded
+      if (
+        selectedFile &&
+        oldProfilePictureUrl &&
+        oldProfilePictureUrl !== profilePictureUrl
+      ) {
+        try {
+          // Extract file path from old URL and delete it
+          const oldFilePath = extractFilePathFromUrl(oldProfilePictureUrl);
+          if (oldFilePath && oldFilePath.startsWith("profiles/")) {
+            await deleteFile(oldFilePath);
+            console.log("✅ Deleted old profile picture:", oldFilePath);
+          }
+        } catch (error) {
+          console.error("⚠️ Failed to delete old profile picture:", error);
+          // Don't throw error - profile update was successful
+        }
+      }
+
+>>>>>>> fbd82a0 (Saved local changes before pulling from origin)
       // Update form data to reflect the new profile picture URL
       setFormData((prev) => ({
         ...prev,
@@ -320,9 +353,27 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Navigation Bar */}
+      <div className="mb-6 flex items-center justify-between">
+        <Link
+          to="/"
+          className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors group"
+        >
+          <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="font-medium">Back to Homepage</span>
+        </Link>
+        <Link
+          to="/"
+          className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors group"
+        >
+          <Home className="h-5 w-5" />
+          <span className="font-medium">Home</span>
+        </Link>
+      </div>
+
       <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
+        <div className="bg-gradient-to-r from-[#1D4ED8] via-[#7C3AED] to-[#EC4899] px-8 py-6">
           <h1 className="text-2xl font-bold text-white">My Profile</h1>
           <p className="text-blue-100 mt-1">
             Manage your account information and preferences

@@ -20,6 +20,7 @@ import {
 } from "../components/FileManager";
 import { UploadManager } from "../components/UploadManager";
 import { resumableUploadManager } from "../lib/resumableUpload";
+import { deleteFile, extractFilePathFromUrl } from "../lib/fileUpload";
 import {
   Save,
   Eye,
@@ -188,11 +189,22 @@ export const ArticleEditor: React.FC = () => {
   }, [hasUnsavedChanges]);
 
   // Handle navigation attempts when there are unsaved changes
-  const handleNavigation = (path?: string) => {
+  const handleNavigation = async (path?: string) => {
     if (hasUnsavedChanges) {
       setShowUnsavedWarning(true);
       return false;
     }
+
+    // Clean up temp files if leaving without saving
+    if (id === "new" && userProfile) {
+      try {
+        await resumableUploadManager.cleanupTempFiles(userProfile.uid);
+        console.log("🧹 Cleaned up temp files on navigation");
+      } catch (error) {
+        console.error("Error cleaning up temp files:", error);
+      }
+    }
+
     if (path) {
       navigate(path);
     } else {
@@ -302,6 +314,8 @@ export const ArticleEditor: React.FC = () => {
     }));
     setCoverImageUploading(false);
     toast.success("Cover image uploaded successfully");
+
+    // The resumable upload manager will handle old file cleanup automatically
   };
 
   // Monitor active uploads to show manager
@@ -373,21 +387,58 @@ export const ArticleEditor: React.FC = () => {
   }, [id]);
 
   const handleCoverImageUrl = () => {
-    if (coverImageUrl.trim()) {
-      setArticle((prev) => ({
-        ...prev,
-        coverImage: coverImageUrl.trim(),
-      }));
-      toast.success("Cover image URL added successfully");
+    const url = coverImageUrl.trim();
+
+    if (!url) {
+      toast.error("Please enter an image URL");
+      return;
     }
+
+    // Validate URL format
+    try {
+      const urlObj = new URL(url);
+      if (!["http:", "https:"].includes(urlObj.protocol)) {
+        toast.error("Please enter a valid HTTP or HTTPS URL");
+        return;
+      }
+    } catch (error) {
+      toast.error("Please enter a valid URL");
+      return;
+    }
+
+    // Allow any valid URL - let the browser handle image validation
+    // The image will show an error if it's not a valid image
+
+    setArticle((prev) => ({
+      ...prev,
+      coverImage: url,
+    }));
+    setCoverImageUrl("");
+    toast.success("Cover image URL added successfully");
   };
 
-  const removeCoverImage = () => {
+  const removeCoverImage = async () => {
+    const oldCoverImage = article.coverImage;
+
     setArticle((prev) => ({
       ...prev,
       coverImage: "",
     }));
     setCoverImageUrl("");
+
+    // Clean up the removed cover image
+    if (oldCoverImage) {
+      try {
+        const oldFilePath = extractFilePathFromUrl(oldCoverImage);
+        if (oldFilePath && oldFilePath.startsWith("articles/")) {
+          await deleteFile(oldFilePath);
+          console.log("✅ Deleted removed cover image:", oldFilePath);
+        }
+      } catch (error) {
+        console.error("⚠️ Failed to delete removed cover image:", error);
+        // Don't throw error - cover image removal was successful
+      }
+    }
   };
 
   const handleAttachmentUpload = (result: UploadResult) => {
@@ -396,6 +447,33 @@ export const ArticleEditor: React.FC = () => {
       attachments: [...(prev.attachments || []), result.url],
     }));
     toast.success("File attached successfully");
+  };
+
+  // Handle file uploads for newly created articles
+  const handleFileUploadsForNewArticle = async (
+    articleId: string,
+    articleData: any
+  ) => {
+    if (!userProfile) return;
+
+    try {
+      // Move temp files to organized structure
+      await resumableUploadManager.updatePendingUploadsWithArticleId(articleId);
+
+      // Clean up any unused files
+      await resumableUploadManager.cleanupUnusedFiles(
+        userProfile.uid,
+        articleId,
+        articleData.content || "",
+        articleData.coverImage,
+        articleData.attachments
+      );
+
+      console.log(`✅ File organization completed for article: ${articleId}`);
+    } catch (error) {
+      console.error("Error handling file uploads for new article:", error);
+      // Don't throw error - article was created successfully, file uploads are secondary
+    }
   };
 
   // Legacy functions for compatibility (can be removed if not needed)
@@ -516,7 +594,13 @@ export const ArticleEditor: React.FC = () => {
     setHasUnsavedChanges(false);
   };
 
+<<<<<<< HEAD
   const handleSave = async (status: "draft" | "published" = "draft") => {
+=======
+  const handleSave = async (
+    status: "draft" | "published" | "archive" = "draft"
+  ) => {
+>>>>>>> fbd82a0 (Saved local changes before pulling from origin)
     if (!userProfile) {
       toast.error("User authentication error. Please refresh and try again.");
       return;
@@ -590,9 +674,30 @@ export const ArticleEditor: React.FC = () => {
 
       if (isEditing && id) {
         await updateArticle(id, articleData);
+
+        // Clean up unused files after update
+        if (userProfile) {
+          try {
+            await resumableUploadManager.cleanupUnusedFiles(
+              userProfile.uid,
+              id,
+              articleData.content || "",
+              articleData.coverImage,
+              articleData.attachments
+            );
+            console.log("🧹 Cleaned up unused files after article update");
+          } catch (error) {
+            console.error("Error cleaning up unused files:", error);
+          }
+        }
+
         toast.success(
           `Article ${
-            status === "published" ? "published" : "saved"
+            status === "published"
+              ? "published"
+              : status === "archive"
+              ? "archived"
+              : "saved"
           } successfully`
         );
 
@@ -620,21 +725,36 @@ export const ArticleEditor: React.FC = () => {
           return;
         }
 
+        // For archive saves when editing, navigate to my articles
+        if (status === "archive") {
+          navigate("/my-articles?status=archive");
+          return;
+        }
+
         // For draft saves when editing, don't reset form - just navigate
         if (status === "draft") {
           navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
           return;
         }
       } else {
+        // Create new article first to get an ID
         const newId = await createArticle(
           articleData as Omit<
             Article,
             "id" | "createdAt" | "updatedAt" | "slug"
           >
         );
+
+        // Now handle file uploads with the new article ID
+        await handleFileUploadsForNewArticle(newId, articleData);
+
         toast.success(
           `Article ${
-            status === "published" ? "published" : "created"
+            status === "published"
+              ? "published"
+              : status === "archive"
+              ? "archived"
+              : "created"
           } successfully`
         );
 
@@ -661,6 +781,9 @@ export const ArticleEditor: React.FC = () => {
         // Navigate based on status
         if (status === "draft") {
           navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
+        } else if (status === "archive") {
+          // For archived articles, navigate to my articles with archive filter
+          navigate("/my-articles?status=archive");
         } else {
           // For published articles, reset form and stay on new article page for next article
           navigate("/article/new");
@@ -1163,6 +1286,15 @@ export const ArticleEditor: React.FC = () => {
           </button>
 
           <button
+            onClick={() => handleSave("archive")}
+            disabled={saving}
+            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          >
+            <FileText className="h-4 w-4" />
+            <span>Archive</span>
+          </button>
+
+          <button
             onClick={() => handleSave("published")}
             disabled={saving}
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
@@ -1205,6 +1337,19 @@ export const ArticleEditor: React.FC = () => {
                 <div className="space-y-4">
                   {/* Method Toggle */}
                   <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+<<<<<<< HEAD
+=======
+                    <button
+                      onClick={() => setCoverImageMethod("upload")}
+                      className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                        coverImageMethod === "upload"
+                          ? "bg-white text-gray-900 shadow-sm"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`}
+                    >
+                      📁 Upload File
+                    </button>
+>>>>>>> fbd82a0 (Saved local changes before pulling from origin)
                     <button
                       onClick={() => setCoverImageMethod("url")}
                       className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
@@ -1224,6 +1369,7 @@ export const ArticleEditor: React.FC = () => {
                       onUploadError={(error) => toast.error(error)}
                       accept="image/*"
                       useResumable={true}
+                      articleId={id === "new" ? undefined : id}
                       className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors"
                     >
                       <div className="flex flex-col items-center">
@@ -1343,6 +1489,7 @@ export const ArticleEditor: React.FC = () => {
                     }
                   }}
                   placeholder="Start writing your article..."
+                  articleId={id !== "new" ? id : undefined}
                 />
               </div>
             </div>
@@ -1530,19 +1677,34 @@ export const ArticleEditor: React.FC = () => {
                 Attachments
               </h3>
 
-              <FileUpload
-                onUploadComplete={handleAttachmentUpload}
-                onUploadError={(error) => toast.error(error)}
-                accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx"
-                useResumable={true}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors"
-              >
-                <div className="flex flex-col items-center">
-                  <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-600 mb-1">Upload files</p>
-                  <p className="text-xs text-gray-500">PDF, DOC, TXT, etc.</p>
+              {id === "new" ? (
+                <div className="border-2 border-dashed border-yellow-300 rounded-lg p-4 text-center bg-yellow-50">
+                  <div className="flex flex-col items-center">
+                    <Upload className="h-8 w-8 text-yellow-400 mb-2" />
+                    <p className="text-sm text-yellow-700 mb-1 font-medium">
+                      Save Article First
+                    </p>
+                    <p className="text-xs text-yellow-600">
+                      Please save the article to enable file uploads
+                    </p>
+                  </div>
                 </div>
-              </FileUpload>
+              ) : (
+                <FileUpload
+                  onUploadComplete={handleAttachmentUpload}
+                  onUploadError={(error) => toast.error(error)}
+                  accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx"
+                  useResumable={true}
+                  articleId={id === "new" ? undefined : id}
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors"
+                >
+                  <div className="flex flex-col items-center">
+                    <Upload className="h-8 w-8 text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600 mb-1">Upload files</p>
+                    <p className="text-xs text-gray-500">PDF, DOC, TXT, etc.</p>
+                  </div>
+                </FileUpload>
+              )}
 
               {article.attachments && article.attachments.length > 0 && (
                 <div className="mt-4 space-y-2">
@@ -1622,9 +1784,24 @@ export const ArticleEditor: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   setShowUnsavedWarning(false);
                   setHasUnsavedChanges(false);
+
+                  // Clean up temp files if leaving without saving
+                  if (id === "new" && userProfile) {
+                    try {
+                      await resumableUploadManager.cleanupTempFiles(
+                        userProfile.uid
+                      );
+                      console.log(
+                        "🧹 Cleaned up temp files on leave without saving"
+                      );
+                    } catch (error) {
+                      console.error("Error cleaning up temp files:", error);
+                    }
+                  }
+
                   navigate(-1);
                 }}
                 className="px-4 py-2 text-red-700 bg-red-100 rounded-lg hover:bg-red-200 transition-colors"

@@ -14,6 +14,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
+import { deleteUserArticlesFolder } from "../lib/fileUpload";
 import {
   User,
   Mail,
@@ -51,7 +52,9 @@ export const ActiveWritersPage: React.FC = () => {
     null
   );
   const [adminNote, setAdminNote] = useState<string>("");
-  const [showRemoveDialog, setShowRemoveDialog] = useState<ActiveWriter | null>(null);
+  const [showRemoveDialog, setShowRemoveDialog] = useState<ActiveWriter | null>(
+    null
+  );
 
   useEffect(() => {
     if (!userProfile || !isAdmin) return;
@@ -129,7 +132,10 @@ export const ActiveWritersPage: React.FC = () => {
     };
   }, [userProfile, isAdmin]);
 
-  const handleRemovePrivileges = async (writer: ActiveWriter, adminNote: string) => {
+  const handleRemovePrivileges = async (
+    writer: ActiveWriter,
+    adminNote: string
+  ) => {
     if (!userProfile) {
       toast.error("You must be logged in to perform this action");
       return;
@@ -160,6 +166,18 @@ export const ActiveWritersPage: React.FC = () => {
 
         // Wait for all articles to be deleted
         await Promise.all(deletePromises);
+
+        // Clean up all files from Firebase Storage for this user
+        try {
+          await deleteUserArticlesFolder(writer.uid);
+          console.log(`✅ Deleted all files for user: ${writer.uid}`);
+        } catch (error) {
+          console.error(
+            `⚠️ Failed to delete files for user: ${writer.uid}`,
+            error
+          );
+          // Don't throw error - article deletion was successful
+        }
       }
 
       const userRef = doc(firestore, "users", writer.id);
@@ -178,7 +196,11 @@ export const ActiveWritersPage: React.FC = () => {
       });
 
       // Create notification for the user with admin note
-      const notificationMessage = `Your InfoWriter privileges have been removed by an administrator. Reason: ${adminNote.trim()}. ${deletedArticlesCount > 0 ? `All ${deletedArticlesCount} of your articles have been removed.` : 'You had no published articles.'} Contact support if you have questions.`;
+      const notificationMessage = `Your InfoWriter privileges have been removed by an administrator. Reason: ${adminNote.trim()}. ${
+        deletedArticlesCount > 0
+          ? `All ${deletedArticlesCount} of your articles have been removed.`
+          : "You had no published articles."
+      } Contact support if you have questions.`;
 
       await addDoc(collection(firestore, "notifications"), {
         userId: writer.uid,
@@ -190,16 +212,18 @@ export const ActiveWritersPage: React.FC = () => {
         actionUrl: "/profile",
       });
 
-      const successMessage = deletedArticlesCount > 0
-        ? `InfoWriter privileges removed for ${writer.displayName}. ${deletedArticlesCount} articles deleted.`
-        : `InfoWriter privileges removed for ${writer.displayName}. No articles to delete.`;
+      const successMessage =
+        deletedArticlesCount > 0
+          ? `InfoWriter privileges removed for ${writer.displayName}. ${deletedArticlesCount} articles deleted.`
+          : `InfoWriter privileges removed for ${writer.displayName}. No articles to delete.`;
 
       toast.success(successMessage);
       setShowRemoveDialog(null);
       setAdminNote("");
     } catch (error) {
       console.error("Error removing writer privileges:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      const errorMessage =
+        error instanceof Error ? error.message : "An unexpected error occurred";
       toast.error(`Failed to remove writer privileges: ${errorMessage}`);
     } finally {
       setProcessingId(null);
@@ -504,7 +528,10 @@ export const ActiveWritersPage: React.FC = () => {
               <div className="mb-4">
                 <p className="text-gray-600 mb-2">
                   You are about to remove InfoWriter privileges for{" "}
-                  <span className="font-semibold">{showRemoveDialog.displayName}</span>.
+                  <span className="font-semibold">
+                    {showRemoveDialog.displayName}
+                  </span>
+                  .
                 </p>
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
                   <p className="text-red-800 text-sm font-medium">
@@ -512,14 +539,20 @@ export const ActiveWritersPage: React.FC = () => {
                   </p>
                   <ul className="text-red-700 text-sm mt-1 list-disc list-inside">
                     <li>Remove their InfoWriter privileges</li>
-                    <li>Permanently delete ALL {showRemoveDialog.articleCount} of their articles</li>
+                    <li>
+                      Permanently delete ALL {showRemoveDialog.articleCount} of
+                      their articles
+                    </li>
                     <li>Send them a notification with your reason</li>
                   </ul>
                 </div>
               </div>
 
               <div className="mb-4">
-                <label htmlFor="adminNote" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="adminNote"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Admin Note (Reason for removal) *
                 </label>
                 <textarea
@@ -544,8 +577,12 @@ export const ActiveWritersPage: React.FC = () => {
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleRemovePrivileges(showRemoveDialog, adminNote)}
-                  disabled={processingId === showRemoveDialog.id || !adminNote.trim()}
+                  onClick={() =>
+                    handleRemovePrivileges(showRemoveDialog, adminNote)
+                  }
+                  disabled={
+                    processingId === showRemoveDialog.id || !adminNote.trim()
+                  }
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                 >
                   {processingId === showRemoveDialog.id ? (
