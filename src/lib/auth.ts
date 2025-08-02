@@ -406,7 +406,12 @@ export const signOut = async () => {
     document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
   });
 
+  // Sign out from Firebase - this will trigger onAuthStateChanged
+  // which will clean up all Firestore listeners automatically
   await firebaseSignOut(auth);
+
+  // Small delay to allow listeners to clean up
+  await new Promise(resolve => setTimeout(resolve, 100));
 
   // Don't navigate here - let the component handle navigation
   // This prevents the flash of auth page

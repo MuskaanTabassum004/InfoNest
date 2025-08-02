@@ -24,20 +24,36 @@ const handleFirestoreError = (error: any) => {
   if (error?.code === 'permission-denied') {
     // Silently handle permission denied errors during logout
     console.warn('Firestore permission denied - user may have logged out');
-    return;
+    return true; // Indicate error was handled
   }
   // Log other errors normally
   console.error('Firestore error:', error);
+  return false;
 };
 
 // Set up global error handling for unhandled promise rejections
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (event) => {
-    if (event.reason?.code === 'permission-denied') {
+    if (event.reason?.code === 'permission-denied' ||
+        (event.reason?.message && event.reason.message.includes('permission-denied'))) {
       handleFirestoreError(event.reason);
       event.preventDefault(); // Prevent the error from being logged to console
     }
   });
+
+  // Also handle console errors
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    // Check if this is a Firestore permission error
+    const errorMessage = args.join(' ');
+    if (errorMessage.includes('permission-denied') &&
+        errorMessage.includes('Firestore')) {
+      // Suppress the error if it's a permission denied error
+      return;
+    }
+    // Otherwise, log normally
+    originalConsoleError.apply(console, args);
+  };
 }
 
 export default app;
