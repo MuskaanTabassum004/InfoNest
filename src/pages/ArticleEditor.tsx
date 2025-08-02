@@ -39,7 +39,7 @@ import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
 import { stripHtmlTags } from "../utils/searchUtils";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import { draftStorage } from "../lib/draftStorage";
 
 export const ArticleEditor: React.FC = () => {
