@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   getInfoWriters,
   removeInfoWriterStatus,
+  removeInfoWriterPrivileges,
   UserProfile,
 } from "../lib/auth";
 import { getUserArticles } from "../lib/articles";
@@ -46,6 +47,7 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
   const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(
     null
   );
+  const [adminNote, setAdminNote] = useState<string>("");
 
   useEffect(() => {
     return setupRealTimeListeners();
@@ -67,22 +69,35 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
       where("role", "==", "infowriter")
     );
 
-    const writersUnsubscribe = onSnapshot(writersQuery, (snapshot) => {
-      writersData = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        writersData.push({
-          uid: data.uid || doc.id,
-          displayName: data.displayName || "Unknown Writer",
-          email: data.email || "",
-          profilePicture: data.profilePicture,
-          role: data.role,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          lastActive: data.lastActive?.toDate(),
-        } as UserProfile);
-      });
-      updateWritersData();
-    });
+    const writersUnsubscribe = onSnapshot(
+      writersQuery,
+      (snapshot) => {
+        writersData = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          writersData.push({
+            uid: data.uid || doc.id,
+            displayName: data.displayName || "Unknown Writer",
+            email: data.email || "",
+            profilePicture: data.profilePicture,
+            role: data.role,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            lastActive: data.lastActive?.toDate(),
+          } as UserProfile);
+        });
+        updateWritersData();
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for InfoWriter management - user may not be admin");
+          setLoading(false);
+          return;
+        }
+        console.error("Error in InfoWriter subscription:", error);
+        setLoading(false);
+      }
+    );
 
     // Listen to published articles for real-time count updates
     const articlesQuery = query(
@@ -90,16 +105,27 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
       where("status", "==", "published")
     );
 
-    const articlesUnsubscribe = onSnapshot(articlesQuery, (snapshot) => {
-      articlesData = {};
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.authorId) {
-          articlesData[data.authorId] = (articlesData[data.authorId] || 0) + 1;
+    const articlesUnsubscribe = onSnapshot(
+      articlesQuery,
+      (snapshot) => {
+        articlesData = {};
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.authorId) {
+            articlesData[data.authorId] = (articlesData[data.authorId] || 0) + 1;
+          }
+        });
+        updateWritersData();
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for articles subscription - user may not be authenticated");
+          return;
         }
-      });
-      updateWritersData();
-    });
+        console.error("Error in articles subscription:", error);
+      }
+    );
 
     const updateWritersData = () => {
       setInfoWriters(writersData);
@@ -135,11 +161,20 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
     setFilteredWriters(filtered);
   };
 
-  const handleRemoveWriter = async (uid: string) => {
+  const handleRemoveWriter = async (uid: string, adminNote: string = "No reason provided") => {
+    if (!userProfile) {
+      toast.error("You must be logged in to perform this action");
+      return;
+    }
+
     setRemovingWriter(uid);
     try {
       const removedWriter = infoWriters.find((writer) => writer.uid === uid);
-      await removeInfoWriterStatus(uid);
+
+      // Use comprehensive removal function
+      const result = await removeInfoWriterPrivileges(uid, userProfile.uid, adminNote);
+
+      // Update local state (real-time listener will also update)
       setInfoWriters((prev) => prev.filter((writer) => writer.uid !== uid));
 
       // Notify parent component about the removal
@@ -147,9 +182,15 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
         onInfoWriterRemoved(removedWriter);
       }
 
-      toast.success("InfoWriter status removed successfully");
+      const successMessage = result.deletedArticlesCount > 0
+        ? `InfoWriter privileges removed for ${removedWriter?.displayName || 'user'}. ${result.deletedArticlesCount} articles deleted.`
+        : `InfoWriter privileges removed for ${removedWriter?.displayName || 'user'}. No articles to delete.`;
+
+      toast.success(successMessage);
     } catch (error) {
-      toast.error("Error removing InfoWriter status");
+      console.error("Error removing InfoWriter privileges:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      toast.error(`Failed to remove InfoWriter privileges: ${errorMessage}`);
     } finally {
       setRemovingWriter(null);
       setShowRemoveConfirm(null);
@@ -294,30 +335,66 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
                 <AlertTriangle className="h-5 w-5 text-red-600" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">
-                Remove InfoWriter Status
+                Remove InfoWriter Privileges
               </h3>
             </div>
 
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to remove InfoWriter status from this user?
-              They will lose access to article creation and management features.
-            </p>
+            <div className="mb-6">
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to remove InfoWriter privileges from this user?
+              </p>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-yellow-800 text-sm font-medium">
+                  ⚠️ This action will:
+                </p>
+                <ul className="text-yellow-700 text-sm mt-1 ml-4 list-disc">
+                  <li>Remove InfoWriter role and privileges</li>
+                  <li>Delete ALL articles created by this user</li>
+                  <li>Remove all files from storage</li>
+                  <li>Send notification to the user</li>
+                </ul>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for removal (required):
+                </label>
+                <textarea
+                  value={adminNote}
+                  onChange={(e) => setAdminNote(e.target.value)}
+                  placeholder="Please provide a reason for removing InfoWriter privileges..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  rows={3}
+                  required
+                />
+              </div>
+            </div>
 
             <div className="flex items-center justify-end space-x-3">
               <button
-                onClick={() => setShowRemoveConfirm(null)}
+                onClick={() => {
+                  setShowRemoveConfirm(null);
+                  setAdminNote("");
+                }}
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleRemoveWriter(showRemoveConfirm)}
-                disabled={removingWriter === showRemoveConfirm}
+                onClick={() => {
+                  if (!adminNote.trim()) {
+                    toast.error("Please provide a reason for removal");
+                    return;
+                  }
+                  handleRemoveWriter(showRemoveConfirm, adminNote.trim());
+                  setAdminNote("");
+                }}
+                disabled={removingWriter === showRemoveConfirm || !adminNote.trim()}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {removingWriter === showRemoveConfirm
                   ? "Removing..."
-                  : "Remove Status"}
+                  : "Remove Privileges"}
               </button>
             </div>
           </div>

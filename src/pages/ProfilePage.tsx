@@ -91,33 +91,44 @@ export const ProfilePage: React.FC = () => {
 
     // Set up real-time listener for profile changes
     const userRef = doc(firestore, "users", userProfile.uid);
-    const unsubscribe = onSnapshot(userRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        const updatedProfile = {
-          ...userProfile,
-          displayName: data.displayName || "",
-          profilePicture: data.profilePicture || "",
-          bio: data.bio || "",
-          socialLinks: data.socialLinks || {},
-          updatedAt: data.updatedAt?.toDate(),
-        };
+    const unsubscribe = onSnapshot(
+      userRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          const updatedProfile = {
+            ...userProfile,
+            displayName: data.displayName || "",
+            profilePicture: data.profilePicture || "",
+            bio: data.bio || "",
+            socialLinks: data.socialLinks || {},
+            updatedAt: data.updatedAt?.toDate(),
+          };
 
-        // Show real-time update indicator
-        setRealtimeUpdateReceived(true);
-        setTimeout(() => setRealtimeUpdateReceived(false), 2000);
+          // Show real-time update indicator
+          setRealtimeUpdateReceived(true);
+          setTimeout(() => setRealtimeUpdateReceived(false), 2000);
 
-        // Only update form if user is not currently editing to avoid overwriting their changes
-        if (!isEditing && !loading) {
-          updateFormData(updatedProfile);
-          console.log("📡 Real-time profile update received and applied");
-        } else {
-          console.log(
-            "📡 Real-time profile update received but not applied (user is editing)"
-          );
+          // Only update form if user is not currently editing to avoid overwriting their changes
+          if (!isEditing && !loading) {
+            updateFormData(updatedProfile);
+            console.log("📡 Real-time profile update received and applied");
+          } else {
+            console.log(
+              "📡 Real-time profile update received but not applied (user is editing)"
+            );
+          }
         }
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for profile subscription - user may not be authenticated");
+          return;
+        }
+        console.error("Error in profile subscription:", error);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [userProfile?.uid]); // Only depend on uid to avoid unnecessary re-subscriptions

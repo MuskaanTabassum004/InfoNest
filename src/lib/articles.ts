@@ -142,7 +142,11 @@ export const updateArticle = async (
 
   // Handle publishedAt specifically
   if (updates.status === "published" && currentData.status !== "published") {
-    updatedData.publishedAt = Timestamp.fromDate(new Date());
+    // When publishing for the first time, set publishedAt to current time
+    // and ensure updatedAt is also current (since publishing is an update)
+    const now = new Date();
+    updatedData.publishedAt = Timestamp.fromDate(now);
+    updatedData.updatedAt = Timestamp.fromDate(now);
   } else if (updates.publishedAt) {
     updatedData.publishedAt = Timestamp.fromDate(updates.publishedAt);
   } else if (updates.publishedAt === null) {
@@ -153,82 +157,201 @@ export const updateArticle = async (
 };
 
 export const deleteArticle = async (id: string): Promise<void> => {
-  // Get article data before deletion to clean up files
-  const articleRef = doc(firestore, "articles", id);
-  const articleDoc = await getDoc(articleRef);
+  console.log(`🗑️ Starting article deletion: ${id}`);
 
-  if (articleDoc.exists()) {
-    const articleData = articleDoc.data();
-    const userId = articleData.authorId;
+  try {
+    // Get article data before deletion to clean up files
+    const articleRef = doc(firestore, "articles", id);
+    console.log(`📄 Fetching article document: ${id}`);
 
-    // Delete the article document first
-    await deleteDoc(articleRef);
+    const articleDoc = await getDoc(articleRef);
 
-    // Clean up entire article folder (new organized structure)
-    if (userId) {
-      try {
-        await deleteArticleFolder(userId, id);
-        console.log(`✅ Deleted article folder: articles/${userId}/${id}`);
-      } catch (error) {
-        console.error(
-          `⚠️ Failed to delete article folder: articles/${userId}/${id}`,
-          error
-        );
+    if (articleDoc.exists()) {
+      const articleData = articleDoc.data();
+      const userId = articleData.authorId;
+      console.log(`📄 Article found - Author: ${userId}, Title: ${articleData.title}`);
 
-        // Fallback: try individual file cleanup for legacy structure
+      // Delete the article document from Firestore FIRST
+      console.log(`🗑️ Deleting article document from Firestore: ${id}`);
+      await deleteDoc(articleRef);
+      console.log(`✅ Article document deleted from Firestore: ${id}`);
+
+      // Verify deletion by checking if document still exists
+      const verifyDoc = await getDoc(articleRef);
+      if (verifyDoc.exists()) {
+        throw new Error(`❌ Article document still exists after deletion: ${id}`);
+      }
+      console.log(`✅ Verified article document deletion: ${id}`);
+
+      // Clean up entire article folder (new organized structure)
+      if (userId) {
         try {
-          const filesToDelete: string[] = [];
+          console.log(`🗑️ Starting folder cleanup: articles/${userId}/${id}`);
+          await deleteArticleFolder(userId, id);
+          console.log(`✅ Deleted article folder: articles/${userId}/${id}`);
+        } catch (error) {
+          console.error(
+            `⚠️ Failed to delete article folder: articles/${userId}/${id}`,
+            error
+          );
 
-          // Collect cover image
-          if (articleData.coverImage) {
-            filesToDelete.push(articleData.coverImage);
-          }
-
-          // Collect attachments
-          if (
-            articleData.attachments &&
-            Array.isArray(articleData.attachments)
-          ) {
-            filesToDelete.push(...articleData.attachments);
-          }
-
-          // Clean up individual files (legacy cleanup)
-          if (filesToDelete.length > 0) {
-            await Promise.all(
-              filesToDelete.map(async (url) => {
-                try {
-                  const filePath = extractFilePathFromUrl(url);
-                  if (filePath && filePath.startsWith("articles/")) {
-                    await deleteFile(filePath);
-                    console.log("✅ Deleted article file (legacy):", filePath);
-                  }
-                } catch (error) {
-                  console.error(
-                    "⚠️ Failed to delete article file:",
-                    url,
-                    error
-                  );
-                  // Don't throw error - article deletion was successful
-                }
-              })
-            );
-          }
-        } catch (legacyError) {
-          console.error("⚠️ Legacy file cleanup also failed:", legacyError);
-          // Don't throw error - article deletion was successful
-        }
+        // Log the folder deletion failure but continue
+        console.log("⚠️ Article folder deletion failed, but article document was removed from database");
       }
     }
-  } else {
-    // Article doesn't exist, just try to delete the document
-    await deleteDoc(articleRef);
+
+      console.log(`✅ Article deletion completed successfully: ${id}`);
+    } else {
+      console.log(`📄 Article document not found: ${id}`);
+      // Try to delete the document reference anyway (in case it exists but data is corrupted)
+      try {
+        await deleteDoc(articleRef);
+        console.log(`✅ Deleted empty article reference: ${id}`);
+      } catch (error) {
+        console.error(`⚠️ Failed to delete article reference: ${id}`, error);
+      }
+    }
+  } catch (error) {
+    console.error(`❌ Error during article deletion: ${id}`, error);
+    throw error;
   }
 };
 
-// Hard delete - permanently removes article from database
+// Hard delete - permanently removes article from database and all related data
 export const hardDeleteArticle = async (id: string): Promise<void> => {
-  // Use the same cleanup logic as deleteArticle
-  await deleteArticle(id);
+  const startTime = Date.now();
+  console.log(`🗑️ Starting comprehensive deletion of article: ${id}`);
+
+  try {
+    // 1. Clean up all related data first (before deleting the article)
+    const relatedDataStartTime = Date.now();
+    await cleanupArticleRelatedData(id);
+    const relatedDataTime = Date.now() - relatedDataStartTime;
+    console.log(`✅ Related data cleanup completed in ${relatedDataTime}ms`);
+
+    // 2. Delete the article document and files
+    const articleDeleteStartTime = Date.now();
+    await deleteArticle(id);
+    const articleDeleteTime = Date.now() - articleDeleteStartTime;
+    console.log(`✅ Article deletion completed in ${articleDeleteTime}ms`);
+
+    const totalTime = Date.now() - startTime;
+    console.log(`✅ Successfully deleted article and all related data: ${id} (Total time: ${totalTime}ms)`);
+  } catch (error) {
+    const totalTime = Date.now() - startTime;
+    console.error(`❌ Error during comprehensive article deletion: ${id} (Failed after ${totalTime}ms)`, error);
+    throw error;
+  }
+};
+
+// Clean up all data related to an article across the entire application
+export const cleanupArticleRelatedData = async (articleId: string): Promise<void> => {
+  const startTime = Date.now();
+  console.log(`🧹 Cleaning up related data for article: ${articleId}`);
+
+  const cleanupPromises: Promise<void>[] = [];
+
+  // Clean up saved articles (removes from all users' saved lists)
+  cleanupPromises.push(
+    (async () => {
+      try {
+        console.log(`🔍 Searching for saved article references for: ${articleId}`);
+        const savedArticlesQuery = query(
+          collection(firestore, "savedArticles"),
+          where("articleId", "==", articleId)
+        );
+        const savedArticlesSnapshot = await getDocs(savedArticlesQuery);
+
+        if (!savedArticlesSnapshot.empty) {
+          console.log(`🗑️ Found ${savedArticlesSnapshot.docs.length} saved article references to delete`);
+
+          // Log which users had this article saved (for debugging)
+          const userIds = savedArticlesSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return data.userId || 'unknown';
+          });
+          console.log(`👥 Users who had this article saved: ${userIds.join(', ')}`);
+
+          const deletePromises = savedArticlesSnapshot.docs.map(async (docRef) => {
+            try {
+              await deleteDoc(docRef.ref);
+              console.log(`✅ Removed saved article reference: ${docRef.id}`);
+            } catch (error) {
+              console.error(`❌ Failed to delete saved article reference: ${docRef.id}`, error);
+            }
+          });
+
+          await Promise.all(deletePromises);
+          console.log(`✅ Successfully deleted ${savedArticlesSnapshot.docs.length} saved article references`);
+        } else {
+          console.log(`📝 No saved article references found for: ${articleId}`);
+        }
+      } catch (error) {
+        console.error("⚠️ Failed to clean up saved articles:", error);
+      }
+    })()
+  );
+
+  // Clean up share events
+  cleanupPromises.push(
+    (async () => {
+      try {
+        const shareEventsQuery = query(
+          collection(firestore, "shareEvents"),
+          where("articleId", "==", articleId)
+        );
+        const shareEventsSnapshot = await getDocs(shareEventsQuery);
+
+        if (!shareEventsSnapshot.empty) {
+          const deletePromises = shareEventsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+          await Promise.all(deletePromises);
+          console.log(`✅ Deleted ${shareEventsSnapshot.docs.length} share events`);
+        }
+      } catch (error) {
+        console.error("⚠️ Failed to clean up share events:", error);
+      }
+    })()
+  );
+
+  // Clean up comments and replies
+  cleanupPromises.push(
+    (async () => {
+      try {
+        const commentsRef = collection(firestore, "articles", articleId, "comments");
+        const commentsSnapshot = await getDocs(commentsRef);
+
+        if (!commentsSnapshot.empty) {
+          const deletePromises: Promise<void>[] = [];
+
+          // Delete each comment and its replies
+          for (const commentDoc of commentsSnapshot.docs) {
+            // Delete replies first
+            const repliesRef = collection(commentDoc.ref, "replies");
+            const repliesSnapshot = await getDocs(repliesRef);
+
+            if (!repliesSnapshot.empty) {
+              repliesSnapshot.docs.forEach(replyDoc => {
+                deletePromises.push(deleteDoc(replyDoc.ref));
+              });
+            }
+
+            // Delete the comment
+            deletePromises.push(deleteDoc(commentDoc.ref));
+          }
+
+          await Promise.all(deletePromises);
+          console.log(`✅ Deleted ${commentsSnapshot.docs.length} comments and their replies`);
+        }
+      } catch (error) {
+        console.error("⚠️ Failed to clean up comments:", error);
+      }
+    })()
+  );
+
+  // Wait for all cleanup operations to complete
+  await Promise.all(cleanupPromises);
+  const totalTime = Date.now() - startTime;
+  console.log(`✅ Completed cleanup of related data for article: ${articleId} (Time: ${totalTime}ms)`);
 };
 
 // Soft delete - changes status to unpublished (for admin moderation)
@@ -263,20 +386,132 @@ export const deleteArticleByRole = async (
   authorRole?: string,
   deleteReason?: string
 ): Promise<void> => {
-  // Self-deletion (hard delete)
+  console.log(`🗑️ deleteArticleByRole called: articleId=${articleId}, userRole=${userRole}, userId=${userId}, authorId=${authorId}, authorRole=${authorRole}`);
+
+  // Get article data before deletion for notification purposes
+  let articleData: any = null;
+  try {
+    const articleRef = doc(firestore, "articles", articleId);
+    const articleDoc = await getDoc(articleRef);
+    if (articleDoc.exists()) {
+      articleData = articleDoc.data();
+      console.log(`📄 Article data retrieved: ${articleData.title}`);
+    } else {
+      console.log(`⚠️ Article document not found: ${articleId}`);
+    }
+  } catch (error) {
+    console.error("Error fetching article data for notification:", error);
+  }
+
+  // Self-deletion (hard delete) - NO NOTIFICATION
   if (userId === authorId) {
+    console.log(`👤 Self-deletion detected - performing hard delete without notification`);
     await hardDeleteArticle(articleId);
     return;
   }
 
-  // Admin deleting infowriter article (soft delete to unpublished)
-  if (userRole === "admin" && authorRole === "infowriter") {
-    await softDeleteArticle(articleId, "admin", userId, deleteReason);
+  // Admin deleting someone else's article - SEND NOTIFICATION
+  if (userRole === "admin" && userId !== authorId) {
+    console.log(`👨‍💼 Admin deleting other user's article - performing hard delete with notification`);
+
+    // Perform the deletion first
+    await hardDeleteArticle(articleId);
+
+    // Send notification ONLY to InfoWriter authors
+    if (articleData && authorRole === "infowriter") {
+      try {
+        console.log(`📧 Sending deletion notification to InfoWriter: ${authorId}`);
+        const { createArticleDeletionNotification } = await import("./notifications");
+        await createArticleDeletionNotification(
+          authorId,
+          articleData.title || "Untitled Article",
+          deleteReason
+        );
+        console.log(`✅ Deletion notification sent successfully`);
+      } catch (error) {
+        console.error("Error sending article deletion notification:", error);
+        // Don't throw error to avoid breaking the deletion process
+      }
+    } else {
+      console.log(`📝 No notification sent - author is not InfoWriter or no article data`);
+    }
+    return;
+  }
+
+  // Admin deleting their own article - NO NOTIFICATION
+  if (userRole === "admin") {
+    console.log(`👨‍💼 Admin deleting own article - performing hard delete without notification`);
+    await hardDeleteArticle(articleId);
     return;
   }
 
   throw new Error("Unauthorized deletion attempt");
 };
+
+// Debug function to test article deletion (for development/testing)
+export const debugDeleteArticle = async (articleId: string): Promise<void> => {
+  console.log(`🔧 DEBUG: Testing article deletion for: ${articleId}`);
+  try {
+    await hardDeleteArticle(articleId);
+    console.log(`🔧 DEBUG: Article deletion test completed successfully`);
+  } catch (error) {
+    console.error(`🔧 DEBUG: Article deletion test failed:`, error);
+    throw error;
+  }
+};
+
+// Fix date inconsistencies in all articles (publishedAt should be <= updatedAt)
+export const fixArticleDates = async (): Promise<void> => {
+  console.log(`🔧 Starting article date fix process...`);
+
+  try {
+    // Get all articles
+    const articlesQuery = query(collection(firestore, "articles"));
+    const articlesSnapshot = await getDocs(articlesQuery);
+
+    let fixedCount = 0;
+    let totalCount = articlesSnapshot.docs.length;
+
+    console.log(`📊 Found ${totalCount} articles to check`);
+
+    for (const articleDoc of articlesSnapshot.docs) {
+      const data = articleDoc.data();
+      const articleId = articleDoc.id;
+
+      // Convert timestamps to dates for comparison
+      const publishedAt = data.publishedAt?.toDate();
+      const updatedAt = data.updatedAt?.toDate();
+
+      // Check if dates are inconsistent (publishedAt > updatedAt)
+      if (publishedAt && updatedAt && publishedAt > updatedAt) {
+        console.log(`🔧 Fixing dates for article: ${data.title} (${articleId})`);
+        console.log(`   Before: publishedAt=${publishedAt.toISOString()}, updatedAt=${updatedAt.toISOString()}`);
+
+        // Swap the dates: publishedAt should be the earlier date, updatedAt should be the later date
+        const earlierDate = updatedAt; // This was actually when it was published
+        const laterDate = publishedAt;  // This was actually when it was updated
+
+        await updateDoc(doc(firestore, "articles", articleId), {
+          publishedAt: Timestamp.fromDate(earlierDate),
+          updatedAt: Timestamp.fromDate(laterDate),
+        });
+
+        console.log(`   After:  publishedAt=${earlierDate.toISOString()}, updatedAt=${laterDate.toISOString()}`);
+        fixedCount++;
+      }
+    }
+
+    console.log(`✅ Date fix completed: ${fixedCount} articles fixed out of ${totalCount} total`);
+  } catch (error) {
+    console.error(`❌ Error fixing article dates:`, error);
+    throw error;
+  }
+};
+
+// Make the fix function available globally for console access
+if (typeof window !== 'undefined') {
+  (window as any).fixArticleDates = fixArticleDates;
+}
 
 export const restoreArticle = async (
   articleId: string,
@@ -491,25 +726,48 @@ export const recordShareEvent = async (
   shareMethod: ShareEvent["shareMethod"],
   userId?: string
 ): Promise<void> => {
-  const shareEventRef = doc(collection(firestore, "shareEvents"));
-  const shareEvent: Omit<ShareEvent, "id"> = {
-    articleId,
-    userId,
-    shareMethod,
-    sharedAt: new Date(),
-    userAgent: navigator.userAgent,
-  };
+  try {
+    console.log(`📤 Recording share event: ${shareMethod} for article ${articleId}, user: ${userId || 'anonymous'}`);
 
-  await setDoc(shareEventRef, {
-    ...shareEvent,
-    sharedAt: Timestamp.fromDate(shareEvent.sharedAt),
-  });
+    // Prepare share event data with proper null handling
+    const shareEventData = {
+      articleId: articleId,
+      userId: userId || null, // Ensure null instead of undefined for Firestore
+      shareMethod: shareMethod,
+      sharedAt: Timestamp.now(), // Use Timestamp.now() directly
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+    };
 
-  // Update article share count
-  const articleRef = doc(firestore, "articles", articleId);
-  await updateDoc(articleRef, {
-    shareCount: increment(1),
-  });
+    console.log(`📤 Share event data:`, shareEventData);
+
+    // Create share event document
+    const shareEventRef = doc(collection(firestore, "shareEvents"));
+    await setDoc(shareEventRef, shareEventData);
+    console.log(`✅ Share event recorded successfully with ID: ${shareEventRef.id}`);
+
+    // Update article share count (separate operation to avoid blocking)
+    try {
+      const articleRef = doc(firestore, "articles", articleId);
+      await updateDoc(articleRef, {
+        shareCount: increment(1),
+      });
+      console.log(`✅ Article share count updated`);
+    } catch (countError) {
+      console.error(`⚠️ Failed to update share count (share event still recorded):`, countError);
+      // Don't throw - share event was recorded successfully
+    }
+  } catch (error) {
+    console.error(`❌ Failed to record share event:`, error);
+    console.error(`❌ Error details:`, {
+      code: error?.code,
+      message: error?.message,
+      articleId,
+      shareMethod,
+      userId
+    });
+    // Don't throw error - sharing should still work even if analytics fail
+    throw error; // Actually, let's throw it so we can see the exact error
+  }
 };
 
 // Share utility functions

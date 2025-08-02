@@ -31,6 +31,7 @@ interface UploadManagerProps {
   isOpen: boolean;
   onClose: () => void;
   className?: string;
+  articleId?: string;
 }
 
 interface ExtendedUpload {
@@ -42,12 +43,44 @@ interface ExtendedUpload {
 export const UploadManager: React.FC<UploadManagerProps> = ({
   isOpen,
   onClose,
-  className = ""
+  className = "",
+  articleId
 }) => {
   const [uploads, setUploads] = useState<ExtendedUpload[]>([]);
+  const [persistentFiles, setPersistentFiles] = useState<ExtendedUpload[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isMinimized, setIsMinimized] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'failed'>('all');
+
+  // Load existing files when component mounts or articleId changes
+  useEffect(() => {
+    if (articleId) {
+      // Get all uploads and find ones that belong to this article or are completed
+      const allUploads = resumableUploadManager.getAllUploads();
+      const articleFiles = allUploads
+        .filter(metadata =>
+          (metadata.context?.articleId === articleId) ||
+          (metadata.state === 'success' && metadata.downloadURL)
+        )
+        .map(metadata => {
+          const progress: UploadProgress = {
+            bytesTransferred: metadata.bytesTransferred,
+            totalBytes: metadata.totalBytes,
+            percentage: Math.round((metadata.bytesTransferred / metadata.totalBytes) * 100),
+            speed: 0,
+            estimatedTimeRemaining: 0,
+            state: metadata.state
+          };
+          return {
+            id: metadata.id,
+            metadata,
+            progress
+          };
+        });
+
+      setPersistentFiles(articleFiles);
+    }
+  }, [articleId]);
 
   // Network status monitoring
   useEffect(() => {
@@ -63,7 +96,7 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
     };
   }, []);
 
-  // Monitor all uploads
+  // Monitor all uploads and maintain persistent files
   useEffect(() => {
     const interval = setInterval(() => {
       const allUploads = resumableUploadManager.getAllUploads();
@@ -82,11 +115,29 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
           progress
         };
       });
+
       setUploads(uploadsWithProgress);
+
+      // Always add completed uploads to persistent files, regardless of article association
+      const completedUploads = uploadsWithProgress.filter(upload =>
+        upload.metadata.state === 'success' && upload.metadata.downloadURL
+      );
+
+      // Update persistent files - add any new completed uploads
+      setPersistentFiles(prev => {
+        const existingIds = new Set(prev.map(f => f.id));
+        const newCompletedFiles = completedUploads.filter(f => !existingIds.has(f.id));
+
+        // Keep all existing persistent files and add new completed ones
+        const updatedFiles = [...prev, ...newCompletedFiles];
+
+        // Don't remove files automatically - only when explicitly deleted
+        return updatedFiles;
+      });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [articleId]);
 
   const handleUploadAction = (uploadId: string, action: 'pause' | 'resume' | 'cancel' | 'retry') => {
     switch (action) {
@@ -103,20 +154,47 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
     }
   };
 
+
+
   const handleCleanupCompleted = () => {
-    resumableUploadManager.cleanupCompletedUploads();
+    // Only cleanup failed/cancelled uploads, keep successful ones
+    const failedUploads = uploads.filter(u =>
+      u.progress.state === 'error' || u.progress.state === 'canceled'
+    );
+
+    failedUploads.forEach(upload => {
+      resumableUploadManager.removeUpload(upload.id);
+    });
+
+    // Update state
+    setUploads(prev => prev.filter(u =>
+      u.progress.state !== 'error' && u.progress.state !== 'canceled'
+    ));
+    setPersistentFiles(prev => prev.filter(u =>
+      u.progress.state !== 'error' && u.progress.state !== 'canceled'
+    ));
   };
 
   const getFilteredUploads = () => {
+    // Start with persistent files (these should always be shown)
+    const allFiles = [...persistentFiles];
+
+    // Add current uploads that aren't already in persistent files
+    uploads.forEach(upload => {
+      if (!allFiles.find(f => f.id === upload.id)) {
+        allFiles.push(upload);
+      }
+    });
+
     switch (filter) {
       case 'active':
-        return uploads.filter(u => u.progress.state === 'running' || u.progress.state === 'paused');
+        return allFiles.filter(u => u.progress.state === 'running' || u.progress.state === 'paused');
       case 'completed':
-        return uploads.filter(u => u.progress.state === 'success');
+        return allFiles.filter(u => u.progress.state === 'success');
       case 'failed':
-        return uploads.filter(u => u.progress.state === 'error' || u.progress.state === 'canceled');
+        return allFiles.filter(u => u.progress.state === 'error' || u.progress.state === 'canceled');
       default:
-        return uploads;
+        return allFiles;
     }
   };
 
@@ -155,9 +233,10 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
   };
 
   const filteredUploads = getFilteredUploads();
-  const activeCount = uploads.filter(u => u.progress.state === 'running' || u.progress.state === 'paused').length;
-  const completedCount = uploads.filter(u => u.progress.state === 'success').length;
-  const failedCount = uploads.filter(u => u.progress.state === 'error' || u.progress.state === 'canceled').length;
+  const allFiles = filteredUploads;
+  const activeCount = allFiles.filter(u => u.progress.state === 'running' || u.progress.state === 'paused').length;
+  const completedCount = allFiles.filter(u => u.progress.state === 'success').length;
+  const failedCount = allFiles.filter(u => u.progress.state === 'error' || u.progress.state === 'canceled').length;
 
   if (!isOpen) return null;
 
@@ -208,7 +287,7 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
                     filter === 'all' ? 'bg-blue-100 text-blue-800' : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <div className="font-semibold">{uploads.length}</div>
+                  <div className="font-semibold">{allFiles.length}</div>
                   <div>All</div>
                 </button>
                 <button
@@ -240,12 +319,12 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
                 </button>
               </div>
 
-              {completedCount > 0 && (
+              {failedCount > 0 && (
                 <button
                   onClick={handleCleanupCompleted}
                   className="w-full text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 py-1 px-2 rounded"
                 >
-                  Clear completed uploads
+                  Clear failed uploads
                 </button>
               )}
             </div>

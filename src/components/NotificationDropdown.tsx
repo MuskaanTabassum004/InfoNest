@@ -1,10 +1,28 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import { Bell, Check, CheckCheck, X, Award, AlertCircle } from "lucide-react";
-import { useNotifications } from "../contexts/NotificationContext";
+import { useNotifications, NotificationContext } from "../contexts/NotificationContext";
 import { formatDistanceToNow } from "date-fns";
 import { AppNotification } from "../lib/notifications";
 
 export const NotificationDropdown: React.FC = () => {
+  // Check if NotificationProvider is available
+  const context = useContext(NotificationContext);
+
+  // If no context, render a simple bell without functionality
+  if (!context) {
+    return (
+      <div className="relative">
+        <button
+          className="relative p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+          title="Notifications (Loading...)"
+          disabled
+        >
+          <Bell className="h-6 w-6" />
+        </button>
+      </div>
+    );
+  }
+
   // Real-time notification dropdown with full management capabilities
   const {
     notifications,
@@ -12,7 +30,7 @@ export const NotificationDropdown: React.FC = () => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
-  } = useNotifications();
+  } = context;
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 

@@ -16,7 +16,7 @@ import { firestore } from "./firebase";
 export interface AppNotification {
   id: string;
   userId: string;
-  type: "role_approval" | "general" | "article_published" | "system";
+  type: "role_approval" | "general" | "article_published" | "system" | "writer_privileges_removed";
   title: string;
   message: string;
   isRead: boolean;
@@ -39,20 +39,23 @@ export const createNotification = async (
 ): Promise<void> => {
   try {
     const notificationRef = doc(collection(firestore, "notifications"));
-    const notification: Omit<AppNotification, "id"> = {
+
+    // Build notification object, excluding undefined fields
+    const notification: any = {
       userId,
       type,
       title,
       message,
       isRead: false,
-      createdAt: new Date(),
-      metadata,
+      createdAt: Timestamp.fromDate(new Date()),
     };
 
-    await setDoc(notificationRef, {
-      ...notification,
-      createdAt: Timestamp.fromDate(notification.createdAt),
-    });
+    // Only add metadata if it's defined
+    if (metadata !== undefined) {
+      notification.metadata = metadata;
+    }
+
+    await setDoc(notificationRef, notification);
 
   } catch (error) {
     console.error("Error creating notification:", error);
@@ -168,6 +171,12 @@ export const subscribeToUserNotifications = (
       callback(notifications);
     },
     (error) => {
+      // Handle permission errors silently
+      if (error.code === "permission-denied") {
+        console.warn("Permission denied for notifications subscription - user may not be authenticated or verified");
+        callback([]);
+        return;
+      }
       console.error("Error in notifications subscription:", error);
       callback([]);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { getArticle, Article } from "../lib/articles";
+import { getArticle, Article, hardDeleteArticle } from "../lib/articles";
 import { UserProfile } from "../lib/auth";
 import {
   ArrowLeft,
@@ -17,6 +17,8 @@ import {
   Download,
   Heart,
   ChevronDown,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import toast from "react-hot-toast";
@@ -31,6 +33,62 @@ import { onSnapshot, doc, updateDoc, increment } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
+
+// Helper function to extract original filename from storage URL
+const extractOriginalFilename = (url: string): string => {
+  try {
+    // Decode URL first to handle encoded characters
+    const decodedUrl = decodeURIComponent(url);
+
+    // Extract filename from URL (last part after /)
+    const filename = decodedUrl.split("/").pop() || "";
+
+    // Remove query parameters if any
+    const cleanFilename = filename.split("?")[0];
+
+    // Remove temp prefix if present
+    let processedName = cleanFilename.replace(/^temp_/, "");
+
+    // Split by underscore to find timestamp
+    const parts = processedName.split("_");
+
+    if (parts.length >= 2) {
+      // Last part should be timestamp with extension (e.g., "1754137025165.pdf")
+      const lastPart = parts[parts.length - 1];
+
+      // Check if last part looks like timestamp with extension
+      const timestampPattern = /^\d{13,}\.[\w]+$/; // 13+ digits followed by extension
+
+      if (timestampPattern.test(lastPart)) {
+        // Remove timestamp, keep original name parts
+        const originalParts = parts.slice(0, -1);
+        let originalName = originalParts.join("_");
+
+        // Get extension from timestamp part
+        const extension = lastPart.split(".").pop();
+
+        // Restore spaces and special characters for better readability
+        originalName = originalName
+          .replace(/_/g, " ") // Convert underscores back to spaces
+          .replace(/\s+/g, " ") // Normalize multiple spaces
+          .trim();
+
+        // Add extension back
+        return `${originalName}.${extension}`;
+      }
+    }
+
+    // Fallback: clean up the filename for display
+    return processedName
+      .replace(/_/g, " ") // Convert underscores to spaces
+      .replace(/\s+/g, " ") // Normalize spaces
+      .trim() || "Download";
+
+  } catch (error) {
+    console.error("Error extracting filename:", error);
+    return "Download";
+  }
+};
 
 export const ArticleView: React.FC = () => {
   const { id } = useParams();
@@ -52,6 +110,11 @@ export const ArticleView: React.FC = () => {
 
   // Attachments collapse state (default: collapsed)
   const [isAttachmentsExpanded, setIsAttachmentsExpanded] = useState(false);
+
+  // Delete confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteNote, setDeleteNote] = useState("");
 
   // Comment section state
   const commentSection = useCommentSection(article?.id || "");
@@ -127,28 +190,42 @@ export const ArticleView: React.FC = () => {
     if (!id) return;
 
     const articleRef = doc(firestore, "articles", id);
-    const unsubscribe = onSnapshot(articleRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        const updatedArticle = {
-          ...data,
-          createdAt: data.createdAt.toDate(),
-          updatedAt: data.updatedAt.toDate(),
-          publishedAt: data.publishedAt?.toDate(),
-        } as Article;
-        setArticle(updatedArticle);
+    const unsubscribe = onSnapshot(
+      articleRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          const updatedArticle = {
+            ...data,
+            createdAt: data.createdAt.toDate(),
+            updatedAt: data.updatedAt.toDate(),
+            publishedAt: data.publishedAt?.toDate(),
+          } as Article;
+          setArticle(updatedArticle);
 
-        // Update like state in real-time
-        setLikeCount(updatedArticle.likes || 0);
-        setIsLiked(
-          updatedArticle.likedBy?.includes(userProfile?.uid || "") || false
-        );
-      } else {
-        // Article has been deleted - redirect to dashboard
-        toast.error("This article has been removed");
+          // Update like state in real-time
+          setLikeCount(updatedArticle.likes || 0);
+          setIsLiked(
+            updatedArticle.likedBy?.includes(userProfile?.uid || "") || false
+          );
+        } else {
+          // Article has been deleted - redirect to dashboard
+          toast.error("This article has been removed");
+          navigate("/dashboard");
+        }
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for article subscription - article may be private or user not authenticated");
+          navigate("/dashboard");
+          return;
+        }
+        console.error("Error in article subscription:", error);
+        toast.error("Error loading article");
         navigate("/dashboard");
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [id, userProfile?.uid]);
@@ -197,6 +274,60 @@ export const ArticleView: React.FC = () => {
   const canEdit = (article: Article): boolean => {
     if (!userProfile) return false;
     return canEditArticle(article.authorId, article.status);
+  };
+
+  // Check if user can delete this article
+  const canDelete = (article: Article): boolean => {
+    if (!userProfile) return false;
+
+    // Admins can delete any article
+    if (userProfile.role === "admin") return true;
+
+    // InfoWriters can delete their own articles
+    if (userProfile.role === "infowriter" && userProfile.uid === article.authorId) return true;
+
+    return false;
+  };
+
+  // Handle article deletion
+  const handleDelete = async () => {
+    if (!article || !userProfile || !canDelete(article)) return;
+
+    setDeleting(true);
+    try {
+      const isOwnArticle = userProfile.uid === article.authorId;
+      const deleteReason = isOwnArticle
+        ? "Article deleted by author"
+        : (deleteNote.trim() || "Article removed by administrator");
+
+      // Import deleteArticleByRole
+      const { deleteArticleByRole } = await import("../lib/articles");
+
+      await deleteArticleByRole(
+        article.id,
+        userProfile.role,
+        userProfile.uid,
+        article.authorId,
+        authorProfile?.role,
+        deleteReason
+      );
+
+      toast.success("Article deleted successfully");
+      setShowDeleteConfirm(false);
+      setDeleteNote(""); // Reset the note
+
+      // Navigate back to appropriate page
+      if (userProfile.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/my-articles");
+      }
+    } catch (error) {
+      console.error("Error deleting article:", error);
+      toast.error("Failed to delete article");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleLikeToggle = async () => {
@@ -399,12 +530,16 @@ export const ArticleView: React.FC = () => {
           font-family: 'Georgia', 'Times New Roman', serif;
           color: #1a1a1a;
           max-width: none;
+          overflow-wrap: break-word;
+          word-wrap: break-word;
+          word-break: break-word;
         }
 
         .prose p {
           margin-bottom: 1.5em;
-          text-align: justify;
-          text-justify: inter-word;
+          text-align: left;
+          line-height: 1.8;
+          font-size: 18px;
         }
 
         .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
@@ -563,11 +698,75 @@ export const ArticleView: React.FC = () => {
           font-style: italic;
         }
 
+        /* Content Overflow Prevention */
+        .prose * {
+          max-width: 100%;
+          overflow-wrap: break-word;
+          word-wrap: break-word;
+        }
+
+        .prose img {
+          max-width: 100% !important;
+          height: auto !important;
+          object-fit: contain;
+        }
+
+        .prose table {
+          width: 100%;
+          max-width: 100%;
+          overflow-x: auto;
+          display: block;
+          white-space: nowrap;
+        }
+
+        .prose table tbody {
+          display: table;
+          width: 100%;
+        }
+
+        .prose pre {
+          max-width: 100%;
+          overflow-x: auto;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+
+        .prose code {
+          word-break: break-all;
+          white-space: pre-wrap;
+        }
+
+        .prose iframe,
+        .prose video,
+        .prose embed,
+        .prose object {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+
+        /* Long URLs and links */
+        .prose a {
+          word-break: break-all;
+          overflow-wrap: break-word;
+        }
+
+        /* Figure and image containers */
+        .prose figure {
+          max-width: 100%;
+          overflow: hidden;
+        }
+
+        .prose figure img {
+          max-width: 100%;
+          height: auto;
+        }
+
         /* Responsive Design for Mobile Devices */
         @media (max-width: 768px) {
           .prose {
             font-size: 16px;
             line-height: 1.7;
+            overflow-x: hidden;
           }
 
           .prose h1 {
@@ -596,23 +795,67 @@ export const ArticleView: React.FC = () => {
             padding: 0 16px;
             font-size: 0.85rem;
           }
+
+          .prose table {
+            font-size: 14px;
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+            max-width: 100%;
+          }
+
+          .prose pre {
+            font-size: 14px;
+            padding: 0.75rem;
+            overflow-x: auto;
+            max-width: 100%;
+          }
+
+          .prose code {
+            font-size: 13px;
+            word-break: break-all;
+          }
         }
 
         @media (max-width: 480px) {
           .prose {
             font-size: 15px;
+            overflow-x: hidden;
+            max-width: 100vw;
           }
 
           .prose h1 {
             font-size: 1.5rem;
+            word-break: break-word;
           }
 
           .prose h2 {
             font-size: 1.25rem;
+            word-break: break-word;
           }
 
           .prose .image-caption-text {
             padding: 0 12px;
+          }
+
+          .prose table {
+            font-size: 12px;
+            max-width: calc(100vw - 2rem);
+          }
+
+          .prose pre {
+            font-size: 12px;
+            max-width: calc(100vw - 2rem);
+            padding: 0.5rem;
+          }
+
+          .prose img {
+            max-width: calc(100vw - 2rem) !important;
+          }
+
+          .prose a {
+            word-break: break-all;
+            hyphens: auto;
           }
         }
 
@@ -663,6 +906,16 @@ export const ArticleView: React.FC = () => {
                 <Edit className="h-4 w-4" />
                 <span>Edit</span>
               </Link>
+            )}
+
+            {canDelete(article) && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Delete</span>
+              </button>
             )}
           </div>
         </div>
@@ -825,13 +1078,16 @@ export const ArticleView: React.FC = () => {
             )}
 
             {/* Content */}
-            <div className="w-full pt-4 pb-8 px-4">
+            <div className="w-full pt-4 pb-8 px-4 overflow-hidden">
               <div
                 className="prose prose-lg max-w-none mx-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-purple-600 prose-code:bg-purple-50 prose-pre:bg-gray-900 prose-blockquote:border-blue-500 prose-blockquote:bg-blue-50"
                 style={{
                   fontSize: "18px",
                   lineHeight: "1.8",
                   letterSpacing: "0.01em",
+                  overflowWrap: "break-word",
+                  wordWrap: "break-word",
+                  maxWidth: "100%",
                 }}
                 dangerouslySetInnerHTML={{
                   __html: processLayoutSpecificCaptions(article.content),
@@ -918,7 +1174,7 @@ export const ArticleView: React.FC = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <span className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors block truncate">
-                              {attachment.split("/").pop() || "Download"}
+                              {extractOriginalFilename(attachment)}
                             </span>
                             <span className="text-xs text-gray-500">
                               Click to download
@@ -945,6 +1201,70 @@ export const ArticleView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="h-6 w-6 text-red-600 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Delete Article
+              </h3>
+            </div>
+
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete "{article?.title}"? This action cannot be undone.
+            </p>
+
+            {/* Show note input only for admin deleting other's articles */}
+            {userProfile?.role === "admin" && userProfile.uid !== article?.authorId && (
+              <div className="mb-4">
+                <label htmlFor="deleteNote" className="block text-sm font-medium text-gray-700 mb-2">
+                  Deletion Note (optional)
+                </label>
+                <textarea
+                  id="deleteNote"
+                  value={deleteNote}
+                  onChange={(e) => setDeleteNote(e.target.value)}
+                  placeholder="Provide a reason for deletion (will be sent to the author)..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                  rows={3}
+                  maxLength={500}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {deleteNote.length}/500 characters
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteNote("");
+                }}
+                disabled={deleting}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
+              >
+                {deleting ? (
+                  <div className="h-4 w-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4" />
+                )}
+                <span>Delete Article</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

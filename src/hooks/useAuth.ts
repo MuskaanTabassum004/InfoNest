@@ -218,37 +218,48 @@ export const useAuth = () => {
     if (!user || !user.emailVerified) return;
 
     const profileRef = doc(firestore, "users", user.uid);
-    const unsubscribe = onSnapshot(profileRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
+    const unsubscribe = onSnapshot(
+      profileRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
 
-        const updatedProfile = {
-          uid: user.uid,
-          email: user.email || "",
-          // Prioritize Firestore displayName over Firebase Auth displayName
-          displayName:
-            data.displayName ||
-            user.displayName ||
-            user.email?.split("@")[0] ||
-            "",
-          role: data.role || "user",
-          emailVerified: user.emailVerified,
-          profilePicture: data.profilePicture || "",
-          bio: data.bio || "",
-          socialLinks: data.socialLinks || {},
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
-          requestedWriterAccess: data.requestedWriterAccess,
-        };
+          const updatedProfile = {
+            uid: user.uid,
+            email: user.email || "",
+            // Prioritize Firestore displayName over Firebase Auth displayName
+            displayName:
+              data.displayName ||
+              user.displayName ||
+              user.email?.split("@")[0] ||
+              "",
+            role: data.role || "user",
+            emailVerified: user.emailVerified,
+            profilePicture: data.profilePicture || "",
+            bio: data.bio || "",
+            socialLinks: data.socialLinks || {},
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
+            requestedWriterAccess: data.requestedWriterAccess,
+          };
 
-        setUserProfile(updatedProfile);
+          setUserProfile(updatedProfile);
 
-        // Update cached permissions when profile changes
-        if (updatedProfile) {
-          authCache.cacheUserSession(updatedProfile);
+          // Update cached permissions when profile changes
+          if (updatedProfile) {
+            authCache.cacheUserSession(updatedProfile);
+          }
         }
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for user profile subscription - user may not be authenticated or verified");
+          return;
+        }
+        console.error("Error in user profile subscription:", error);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [user]);
@@ -299,9 +310,9 @@ export const useAuth = () => {
         return permissions.canDeleteOwnArticles;
       }
 
-      // Admins can delete infowriter articles (but not other admin articles)
-      if (userProfile.role === "admin" && authorRole === "infowriter") {
-        return permissions.canDeleteInfowriterArticles;
+      // Admins can delete any article (infowriter or other admin articles)
+      if (userProfile.role === "admin") {
+        return permissions.canDeleteInfowriterArticles; // This permission covers all deletions for admins
       }
 
       return false;

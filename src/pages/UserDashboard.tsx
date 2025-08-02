@@ -47,49 +47,62 @@ export const UserDashboard: React.FC = () => {
       where("status", "==", "published")
     );
 
-    const unsubscribe = onSnapshot(articlesQuery, (snapshot) => {
-      const articles: Article[] = [];
-      const categoriesSet = new Set<string>();
-      const tagsMap = new Map<string, number>();
+    const unsubscribe = onSnapshot(
+      articlesQuery,
+      (snapshot) => {
+        const articles: Article[] = [];
+        const categoriesSet = new Set<string>();
+        const tagsMap = new Map<string, number>();
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const article = {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate(),
-          publishedAt: data.publishedAt?.toDate(),
-        } as Article;
-        articles.push(article);
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const article = {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate(),
+            publishedAt: data.publishedAt?.toDate(),
+          } as Article;
+          articles.push(article);
 
-        // Collect categories and tags
-        article.categories?.forEach((cat) => categoriesSet.add(cat));
-        article.tags?.forEach((tag) => {
-          tagsMap.set(tag, (tagsMap.get(tag) || 0) + 1);
+          // Collect categories and tags
+          article.categories?.forEach((cat) => categoriesSet.add(cat));
+          article.tags?.forEach((tag) => {
+            tagsMap.set(tag, (tagsMap.get(tag) || 0) + 1);
+          });
         });
-      });
 
-      // Sort articles by createdAt in memory
-      articles.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        // Sort articles by createdAt in memory
+        articles.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-      const availableCategories = Array.from(categoriesSet).sort();
-      const recentArticles = articles.slice(0, 6);
+        const availableCategories = Array.from(categoriesSet).sort();
+        const recentArticles = articles.slice(0, 6);
 
-      // Get top 10 tags sorted by count
-      const topTags = Array.from(tagsMap.entries())
-        .map(([tag, count]) => ({ tag, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
+        // Get top 10 tags sorted by count
+        const topTags = Array.from(tagsMap.entries())
+          .map(([tag, count]) => ({ tag, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
 
-      setDashboardData({
-        publishedArticles: articles,
-        availableCategories,
-        recentArticles,
-        topTags,
-      });
-      setLoading(false);
-    });
+        setDashboardData({
+          publishedArticles: articles,
+          availableCategories,
+          recentArticles,
+          topTags,
+        });
+        setLoading(false);
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for dashboard articles subscription - user may not be authenticated");
+          setLoading(false);
+          return;
+        }
+        console.error("Error in dashboard articles subscription:", error);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [userProfile]);

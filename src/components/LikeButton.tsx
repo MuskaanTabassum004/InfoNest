@@ -75,25 +75,34 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
     }
 
     const articleRef = doc(firestore, "articles", articleId);
-    const unsubscribe = onSnapshot(articleRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        const newLikeCount = data.likes || 0;
-        const newLikedBy = data.likedBy || [];
+    const unsubscribe = onSnapshot(
+      articleRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          const newLikeCount = data.likes || 0;
+          const newLikedBy = data.likedBy || [];
 
-        setLikeCount(newLikeCount);
-        setCurrentLikedBy(newLikedBy);
+          setLikeCount(newLikeCount);
+          setCurrentLikedBy(newLikedBy);
 
-        // Determine like state based on current user's presence in likedBy array
-        if (userProfile?.uid) {
-          setIsLiked(newLikedBy.includes(userProfile.uid));
-        } else {
-          setIsLiked(false);
+          // Determine like state based on current user's presence in likedBy array
+          if (userProfile?.uid) {
+            setIsLiked(newLikedBy.includes(userProfile.uid));
+          } else {
+            setIsLiked(false);
+          }
         }
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for like button subscription - article may be private");
+          return;
+        }
+        console.error("Error listening to article updates:", error);
       }
-    }, (error) => {
-      console.error("Error listening to article updates:", error);
-    });
+    );
 
     return () => unsubscribe();
   }, [articleId, userProfile?.uid, userProfile?.role, articleStatus, articleAuthorId, initialLikes, initialLikedBy]);

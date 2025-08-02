@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { firestore } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { firestore, auth } from '../lib/firebase';
 import { UserProfile } from '../lib/auth';
 
 interface ProfileContextType {
@@ -8,6 +9,7 @@ interface ProfileContextType {
   getProfile: (uid: string) => UserProfile | null;
   subscribeToProfile: (uid: string) => void;
   unsubscribeFromProfile: (uid: string) => void;
+  clearAllProfiles: () => void;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -60,9 +62,20 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         });
       }
     }, (error) => {
-      // Silently handle permission errors - user might not have access to this profile
+      // Handle permission errors silently - user might not have access to this profile
       if (error.code === 'permission-denied') {
-        // Don't log permission errors as they're expected for some profiles
+        // Remove the profile from state if permission denied
+        setProfiles(prev => {
+          const newProfiles = new Map(prev);
+          newProfiles.delete(uid);
+          return newProfiles;
+        });
+        // Also remove the subscription
+        setSubscriptions(prev => {
+          const newSubscriptions = new Map(prev);
+          newSubscriptions.delete(uid);
+          return newSubscriptions;
+        });
         return;
       }
       console.error(`Error subscribing to profile ${uid}:`, error);
@@ -87,6 +100,33 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
     }
   };
 
+  const clearAllProfiles = () => {
+    // Unsubscribe from all active subscriptions
+    subscriptions.forEach((unsubscribe) => {
+      try {
+        unsubscribe();
+      } catch (error) {
+        console.warn("Error unsubscribing from profile:", error);
+      }
+    });
+
+    // Clear all state
+    setSubscriptions(new Map());
+    setProfiles(new Map());
+  };
+
+  // Listen to auth state changes and cleanup on logout
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        // User logged out - cleanup all profile subscriptions
+        clearAllProfiles();
+      }
+    });
+
+    return unsubscribeAuth;
+  }, []);
+
   // Cleanup all subscriptions on unmount
   useEffect(() => {
     return () => {
@@ -99,6 +139,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
     getProfile,
     subscribeToProfile,
     unsubscribeFromProfile,
+    clearAllProfiles,
   };
 
   return (

@@ -247,11 +247,15 @@ export const HomePage: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut();
       setIsDropdownOpen(false);
+      // Navigate immediately to prevent auth page flash
+      navigate("/", { replace: true });
+      // Then sign out in the background
+      await signOut();
     } catch (error) {
       console.error("Error logging out:", error);
-      window.location.href = "/";
+      // Ensure we still navigate even if signOut fails
+      navigate("/", { replace: true });
     }
   };
 

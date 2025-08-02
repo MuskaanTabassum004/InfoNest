@@ -18,4 +18,26 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 export const firestore = getFirestore(app); // ✅ Exported as 'firestore'
 export const storage = getStorage(app); // ✅ Exported as 'storage'
+
+// Global error handler for Firestore permission errors
+const handleFirestoreError = (error: any) => {
+  if (error?.code === 'permission-denied') {
+    // Silently handle permission denied errors during logout
+    console.warn('Firestore permission denied - user may have logged out');
+    return;
+  }
+  // Log other errors normally
+  console.error('Firestore error:', error);
+};
+
+// Set up global error handling for unhandled promise rejections
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason?.code === 'permission-denied') {
+      handleFirestoreError(event.reason);
+      event.preventDefault(); // Prevent the error from being logged to console
+    }
+  });
+}
+
 export default app;

@@ -13,6 +13,7 @@ import {
   MessageCircle,
   UserCog,
   Upload,
+  Bookmark,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { NotificationDropdown } from "./NotificationDropdown";
@@ -46,10 +47,14 @@ export const Layout: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      // Use regular signOut function
+      // Navigate immediately to prevent auth page flash
+      navigate("/", { replace: true });
+      // Then sign out in the background
       await signOut();
     } catch (error) {
       console.error("Error logging out:", error);
+      // Ensure we still navigate even if signOut fails
+      navigate("/", { replace: true });
     }
   };
 
@@ -165,6 +170,14 @@ export const Layout: React.FC = () => {
                     >
                       <Shield className="h-4 w-4" />
                       <span>Dashboard</span>
+                    </Link>
+                    <Link
+                      to="/saved-articles"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Bookmark className="h-4 w-4" />
+                      <span>Saved Articles</span>
                     </Link>
                     {isAdmin && (
                       <Link

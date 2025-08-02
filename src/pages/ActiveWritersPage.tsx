@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { firestore } from "../lib/firebase";
 import { deleteUserArticlesFolder } from "../lib/fileUpload";
+import { removeInfoWriterPrivileges } from "../lib/auth";
 import {
   User,
   Mail,
@@ -69,47 +70,84 @@ export const ActiveWritersPage: React.FC = () => {
       where("role", "==", "infowriter")
     );
 
-    const writersUnsubscribe = onSnapshot(writersQuery, (snapshot) => {
-      writersData = {};
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        writersData[data.uid || doc.id] = {
-          id: doc.id,
-          uid: data.uid || doc.id,
-          displayName: data.displayName || "Unknown Writer",
-          email: data.email || "",
-          profilePicture: data.profilePicture,
-          joinedAt: data.createdAt?.toDate() || new Date(),
-          lastActive: data.lastActive?.toDate(),
-        };
-      });
-      updateWritersList();
-    });
+    const writersUnsubscribe = onSnapshot(
+      writersQuery,
+      (snapshot) => {
+        writersData = {};
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          writersData[data.uid || doc.id] = {
+            id: doc.id,
+            uid: data.uid || doc.id,
+            displayName: data.displayName || "Unknown Writer",
+            email: data.email || "",
+            profilePicture: data.profilePicture,
+            joinedAt: data.createdAt?.toDate() || new Date(),
+            lastActive: data.lastActive?.toDate(),
+          };
+        });
+        updateWritersList();
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for ActiveWriters subscription - user may not be admin");
+          setLoading(false);
+          return;
+        }
+        console.error("Error in ActiveWriters subscription:", error);
+        setLoading(false);
+      }
+    );
 
-    // Listen to all articles for real-time count updates
+    // Listen to PUBLISHED articles only for real-time count updates
     const articlesQuery = query(
       collection(firestore, "articles"),
       where("status", "==", "published")
     );
 
-    const articlesUnsubscribe = onSnapshot(articlesQuery, (snapshot) => {
-      articlesData = {};
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.authorId) {
-          articlesData[data.authorId] = (articlesData[data.authorId] || 0) + 1;
+    const articlesUnsubscribe = onSnapshot(
+      articlesQuery,
+      (snapshot) => {
+        console.log(`📊 Real-time published articles update: ${snapshot.docs.length} published articles found`);
+
+        // Reset article counts
+        articlesData = {};
+
+        // Count published articles by author
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.authorId) {
+            articlesData[data.authorId] = (articlesData[data.authorId] || 0) + 1;
+          }
+        });
+
+        // Log published article counts for debugging
+        const totalAuthors = Object.keys(articlesData).length;
+        const totalPublishedArticles = Object.values(articlesData).reduce((sum: number, count: number) => sum + count, 0);
+        console.log(`📈 Published article counts updated: ${totalAuthors} authors, ${totalPublishedArticles} published articles`);
+
+        // Update the UI with new counts
+        updateWritersList();
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for articles subscription - user may not be authenticated");
+          return;
         }
-      });
-      updateWritersList();
-    });
+        console.error("Error in articles subscription:", error);
+      }
+    );
 
     const updateWritersList = () => {
       const activeWriters: ActiveWriter[] = [];
 
       Object.values(writersData).forEach((writer: any) => {
+        const articleCount = articlesData[writer.uid] || 0;
         activeWriters.push({
           ...writer,
-          articleCount: articlesData[writer.uid] || 0,
+          articleCount: articleCount,
         });
       });
 
@@ -121,6 +159,7 @@ export const ActiveWritersPage: React.FC = () => {
         return b.joinedAt.getTime() - a.joinedAt.getTime();
       });
 
+      console.log(`🔄 Updated writers list: ${activeWriters.length} writers with real-time published article counts`);
       setWriters(activeWriters);
       setLoading(false);
     };
@@ -147,75 +186,18 @@ export const ActiveWritersPage: React.FC = () => {
     }
 
     setProcessingId(writer.id);
-    let deletedArticlesCount = 0;
 
     try {
-      // First, delete all articles by this writer
-      const articlesQuery = query(
-        collection(firestore, "articles"),
-        where("authorId", "==", writer.uid)
+      // Use the comprehensive removal function
+      const result = await removeInfoWriterPrivileges(
+        writer.uid,
+        userProfile.uid,
+        adminNote.trim()
       );
 
-      const articlesSnapshot = await getDocs(articlesQuery);
-      deletedArticlesCount = articlesSnapshot.docs.length;
-
-      if (deletedArticlesCount > 0) {
-        const deletePromises = articlesSnapshot.docs.map((articleDoc) =>
-          deleteDoc(articleDoc.ref)
-        );
-
-        // Wait for all articles to be deleted
-        await Promise.all(deletePromises);
-
-        // Clean up all files from Firebase Storage for this user
-        try {
-          await deleteUserArticlesFolder(writer.uid);
-          console.log(`✅ Deleted all files for user: ${writer.uid}`);
-        } catch (error) {
-          console.error(
-            `⚠️ Failed to delete files for user: ${writer.uid}`,
-            error
-          );
-          // Don't throw error - article deletion was successful
-        }
-      }
-
-      const userRef = doc(firestore, "users", writer.id);
-
-      // Store previous role for tracking and admin note
-      const previousRoles = [writer.uid]; // Track that they were an infowriter
-
-      // Update user role back to regular user
-      await updateDoc(userRef, {
-        role: "user",
-        previousRoles: previousRoles,
-        privilegesRemovedAt: serverTimestamp(),
-        privilegesRemovedBy: userProfile.uid,
-        adminNote: adminNote.trim(),
-        articleCountAtRemoval: writer.articleCount, // Store the count for removed writers page
-      });
-
-      // Create notification for the user with admin note
-      const notificationMessage = `Your InfoWriter privileges have been removed by an administrator. Reason: ${adminNote.trim()}. ${
-        deletedArticlesCount > 0
-          ? `All ${deletedArticlesCount} of your articles have been removed.`
-          : "You had no published articles."
-      } Contact support if you have questions.`;
-
-      await addDoc(collection(firestore, "notifications"), {
-        userId: writer.uid,
-        type: "writer_privileges_removed",
-        title: "InfoWriter Privileges Removed",
-        message: notificationMessage,
-        read: false,
-        createdAt: serverTimestamp(),
-        actionUrl: "/profile",
-      });
-
-      const successMessage =
-        deletedArticlesCount > 0
-          ? `InfoWriter privileges removed for ${writer.displayName}. ${deletedArticlesCount} articles deleted.`
-          : `InfoWriter privileges removed for ${writer.displayName}. No articles to delete.`;
+      const successMessage = result.deletedArticlesCount > 0
+        ? `InfoWriter privileges removed for ${writer.displayName}. ${result.deletedArticlesCount} articles deleted.`
+        : `InfoWriter privileges removed for ${writer.displayName}. No articles to delete.`;
 
       toast.success(successMessage);
       setShowRemoveDialog(null);

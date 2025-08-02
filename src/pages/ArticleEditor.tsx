@@ -13,11 +13,7 @@ import {
 } from "../lib/articles";
 import { RichTextEditor } from "../components/RichTextEditor";
 import { FileUpload } from "../components/FileUpload";
-import {
-  FileManager,
-  useArticleFiles,
-  ManagedFile,
-} from "../components/FileManager";
+
 import { UploadManager } from "../components/UploadManager";
 import { resumableUploadManager } from "../lib/resumableUpload";
 import { deleteFile, extractFilePathFromUrl } from "../lib/fileUpload";
@@ -42,6 +38,64 @@ import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
 import { stripHtmlTags } from "../utils/searchUtils";
+
+// Helper function to extract original filename from storage URL
+const extractOriginalFilename = (url: string): string => {
+  try {
+    // Decode URL first to handle encoded characters
+    const decodedUrl = decodeURIComponent(url);
+
+    // Extract filename from URL (last part after /)
+    const filename = decodedUrl.split("/").pop() || "";
+
+    // Remove query parameters if any
+    const cleanFilename = filename.split("?")[0];
+
+    // Remove temp prefix if present
+    let processedName = cleanFilename.replace(/^temp_/, "");
+
+    // Split by underscore to find timestamp
+    const parts = processedName.split("_");
+
+    if (parts.length >= 2) {
+      // Last part should be timestamp with extension (e.g., "1754137025165.pdf")
+      const lastPart = parts[parts.length - 1];
+
+      // Check if last part looks like timestamp with extension
+      const timestampPattern = /^\d{13,}\.[\w]+$/; // 13+ digits followed by extension
+
+      if (timestampPattern.test(lastPart)) {
+        // Remove timestamp, keep original name parts
+        const originalParts = parts.slice(0, -1);
+        let originalName = originalParts.join("_");
+
+        // Get extension from timestamp part
+        const extension = lastPart.split(".").pop();
+
+        // Restore spaces and special characters for better readability
+        originalName = originalName
+          .replace(/_/g, " ") // Convert underscores back to spaces
+          .replace(/\s+/g, " ") // Normalize multiple spaces
+          .trim();
+
+        // Add extension back
+        return `${originalName}.${extension}`;
+      }
+    }
+
+    // Fallback: clean up the filename for display
+    return processedName
+      .replace(/_/g, " ") // Convert underscores to spaces
+      .replace(/\s+/g, " ") // Normalize spaces
+      .trim() || "Download";
+
+  } catch (error) {
+    console.error("Error extracting filename:", error);
+    return "Download";
+  }
+};
+
+// ArticleEditor component - File Manager removed for cleaner interface
 export const ArticleEditor: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -83,6 +137,7 @@ export const ArticleEditor: React.FC = () => {
   const [coverImageUrl, setCoverImageUrl] = useState("");
   const [coverImageUploading, setCoverImageUploading] = useState(false);
   const [showUploadManager, setShowUploadManager] = useState(false);
+  const [hasActiveUploads, setHasActiveUploads] = useState(false);
 
   // Field validation states
   const [fieldErrors, setFieldErrors] = useState({
@@ -107,9 +162,6 @@ export const ArticleEditor: React.FC = () => {
     "News & Updates",
     "Other",
   ];
-
-  // Extract files from article content
-  const articleFiles = useArticleFiles(article.content || "");
 
   // Check for available drafts on component mount
   useEffect(() => {
@@ -188,8 +240,14 @@ export const ArticleEditor: React.FC = () => {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  // Handle navigation attempts when there are unsaved changes
+  // Handle navigation attempts when there are unsaved changes or active uploads
   const handleNavigation = async (path?: string) => {
+    // Check for active uploads first
+    if (hasActiveUploads) {
+      toast.error("Please wait for all file uploads to complete before leaving this page.");
+      return false;
+    }
+
     if (hasUnsavedChanges) {
       setShowUnsavedWarning(true);
       return false;
@@ -213,45 +271,7 @@ export const ArticleEditor: React.FC = () => {
     return true;
   };
 
-  // Handle file removal from both document and storage
-  const handleFileRemoved = (removedFile: ManagedFile) => {
-    // Remove file references from article content
-    let updatedContent = article.content || "";
 
-    // Remove image tags with this URL
-    const imgRegex = new RegExp(
-      `<img[^>]*src=["']${removedFile.url.replace(
-        /[.*+?^${}()|[\]\\]/g,
-        "\\$&"
-      )}["'][^>]*>`,
-      "gi"
-    );
-    updatedContent = updatedContent.replace(imgRegex, "");
-
-    // Remove link tags with this URL
-    const linkRegex = new RegExp(
-      `<a[^>]*href=["']${removedFile.url.replace(
-        /[.*+?^${}()|[\]\\]/g,
-        "\\$&"
-      )}["'][^>]*>.*?</a>`,
-      "gi"
-    );
-    updatedContent = updatedContent.replace(linkRegex, "");
-
-    // Remove paragraph tags that might be empty after link removal
-    updatedContent = updatedContent.replace(/<p>\s*<\/p>/gi, "");
-
-    // Remove from attachments if present
-    const updatedAttachments =
-      article.attachments?.filter((url) => url !== removedFile.url) || [];
-
-    // Update article content and attachments
-    setArticle((prev) => ({
-      ...prev,
-      content: updatedContent,
-      attachments: updatedAttachments,
-    }));
-  };
 
   // Handle draft recovery
   const handleDraftRecover = (draft: any) => {
@@ -318,14 +338,18 @@ export const ArticleEditor: React.FC = () => {
     // The resumable upload manager will handle old file cleanup automatically
   };
 
-  // Monitor active uploads to show manager
+  // Monitor active uploads to show manager and track completion
   useEffect(() => {
     const interval = setInterval(() => {
       const activeUploads = resumableUploadManager.getActiveUploads();
-      if (activeUploads.length > 0 && !showUploadManager) {
+      const hasActive = activeUploads.length > 0;
+
+      setHasActiveUploads(hasActive);
+
+      if (hasActive && !showUploadManager) {
         setShowUploadManager(true);
       }
-    }, 2000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [showUploadManager]);
@@ -600,6 +624,18 @@ export const ArticleEditor: React.FC = () => {
       return;
     }
 
+    // Check for active uploads
+    if (hasActiveUploads) {
+      toast.error("Please wait for all file uploads to complete before saving.");
+      return;
+    }
+
+    // Validate required fields
+    if (!article.title?.trim()) {
+      toast.error("Article title is required");
+      return;
+    }
+
     // Reset field errors
     setFieldErrors({
       title: "",
@@ -657,13 +693,15 @@ export const ArticleEditor: React.FC = () => {
 
     setSaving(true);
     try {
+      const now = new Date();
       const articleData = {
         ...article,
         status,
         excerpt: article.excerpt || generateExcerpt(article.content),
         authorId: userProfile.uid,
         authorName: userProfile.displayName || userProfile.email,
-        publishedAt: status === "published" ? new Date() : article.publishedAt,
+        publishedAt: status === "published" && !article.publishedAt ? now : article.publishedAt,
+        updatedAt: now, // Always update the updatedAt when saving
       };
 
       if (isEditing && id) {
@@ -1126,7 +1164,24 @@ export const ArticleEditor: React.FC = () => {
         <UploadManager
           isOpen={showUploadManager}
           onClose={() => setShowUploadManager(false)}
+          articleId={id !== "new" ? id : undefined}
         />
+
+        {/* Upload Status Indicator */}
+        {hasActiveUploads && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mx-8 mt-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Upload className="h-5 w-5 text-yellow-400 animate-pulse" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  <strong>Files are uploading...</strong> Please wait for all uploads to complete before saving or leaving this page.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="p-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -1207,7 +1262,7 @@ export const ArticleEditor: React.FC = () => {
                   >
                     <FileText className="h-5 w-5 text-gray-600 mr-3" />
                     <span className="text-sm text-gray-700 truncate">
-                      Attachment {index + 1}
+                      {extractOriginalFilename(url) || `Attachment ${index + 1}`}
                     </span>
                   </a>
                 ))}
@@ -1272,8 +1327,9 @@ export const ArticleEditor: React.FC = () => {
 
           <button
             onClick={() => handleSave("draft")}
-            disabled={saving}
+            disabled={saving || hasActiveUploads}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+            title={hasActiveUploads ? "Please wait for uploads to complete" : ""}
           >
             <Save className="h-4 w-4" />
             <span>{saving ? "Saving..." : "Save Draft"}</span>
@@ -1281,8 +1337,9 @@ export const ArticleEditor: React.FC = () => {
 
           <button
             onClick={() => handleSave("archive")}
-            disabled={saving}
+            disabled={saving || hasActiveUploads}
             className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50"
+            title={hasActiveUploads ? "Please wait for uploads to complete" : ""}
           >
             <FileText className="h-4 w-4" />
             <span>Archive</span>
@@ -1290,8 +1347,9 @@ export const ArticleEditor: React.FC = () => {
 
           <button
             onClick={() => handleSave("published")}
-            disabled={saving}
+            disabled={saving || hasActiveUploads}
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
+            title={hasActiveUploads ? "Please wait for uploads to complete" : ""}
           >
             <Send className="h-4 w-4" />
             <span>Publish</span>
@@ -1707,7 +1765,7 @@ export const ArticleEditor: React.FC = () => {
                       <div className="flex items-center">
                         <FileText className="h-4 w-4 text-gray-600 mr-2" />
                         <span className="text-sm text-gray-700 truncate">
-                          Attachment {index + 1}
+                          {extractOriginalFilename(url) || `Attachment ${index + 1}`}
                         </span>
                       </div>
                       <button
@@ -1734,22 +1792,7 @@ export const ArticleEditor: React.FC = () => {
         </div>
       )}
 
-      {/* File Manager */}
-      {!isPreviewMode && (
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              File Manager
-            </h2>
-          </div>
-          <div className="p-6">
-            <FileManager
-              files={articleFiles}
-              onFileRemoved={handleFileRemoved}
-            />
-          </div>
-        </div>
-      )}
+
 
       {/* Unsaved Changes Warning Modal */}
       {showUnsavedWarning && (

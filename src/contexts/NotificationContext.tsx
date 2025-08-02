@@ -25,7 +25,7 @@ interface NotificationContextType {
   refreshNotifications: () => void;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(
+export const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined
 );
 
@@ -39,12 +39,14 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   const { userProfile } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [shownNotificationIds, setShownNotificationIds] = useState<Set<string>>(new Set());
 
   // Subscribe to real-time notifications
   useEffect(() => {
     if (!userProfile?.uid) {
       setNotifications([]);
       setLoading(false);
+      setShownNotificationIds(new Set()); // Clear shown notifications when user changes
       return;
     }
 
@@ -53,15 +55,17 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     const unsubscribe = subscribeToUserNotifications(
       userProfile.uid,
       (newNotifications) => {
-        setNotifications(newNotifications);
         setLoading(false);
 
-        // Show browser notification for new unread notifications
+        // Find truly new notifications that haven't been shown as browser notifications
         const newUnreadNotifications = newNotifications.filter(
           (notification) =>
-            !notification.isRead && notification.type === "role_approval"
+            !notification.isRead &&
+            notification.type === "role_approval" &&
+            !shownNotificationIds.has(notification.id)
         );
 
+        // Show browser notification for truly new unread notifications
         if (newUnreadNotifications.length > 0 && "Notification" in window) {
           // Request permission for browser notifications
           if (Notification.permission === "granted") {
@@ -71,6 +75,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
                 icon: "/favicon.ico",
                 tag: notification.id,
               });
+            });
+            // Mark these notifications as shown
+            setShownNotificationIds(prev => {
+              const newSet = new Set(prev);
+              newUnreadNotifications.forEach(n => newSet.add(n.id));
+              return newSet;
             });
           } else if (Notification.permission !== "denied") {
             Notification.requestPermission().then((permission) => {
@@ -82,15 +92,23 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
                     tag: notification.id,
                   });
                 });
+                // Mark these notifications as shown
+                setShownNotificationIds(prev => {
+                  const newSet = new Set(prev);
+                  newUnreadNotifications.forEach(n => newSet.add(n.id));
+                  return newSet;
+                });
               }
             });
           }
         }
+
+        setNotifications(newNotifications);
       }
     );
 
     return unsubscribe;
-  }, [userProfile?.uid]);
+  }, [userProfile?.uid]); // ✅ Removed shownNotificationIds dependency to prevent restarts
 
   const markAsRead = async (notificationId: string): Promise<void> => {
     try {

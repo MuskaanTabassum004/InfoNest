@@ -275,7 +275,14 @@ export const subscribeToComments = (
     });
     callback(comments);
   }, (error) => {
+    // Handle permission errors silently
+    if (error.code === "permission-denied") {
+      console.warn("Permission denied for comments subscription - user may not have access to this article");
+      callback([]);
+      return;
+    }
     console.error("Error in comments subscription:", error);
+    callback([]);
   });
 };
 

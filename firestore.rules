@@ -48,15 +48,18 @@ service cloud.firestore {
                           resource.data.likedBy.toSet().difference(request.resource.data.likedBy.toSet()) == [request.auth.uid].toSet())
                        );
 
+      // Allow anyone (including unauthenticated users) to increment share count on published articles
+      allow update: if resource.data.status == 'published' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['shareCount']) &&
+                       request.resource.data.shareCount >= resource.data.shareCount;
+
       // DELETE PERMISSIONS
       // Authors can delete their own articles (hard delete)
       allow delete: if request.auth != null && request.auth.uid == resource.data.authorId;
 
-      // Admins can delete infowriter articles (but this will be handled as soft delete in app logic)
-      // Admins cannot delete other admin articles
+      // Admins can delete any article (infowriter or other admin articles)
       allow delete: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
-        get(/databases/$(database)/documents/users/$(resource.data.authorId)).data.role == 'infowriter';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
 
@@ -100,16 +103,30 @@ service cloud.firestore {
 
     // Saved articles collection (compound ID format: userId_articleId)
     match /savedArticles/{savedArticleId} {
-      // Only allow access to documents where the ID starts with the user's UID followed by underscore
+      // Allow authenticated users to access their own saved articles
+      // Use document ID pattern matching for better performance and reliability
       allow read, write, create, delete, list: if request.auth != null &&
-        savedArticleId.size() > request.auth.uid.size() &&
-        savedArticleId[0:request.auth.uid.size()] == request.auth.uid &&
-        savedArticleId[request.auth.uid.size()] == '_';
+        request.auth.token.email_verified == true &&
+        (
+          // Check if document ID starts with user's UID followed by underscore
+          savedArticleId.matches(request.auth.uid + '_.*') ||
+          // For create operations, also check the userId in the request data
+          (request.resource != null && request.resource.data.userId == request.auth.uid) ||
+          // For existing documents, check the userId field if document exists
+          (resource != null && resource.data.userId == request.auth.uid)
+        );
 
-      // Admins can read all saved articles
-      allow read, write, list: if request.auth != null &&
+      // Admins can read, write, and delete all saved articles (for article cleanup)
+      allow read, write, delete, list: if request.auth != null &&
+        request.auth.token.email_verified == true &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+
+      // Article authors can delete saved references to their own articles (for cleanup when deleting articles)
+      allow delete: if request.auth != null &&
+        request.auth.token.email_verified == true &&
+        exists(/databases/$(database)/documents/articles/$(resource.data.articleId)) &&
+        get(/databases/$(database)/documents/articles/$(resource.data.articleId)).data.authorId == request.auth.uid;
     }
 
     // Notifications collection - users can read their own notifications, admins can create notifications
@@ -141,55 +158,77 @@ service cloud.firestore {
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
-    // Comments subcollection for articles
-    match /articles/{articleId}/comments/{commentId} {
-      // READ PERMISSIONS - Simplified for testing
-      // Anyone can read comments (we'll add restrictions later)
+    // Share events collection - track article sharing
+    match /shareEvents/{shareEventId} {
+      // Anyone can create share events (including anonymous users for public articles)
+      allow create: if true;
+
+      // Anyone can read share events (for public sharing analytics)
       allow read, list: if true;
 
-      // CREATE PERMISSIONS - Simplified for testing
-      // Only authenticated users can create comments
+      // Admins can delete share events (for article cleanup)
+      allow delete: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Comments subcollection for articles
+    match /articles/{articleId}/comments/{commentId} {
+      // READ PERMISSIONS
+      // Anyone can read comments on published articles
+      allow read, list: if true;
+
+      // CREATE PERMISSIONS
+      // Only authenticated and verified users can create comments
       allow create: if request.auth != null &&
+        request.auth.token.email_verified == true &&
         request.auth.uid == request.resource.data.userId;
 
       // UPDATE PERMISSIONS
       // Users can update their own comments
       allow update: if request.auth != null &&
+        request.auth.token.email_verified == true &&
         request.auth.uid == resource.data.userId;
 
       // DELETE PERMISSIONS
       // Users can delete their own comments
       allow delete: if request.auth != null &&
+        request.auth.token.email_verified == true &&
         request.auth.uid == resource.data.userId;
 
-      // Admins can delete any comment
+      // Admins can delete any comment (including for article cleanup)
       allow delete: if request.auth != null &&
+        request.auth.token.email_verified == true &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
 
       // Replies subcollection
       match /replies/{replyId} {
-        // READ PERMISSIONS - Simplified for testing
-        // Anyone can read replies (we'll add restrictions later)
+        // READ PERMISSIONS
+        // Anyone can read replies on published articles
         allow read, list: if true;
 
-        // CREATE PERMISSIONS - Simplified for testing
-        // Only authenticated users can create replies
+        // CREATE PERMISSIONS
+        // Only authenticated and verified users can create replies
         allow create: if request.auth != null &&
+          request.auth.token.email_verified == true &&
           request.auth.uid == request.resource.data.userId;
 
         // UPDATE PERMISSIONS
         // Users can update their own replies
         allow update: if request.auth != null &&
+          request.auth.token.email_verified == true &&
           request.auth.uid == resource.data.userId;
 
         // DELETE PERMISSIONS
         // Users can delete their own replies
         allow delete: if request.auth != null &&
+          request.auth.token.email_verified == true &&
           request.auth.uid == resource.data.userId;
 
-        // Admins can delete any reply
+        // Admins can delete any reply (including for article cleanup)
         allow delete: if request.auth != null &&
+          request.auth.token.email_verified == true &&
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
       }

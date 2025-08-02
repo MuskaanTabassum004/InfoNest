@@ -136,32 +136,43 @@ export const WriterRequestPage: React.FC = () => {
       where("uid", "==", userProfile.uid)
     );
 
-    const unsubscribeLegacy = onSnapshot(legacyQuery, (snapshot) => {
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.requestedWriterAccess) {
-          const legacyRequest: CombinedWriterRequest = {
-            id: doc.id,
-            userId: data.uid || doc.id,
-            displayName: data.displayName || "Unknown User",
-            email: data.email || "",
-            profilePicture: data.profilePicture,
-            requestedAt: data.requestedWriterAccessAt?.toDate() || new Date(),
-            status:
-              data.role === "infowriter"
-                ? "approved"
-                : data.writerRequestRejected
-                ? "rejected"
-                : "pending",
-            adminNote: data.adminNote,
-            processedAt: data.writerRequestProcessedAt?.toDate(),
-            processedBy: data.writerRequestProcessedBy,
-            source: "legacy",
-          };
-          setCurrentUserRequest(legacyRequest);
+    const unsubscribeLegacy = onSnapshot(
+      legacyQuery,
+      (snapshot) => {
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.requestedWriterAccess) {
+            const legacyRequest: CombinedWriterRequest = {
+              id: doc.id,
+              userId: data.uid || doc.id,
+              displayName: data.displayName || "Unknown User",
+              email: data.email || "",
+              profilePicture: data.profilePicture,
+              requestedAt: data.requestedWriterAccessAt?.toDate() || new Date(),
+              status:
+                data.role === "infowriter"
+                  ? "approved"
+                  : data.writerRequestRejected
+                  ? "rejected"
+                  : "pending",
+              adminNote: data.adminNote,
+              processedAt: data.writerRequestProcessedAt?.toDate(),
+              processedBy: data.writerRequestProcessedBy,
+              source: "legacy",
+            };
+            setCurrentUserRequest(legacyRequest);
+          }
+        });
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for legacy writer request subscription - user may not be authenticated");
+          return;
         }
-      });
-    });
+        console.error("Error in legacy writer request subscription:", error);
+      }
+    );
 
     return () => unsubscribeLegacy();
   }, [userProfile]);
@@ -173,9 +184,20 @@ export const WriterRequestPage: React.FC = () => {
     // Listen to new system (writerRequests collection)
     const newSystemQuery = query(collection(firestore, "writerRequests"));
 
-    const unsubscribeNew = onSnapshot(newSystemQuery, async (snapshot) => {
-      await loadAllRequests();
-    });
+    const unsubscribeNew = onSnapshot(
+      newSystemQuery,
+      async (snapshot) => {
+        await loadAllRequests();
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for new writer requests subscription - user may not be admin");
+          return;
+        }
+        console.error("Error in new writer requests subscription:", error);
+      }
+    );
 
     // Listen to legacy system (users collection)
     const legacyQuery = query(
@@ -183,9 +205,20 @@ export const WriterRequestPage: React.FC = () => {
       where("requestedWriterAccess", "==", true)
     );
 
-    const unsubscribeLegacy = onSnapshot(legacyQuery, async (snapshot) => {
-      await loadAllRequests();
-    });
+    const unsubscribeLegacy = onSnapshot(
+      legacyQuery,
+      async (snapshot) => {
+        await loadAllRequests();
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for legacy writer requests subscription - user may not be admin");
+          return;
+        }
+        console.error("Error in legacy writer requests subscription:", error);
+      }
+    );
 
     return () => {
       unsubscribeNew();
@@ -777,9 +810,18 @@ export const WriterRequestPage: React.FC = () => {
                               <span className="font-medium text-gray-700">
                                 Qualifications:
                               </span>
-                              <p className="text-gray-600 mt-1">
-                                {selectedRequest.qualifications}
-                              </p>
+                              <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <div
+                                  className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto max-h-32 prose prose-sm max-w-none"
+                                  style={{
+                                    wordWrap: "break-word",
+                                    overflowWrap: "break-word",
+                                    hyphens: "auto",
+                                  }}
+                                >
+                                  {selectedRequest.qualifications}
+                                </div>
+                              </div>
                             </div>
                           )}
                           {selectedRequest.proposedTitle && (
@@ -838,10 +880,17 @@ export const WriterRequestPage: React.FC = () => {
                       <h5 className="font-semibold text-gray-900 mb-3">
                         Brief Description
                       </h5>
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <p className="text-gray-700 text-sm leading-relaxed">
+                      <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <div
+                          className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto max-h-48 prose prose-sm max-w-none"
+                          style={{
+                            wordWrap: "break-word",
+                            overflowWrap: "break-word",
+                            hyphens: "auto",
+                          }}
+                        >
                           {selectedRequest.briefDescription}
-                        </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -853,9 +902,16 @@ export const WriterRequestPage: React.FC = () => {
                         Admin Note
                       </h5>
                       <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-yellow-800 text-sm">
+                        <div
+                          className="text-yellow-800 text-sm leading-relaxed whitespace-pre-wrap overflow-y-auto max-h-32 prose prose-sm max-w-none"
+                          style={{
+                            wordWrap: "break-word",
+                            overflowWrap: "break-word",
+                            hyphens: "auto",
+                          }}
+                        >
                           {selectedRequest.adminNote}
-                        </p>
+                        </div>
                       </div>
                     </div>
                   )}

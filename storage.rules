@@ -6,8 +6,7 @@ rules_version = '2';
 //
 // STORAGE STRUCTURE:
 // - profiles/{userId}/{fileName} - User profile pictures
-// - articles/{userId}/{articleId}/{fileName} - Article cover images and attachments organized by article (NEW STRUCTURE ONLY)
-// - articles/{userId}/{fileName} - Legacy article files (READ-ONLY, no new uploads allowed)
+// - articles/{userId}/{articleId}/{fileName} - Article cover images and attachments organized by article
 // - temp/{userId}/{fileName} - Temporary files for resumable uploads
 //
 // PUBLIC ACCESS REQUIREMENTS:
@@ -19,6 +18,11 @@ rules_version = '2';
 // - Profile pictures: Users can only upload/update their own
 // - Article files: Only InfoWriters and Admins can upload
 // - All uploads: Proper file type and size validation
+//
+// FILE NAMING CONVENTION:
+// - All files use original filename with timestamp: {originalName}_{timestamp}.{ext}
+// - No random strings - preserves user-friendly filenames for better UX
+// - Special characters in filenames are replaced with underscores for URL safety
 //
 // SECURITY FEATURES:
 // - File type validation (images and documents only)
@@ -69,16 +73,7 @@ service firebase.storage {
                  'image/png',
                  'image/gif',
                  'image/webp'
-               ]
-               && isValidFileName(fileName);
-      }
-
-      function isValidFileName(name) {
-        // Ensure filename follows expected pattern and doesn't contain malicious content
-        return name.matches('[a-zA-Z0-9_.-]+')
-               && name.size() <= 255
-               && !name.matches('.*\\.\\..*')  // Prevent path traversal
-               && !name.matches('.*[<>:"|?*].*');  // Prevent special characters
+               ];
       }
     }
     
@@ -105,25 +100,17 @@ service firebase.storage {
                    && request.resource != null
                    && request.resource.size > 0
                    && request.resource.size <= 10 * 1024 * 1024; // 10MB limit
-    }
 
-    // LEGACY AND TEMP FILES: articles/{userId}/{fileName}
-    match /articles/{userId}/{fileName} {
-      // PUBLIC READ ACCESS
-      // Article cover images should be publicly readable (no authentication required)
-      // This allows cover images to be displayed on public pages like homepage
-      allow read: if true;
+      // DELETE ACCESS
+      // Authors can delete their own files
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.auth.token.email_verified == true;
 
-      // WRITE ACCESS (create, update, delete)
-      // Only authenticated users can upload to their own folder
-      // Simplified permissions - let the app handle role checking
-      allow write: if request.auth != null
-                   && request.auth.uid == userId
-                   && request.auth.token.email_verified == true
-                   && request.resource != null
-                   && request.resource.size > 0
-                   && request.resource.size <= 10 * 1024 * 1024; // 10MB limit
-
+      // Admins can delete any files (for article cleanup)
+      allow delete: if request.auth != null
+                    && request.auth.token.email_verified == true
+                    && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // ========================================

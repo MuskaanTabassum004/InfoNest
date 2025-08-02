@@ -54,19 +54,30 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   // Real-time article updates
   useEffect(() => {
     const articleRef = doc(firestore, "articles", initialArticle.id);
-    const unsubscribe = onSnapshot(articleRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        const updatedArticle = {
-          ...data,
-          id: doc.id,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
-          publishedAt: data.publishedAt?.toDate(),
-        } as Article;
-        setArticle(updatedArticle);
+    const unsubscribe = onSnapshot(
+      articleRef,
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          const updatedArticle = {
+            ...data,
+            id: doc.id,
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
+            publishedAt: data.publishedAt?.toDate(),
+          } as Article;
+          setArticle(updatedArticle);
+        }
+      },
+      (error) => {
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for article card subscription - article may be private");
+          return;
+        }
+        console.error("Error in article card subscription:", error);
       }
-    });
+    );
 
     return () => unsubscribe();
   }, [initialArticle.id]);
@@ -132,14 +143,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         }
       },
       (error) => {
-        // Silently handle permission errors
-        if (error.code !== "permission-denied") {
-          console.error(
-            `Error subscribing to author profile ${initialArticle.authorId}:`,
-            error
-          );
+        // Handle permission errors silently
+        if (error.code === "permission-denied") {
+          console.warn("Permission denied for author profile subscription - user may not have access");
+          return;
         }
-        setAuthorProfile(null);
+        console.error("Error in author profile subscription:", error);
       }
     );
 
@@ -215,16 +224,20 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
       // Only set publishedAt when transitioning to published
       if (newStatus === "published") {
-        updateData.publishedAt = new Date();
+        const now = new Date();
+        updateData.publishedAt = now;
+        updateData.updatedAt = now; // Ensure updatedAt is also current
       }
 
       await updateArticle(article.id, updateData);
 
       // Update local state
+      const now = new Date();
       setArticle((prev) => ({
         ...prev,
         status: newStatus,
-        publishedAt: newStatus === "published" ? new Date() : prev.publishedAt,
+        publishedAt: newStatus === "published" ? now : prev.publishedAt,
+        updatedAt: now, // Always update the updatedAt when status changes
       }));
 
       const statusText =

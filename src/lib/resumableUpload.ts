@@ -347,7 +347,13 @@ class ResumableUploadManager {
         folder
       );
       fileName = generatedPath.split("/").pop() || file.name; // Extract just the filename
-      filePath = `${folder}/${generatedPath}`; // Full path with folder prefix
+
+      // For articles without articleId, use temp folder instead of articles folder
+      if (folder === "articles" && !articleId) {
+        filePath = `temp/${generatedPath}`; // Use temp folder for temporary uploads
+      } else {
+        filePath = `${folder}/${generatedPath}`; // Full path with folder prefix
+      }
     } catch (error) {
       console.error(`Error generating filename:`, error);
       throw error;
@@ -746,6 +752,24 @@ class ResumableUploadManager {
     });
   }
 
+  public removeUpload(uploadId: string): void {
+    const upload = this.uploads.get(uploadId);
+    if (upload) {
+      // Cancel if still running
+      if (upload.state === "running" || upload.state === "paused") {
+        this.cancelUpload(uploadId);
+      }
+
+      // Remove from uploads map
+      this.uploads.delete(uploadId);
+
+      // Persist changes
+      this.persistUploads();
+
+      console.log(`🗑️ Removed upload: ${uploadId}`);
+    }
+  }
+
   private generateUploadId(): string {
     return `upload_${Date.now()}_${Math.random()
       .toString(36)
@@ -759,21 +783,31 @@ class ResumableUploadManager {
     folder?: string
   ): string {
     const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 15);
-    const extension = originalName.split(".").pop();
+
+    // Clean the original filename to make it URL-safe while preserving readability
+    const cleanName = originalName
+      .replace(/[<>:"/\\|?*]/g, '_') // Replace only truly problematic characters
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+      .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+
+    const nameParts = cleanName.split('.');
+    const extension = nameParts.pop() || '';
+    const baseName = nameParts.join('.') || 'file';
 
     // For articles folder
     if (folder === "articles") {
       if (articleId) {
-        // New structure: articles/{userId}/{articleId}/{timestamp}_{randomString}.{extension}
-        return `${userId}/${articleId}/${timestamp}_${randomString}.${extension}`;
+        // New structure: articles/{userId}/{articleId}/{originalName_timestamp.ext}
+        return `${userId}/${articleId}/${baseName}_${timestamp}.${extension}`;
       } else {
-        // For new articles, use flat structure under userId (allowed by storage rules)
-        return `${userId}/temp_${timestamp}_${randomString}.${extension}`;
+        // For new articles without articleId, use temp structure (will be moved later)
+        // This will be used with temp/ folder prefix
+        return `${userId}/${baseName}_${timestamp}.${extension}`;
       }
     } else {
-      // For profiles folder, use simple structure: {userId}/{timestamp}_{randomString}.{extension}
-      return `${userId}/${timestamp}_${randomString}.${extension}`;
+      // For profiles folder, use simple structure: {userId}/{originalName_timestamp.ext}
+      return `${userId}/${baseName}_${timestamp}.${extension}`;
     }
   }
 

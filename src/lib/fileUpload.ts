@@ -69,11 +69,11 @@ export const generateFileName = (
   folder?: string
 ): string => {
   const timestamp = Date.now();
-  const randomString = Math.random().toString(36).substring(2, 8);
 
-  // Clean the original filename to make it URL-safe
+  // Clean the original filename to make it URL-safe while preserving readability
   const cleanName = originalName
-    .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
+    .replace(/[<>:"/\\|?*]/g, '_') // Replace only truly problematic characters
+    .replace(/\s+/g, '_') // Replace spaces with underscores
     .replace(/_{2,}/g, '_') // Replace multiple underscores with single
     .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
 
@@ -81,8 +81,8 @@ export const generateFileName = (
   const extension = nameParts.pop() || '';
   const baseName = nameParts.join('.') || 'file';
 
-  // Create filename that preserves original name but ensures uniqueness
-  const uniqueFileName = `${baseName}_${timestamp}_${randomString}.${extension}`;
+  // Create filename that preserves original name with timestamp for uniqueness
+  const uniqueFileName = `${baseName}_${timestamp}.${extension}`;
 
   // For articles folder, ALWAYS require articleId (new structure only)
   if (folder === "articles") {
@@ -91,10 +91,10 @@ export const generateFileName = (
         "Article ID is required for article file uploads. Please save the article first to get an ID."
       );
     }
-    // New structure: articles/{userId}/{articleId}/{originalName_timestamp_random.ext}
+    // New structure: articles/{userId}/{articleId}/{originalName_timestamp.ext}
     return `${userId}/${articleId}/${uniqueFileName}`;
   } else {
-    // For profiles folder, use simple structure: {userId}/{originalName_timestamp_random.ext}
+    // For profiles folder, use simple structure: {userId}/{originalName_timestamp.ext}
     return `${userId}/${uniqueFileName}`;
   }
 };
@@ -214,39 +214,72 @@ export const deleteArticleFolder = async (
   userId: string,
   articleId: string
 ): Promise<void> => {
+  console.log(`🗑️ Starting article folder deletion: articles/${userId}/${articleId}`);
+
   try {
     const { listAll } = await import("firebase/storage");
     const folderPath = `articles/${userId}/${articleId}`;
     const folderRef = ref(storage, folderPath);
 
-    console.log(`🗑️ Deleting article folder: ${folderPath}`);
+    console.log(`📁 Listing files in folder: ${folderPath}`);
 
     // List all files in the article folder
     const listResult = await listAll(folderRef);
+    console.log(`📁 Found ${listResult.items.length} files in folder: ${folderPath}`);
 
     if (listResult.items.length > 0) {
-      // Delete all files in the folder
-      await Promise.all(
-        listResult.items.map(async (fileRef) => {
-          try {
-            await deleteObject(fileRef);
-            console.log(`✅ Deleted file: ${fileRef.fullPath}`);
-          } catch (error) {
-            console.error(
-              `⚠️ Failed to delete file: ${fileRef.fullPath}`,
-              error
-            );
-            // Continue with other deletions
-          }
-        })
-      );
+      console.log(`🗑️ Deleting ${listResult.items.length} files from folder: ${folderPath}`);
 
-      console.log(
-        `✅ Deleted ${listResult.items.length} files from article folder: ${folderPath}`
-      );
+      // Delete all files in the folder with detailed logging
+      const deletePromises = listResult.items.map(async (fileRef, index) => {
+        try {
+          console.log(`🗑️ Deleting file ${index + 1}/${listResult.items.length}: ${fileRef.fullPath}`);
+          await deleteObject(fileRef);
+          console.log(`✅ Successfully deleted file: ${fileRef.fullPath}`);
+          return { success: true, path: fileRef.fullPath };
+        } catch (error: any) {
+          console.error(
+            `❌ Failed to delete file: ${fileRef.fullPath}`,
+            error
+          );
+          return { success: false, path: fileRef.fullPath, error: error.message };
+        }
+      });
+
+      const results = await Promise.all(deletePromises);
+      const successful = results.filter(r => r.success).length;
+      const failed = results.filter(r => !r.success).length;
+
+      console.log(`📊 File deletion summary for ${folderPath}: ${successful} successful, ${failed} failed`);
+
+      if (failed > 0) {
+        const failedFiles = results.filter(r => !r.success);
+        console.error(`❌ Failed to delete ${failed} files:`, failedFiles);
+        throw new Error(`Failed to delete ${failed} out of ${listResult.items.length} files`);
+      }
+
+      console.log(`✅ Successfully deleted all ${successful} files from folder: ${folderPath}`);
     } else {
-      console.log(`📁 Article folder is empty: ${folderPath}`);
+      console.log(`📁 Article folder is empty or doesn't exist: ${folderPath}`);
     }
+
+    // Verify folder is empty by listing again
+    try {
+      const verifyResult = await listAll(folderRef);
+      if (verifyResult.items.length > 0) {
+        console.error(`❌ Folder still contains ${verifyResult.items.length} files after deletion: ${folderPath}`);
+        throw new Error(`Folder cleanup incomplete: ${verifyResult.items.length} files remain`);
+      }
+      console.log(`✅ Verified folder is empty: ${folderPath}`);
+    } catch (verifyError: any) {
+      if (verifyError?.code === "storage/object-not-found") {
+        console.log(`✅ Folder no longer exists (expected): ${folderPath}`);
+      } else {
+        console.error(`⚠️ Could not verify folder deletion: ${folderPath}`, verifyError);
+      }
+    }
+
+    console.log(`✅ Article folder deletion completed: ${folderPath}`);
   } catch (error: any) {
     console.error(
       `❌ Error deleting article folder: articles/${userId}/${articleId}`,
@@ -264,6 +297,118 @@ export const deleteArticleFolder = async (
     throw new Error(
       `Failed to delete article folder: ${error?.message || "Unknown error"}`
     );
+  }
+};
+
+// Delete entire user folder from storage (for InfoWriter privilege removal)
+export const deleteUserFolder = async (userId: string): Promise<void> => {
+  console.log(`🗑️ Starting user folder deletion: articles/${userId}/`);
+
+  try {
+    const { listAll } = await import("firebase/storage");
+    const userFolderPath = `articles/${userId}`;
+    const userFolderRef = ref(storage, userFolderPath);
+
+    console.log(`📁 Listing all content in user folder: ${userFolderPath}`);
+
+    // List all files and subfolders in the user folder
+    const listResult = await listAll(userFolderRef);
+    const totalFiles = listResult.items.length;
+    const totalFolders = listResult.prefixes.length;
+
+    console.log(`📁 Found ${totalFiles} files and ${totalFolders} subfolders in user folder: ${userFolderPath}`);
+
+    let deletedFiles = 0;
+    let failedFiles = 0;
+
+    // Delete all files in the user folder (including root level files)
+    if (totalFiles > 0) {
+      console.log(`🗑️ Deleting ${totalFiles} files from user folder: ${userFolderPath}`);
+
+      const fileDeletePromises = listResult.items.map(async (fileRef, index) => {
+        try {
+          console.log(`🗑️ Deleting file ${index + 1}/${totalFiles}: ${fileRef.fullPath}`);
+          await deleteObject(fileRef);
+          console.log(`✅ Successfully deleted file: ${fileRef.fullPath}`);
+          deletedFiles++;
+        } catch (error: any) {
+          console.error(`❌ Failed to delete file: ${fileRef.fullPath}`, error);
+          failedFiles++;
+        }
+      });
+
+      await Promise.all(fileDeletePromises);
+    }
+
+    // Recursively delete all subfolders (article folders)
+    if (totalFolders > 0) {
+      console.log(`🗑️ Deleting ${totalFolders} subfolders from user folder: ${userFolderPath}`);
+
+      const folderDeletePromises = listResult.prefixes.map(async (folderRef, index) => {
+        try {
+          const folderPath = folderRef.fullPath;
+          console.log(`🗑️ Deleting subfolder ${index + 1}/${totalFolders}: ${folderPath}`);
+
+          // List and delete all files in this subfolder
+          const subFolderList = await listAll(folderRef);
+
+          if (subFolderList.items.length > 0) {
+            const subFileDeletePromises = subFolderList.items.map(async (subFileRef) => {
+              try {
+                await deleteObject(subFileRef);
+                console.log(`✅ Deleted subfolder file: ${subFileRef.fullPath}`);
+                deletedFiles++;
+              } catch (error: any) {
+                console.error(`❌ Failed to delete subfolder file: ${subFileRef.fullPath}`, error);
+                failedFiles++;
+              }
+            });
+
+            await Promise.all(subFileDeletePromises);
+          }
+
+          console.log(`✅ Successfully processed subfolder: ${folderPath}`);
+        } catch (error: any) {
+          console.error(`❌ Failed to process subfolder: ${folderRef.fullPath}`, error);
+        }
+      });
+
+      await Promise.all(folderDeletePromises);
+    }
+
+    console.log(`📊 User folder deletion summary: ${deletedFiles} files deleted, ${failedFiles} files failed`);
+
+    if (failedFiles > 0) {
+      console.warn(`⚠️ Some files could not be deleted: ${failedFiles} failures`);
+    }
+
+    // Verify folder is empty
+    try {
+      const verifyResult = await listAll(userFolderRef);
+      if (verifyResult.items.length > 0 || verifyResult.prefixes.length > 0) {
+        console.warn(`⚠️ User folder still contains content after deletion: ${verifyResult.items.length} files, ${verifyResult.prefixes.length} folders`);
+      } else {
+        console.log(`✅ Verified user folder is empty: ${userFolderPath}`);
+      }
+    } catch (verifyError: any) {
+      if (verifyError?.code === "storage/object-not-found") {
+        console.log(`✅ User folder no longer exists (expected): ${userFolderPath}`);
+      } else {
+        console.error(`⚠️ Could not verify user folder deletion: ${userFolderPath}`, verifyError);
+      }
+    }
+
+    console.log(`✅ User folder deletion completed: ${userFolderPath}`);
+  } catch (error: any) {
+    console.error(`❌ Error deleting user folder: articles/${userId}`, error);
+
+    // If folder doesn't exist, consider it already deleted (success)
+    if (error?.code === "storage/object-not-found") {
+      console.log(`📁 User folder already deleted: articles/${userId}`);
+      return;
+    }
+
+    throw new Error(`Failed to delete user folder: ${error?.message || "Unknown error"}`);
   }
 };
 

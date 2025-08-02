@@ -22,6 +22,7 @@ import {
   where,
   getDocs,
   deleteDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { auth, firestore } from "./firebase";
 
@@ -407,8 +408,8 @@ export const signOut = async () => {
 
   await firebaseSignOut(auth);
 
-  // Navigate to homepage after logout
-  window.location.href = "/";
+  // Don't navigate here - let the component handle navigation
+  // This prevents the flash of auth page
 };
 
 export const getUserProfile = async (
@@ -537,6 +538,102 @@ export const approveWriterRequest = async (uid: string) => {
   } catch (error) {
     console.error("Error creating InfoWriter approval notification:", error);
     // Don't throw error to avoid breaking the approval process
+  }
+};
+
+// Comprehensive InfoWriter privilege removal with article cleanup
+export const removeInfoWriterPrivileges = async (
+  uid: string,
+  adminId: string,
+  adminNote: string
+): Promise<{ deletedArticlesCount: number }> => {
+  console.log(`🗑️ Starting comprehensive InfoWriter privilege removal for: ${uid}`);
+
+  try {
+    // Import required functions
+    const { hardDeleteArticle, cleanupArticleRelatedData } = await import("./articles");
+    const { deleteUserFolder } = await import("./fileUpload");
+    const { createNotification } = await import("./notifications");
+
+    let deletedArticlesCount = 0;
+
+    // 1. Get ALL articles by this user (published, unpublished, draft, archive)
+    console.log(`📄 Fetching ALL articles by user: ${uid}`);
+    const articlesQuery = query(
+      collection(firestore, "articles"),
+      where("authorId", "==", uid)
+    );
+    const articlesSnapshot = await getDocs(articlesQuery);
+
+    console.log(`📊 Found ${articlesSnapshot.docs.length} articles to delete (all statuses: published, unpublished, draft, archive)`);
+
+    // 2. Delete ALL articles (database + storage + related data) - ALL STATUSES
+    if (!articlesSnapshot.empty) {
+      const deletePromises = articlesSnapshot.docs.map(async (articleDoc) => {
+        try {
+          const articleId = articleDoc.id;
+          const articleData = articleDoc.data();
+          console.log(`🗑️ Deleting article: ${articleData.title} (${articleId}) - Status: ${articleData.status}`);
+
+          // Use hardDeleteArticle for complete removal (works for all statuses)
+          await hardDeleteArticle(articleId);
+          deletedArticlesCount++;
+          console.log(`✅ Successfully deleted article: ${articleId} (${articleData.status})`);
+        } catch (error) {
+          console.error(`❌ Failed to delete article: ${articleDoc.id}`, error);
+          // Continue with other deletions
+        }
+      });
+
+      await Promise.all(deletePromises);
+      console.log(`✅ Completed article deletion: ${deletedArticlesCount} articles deleted (all statuses)`);
+    }
+
+    // 3. Delete entire user folder from storage (articles/{userId}/)
+    try {
+      console.log(`🗑️ Deleting user storage folder: articles/${uid}/`);
+      await deleteUserFolder(uid);
+      console.log(`✅ Successfully deleted user storage folder`);
+    } catch (error) {
+      console.error(`⚠️ Failed to delete user storage folder:`, error);
+      // Continue - user role update is more important
+    }
+
+    // 4. Update user role and add tracking information
+    console.log(`👤 Updating user role from infowriter to user`);
+    const userRef = doc(firestore, "users", uid);
+    await updateDoc(userRef, {
+      role: "user",
+      previousRoles: [uid], // Track that they were an infowriter
+      privilegesRemovedAt: serverTimestamp(),
+      privilegesRemovedBy: adminId,
+      adminNote: adminNote.trim(),
+      articleCountAtRemoval: deletedArticlesCount,
+      updatedAt: new Date(),
+    });
+    console.log(`✅ User role updated successfully`);
+
+    // 5. Create notification for the user
+    const notificationMessage = `Your InfoWriter privileges have been removed by an administrator. Reason: ${adminNote.trim()}. ${
+      deletedArticlesCount > 0
+        ? `All ${deletedArticlesCount} of your articles (published, unpublished, drafts, and archived) have been permanently removed from the database and storage.`
+        : "You had no articles to remove."
+    } Contact support if you have questions.`;
+
+    await createNotification(
+      uid,
+      "writer_privileges_removed",
+      "InfoWriter Privileges Removed",
+      notificationMessage
+    );
+    console.log(`✅ Notification sent to user`);
+
+    console.log(`🎉 InfoWriter privilege removal completed successfully`);
+    return { deletedArticlesCount };
+
+  } catch (error) {
+    console.error(`❌ Error during InfoWriter privilege removal:`, error);
+    throw error;
   }
 };
 
