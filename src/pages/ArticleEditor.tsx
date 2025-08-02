@@ -594,11 +594,7 @@ export const ArticleEditor: React.FC = () => {
     setHasUnsavedChanges(false);
   };
 
-<<<<<<< HEAD
   const handleSave = async (status: "draft" | "published" = "draft") => {
-=======
-  const handleSave = async (
-    status: "draft" | "published" | "archive" = "draft"
   ) => {
 >>>>>>> fbd82a0 (Saved local changes before pulling from origin)
     if (!userProfile) {
