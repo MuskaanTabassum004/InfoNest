@@ -17,6 +17,10 @@ export default defineConfig({
     sourcemap: false, // Disable sourcemaps for production
     rollupOptions: {
       output: {
+        // Force new file names to bust cache completely
+        entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+        assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`,
         manualChunks: {
           vendor: ['react', 'react-dom'],
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
