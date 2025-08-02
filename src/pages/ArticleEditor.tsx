@@ -40,7 +40,7 @@ import toast from "react-hot-toast";
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
 import { stripHtmlTags } from "../utils/searchUtils";
 import { useAuth } from "../hooks/useAuth";
-import { draftStorage } from "../lib/draftStorage";
+import { draftStorage } from "../utils/draftStorage";
 
 export const ArticleEditor: React.FC = () => {
   const { id } = useParams();
