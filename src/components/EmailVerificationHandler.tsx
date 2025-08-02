@@ -26,6 +26,9 @@ export const EmailVerificationHandler: React.FC = () => {
       const mode = searchParams.get('mode');
       const oobCode = searchParams.get('oobCode');
 
+      // Debug: Log the URL parameters
+      console.log('Verification URL params:', { mode, oobCode: oobCode ? 'present' : 'missing' });
+
       if (mode !== 'verifyEmail' || !oobCode) {
         setStatus('error');
         setMessage('Invalid verification link. Please check your email for the correct link.');
@@ -41,9 +44,13 @@ export const EmailVerificationHandler: React.FC = () => {
         const userEmail = info.data.email;
         setUserEmail(userEmail || '');
 
+        console.log('Email verification info:', { userEmail });
+
         // Apply the action code to verify the email
         // This works cross-browser/cross-device without requiring user to be signed in
         await applyActionCode(auth, oobCode);
+
+        console.log('Email verification successful for:', userEmail);
 
         setStatus('success');
         setMessage('🎉 Email verified successfully! Your account is now active and you can sign in with your verified email.');
@@ -60,6 +67,7 @@ export const EmailVerificationHandler: React.FC = () => {
           });
         }, 3000);
       } catch (error: any) {
+        console.error('Email verification error:', error);
         setStatus('error');
 
         if (error.code === 'auth/invalid-action-code') {
@@ -71,7 +79,7 @@ export const EmailVerificationHandler: React.FC = () => {
         } else if (error.code === 'auth/user-not-found') {
           setMessage('No account found for this verification link. Please sign up again.');
         } else {
-          setMessage('Email verification failed. Please try signing up again.');
+          setMessage(`Email verification failed: ${error.message}. Please try signing up again.`);
         }
       }
     };

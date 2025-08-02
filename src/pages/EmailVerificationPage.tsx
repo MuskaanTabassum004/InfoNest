@@ -42,7 +42,7 @@ export const EmailVerificationPage: React.FC = () => {
     setSending(true);
     try {
       await sendEmailVerification(currentUser, {
-        url: `${window.location.origin}/verify-email`,
+        url: `${window.location.origin}/#/verify-email`,
         handleCodeInApp: false,
       });
       // Show success message in UI instead of toast

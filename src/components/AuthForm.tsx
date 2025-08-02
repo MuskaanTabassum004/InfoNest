@@ -155,16 +155,21 @@ export const AuthForm: React.FC = () => {
       showLogin?: boolean
     };
 
+    console.log('Auth form state:', state);
+
     if (state?.message) {
       setMessage(state.message);
+      console.log('Setting message:', state.message);
     }
 
     if (state?.verifiedEmail) {
       setFormData(prev => ({ ...prev, email: state.verifiedEmail }));
+      console.log('Pre-filling email:', state.verifiedEmail);
     }
 
     if (state?.showLogin) {
       setIsLogin(true);
+      console.log('Switching to login mode');
     }
 
     // Clear the state to prevent showing the message again

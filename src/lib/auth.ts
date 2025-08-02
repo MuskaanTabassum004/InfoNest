@@ -304,7 +304,7 @@ export const signUp = async (
 
     // Send email verification immediately with proper action URL
     await sendEmailVerification(result.user, {
-      url: `${window.location.origin}/verify-email`,
+      url: `${window.location.origin}/#/verify-email`,
       handleCodeInApp: false, // Use email link, not in-app handling
     });
 
