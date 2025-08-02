@@ -50,18 +50,37 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  // Also handle console errors
+  // Also handle console errors and logs - suppress share count and permission errors
   const originalConsoleError = console.error;
+  const originalConsoleLog = console.log;
+
   console.error = (...args) => {
-    // Check if this is a Firestore permission error
+    // Check if this is a share count or permission error
     const errorMessage = args.join(' ');
-    if (errorMessage.includes('permission-denied') &&
-        errorMessage.includes('Firestore')) {
-      // Suppress the error if it's a permission denied error
+    if (errorMessage.includes('Failed to update share count') ||
+        errorMessage.includes('shareCount') ||
+        (errorMessage.includes('permission-denied') && errorMessage.includes('Firestore')) ||
+        errorMessage.includes('Missing or insufficient permissions')) {
+      // Suppress these specific errors
       return;
     }
     // Otherwise, log normally
     originalConsoleError.apply(console, args);
+  };
+
+  console.log = (...args) => {
+    // Check if this is share event logging from old cached code
+    const logMessage = args.join(' ');
+    if (logMessage.includes('Recording share event:') ||
+        logMessage.includes('Share event data:') ||
+        logMessage.includes('Share event recorded successfully') ||
+        logMessage.includes('📤') ||
+        logMessage.includes('✅ Share event recorded')) {
+      // Suppress these specific logs
+      return;
+    }
+    // Otherwise, log normally
+    originalConsoleLog.apply(console, args);
   };
 }
 
