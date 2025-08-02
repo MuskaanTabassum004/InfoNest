@@ -72,7 +72,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
             newUnreadNotifications.forEach((notification) => {
               new Notification(notification.title, {
                 body: notification.message,
-                icon: "/favicon.ico",
+                icon: `${import.meta.env.BASE_URL}ChatGPT Image Jul 22, 2025, 11_54_47 AM.png`,
                 tag: notification.id,
               });
             });
@@ -88,7 +88,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
                 newUnreadNotifications.forEach((notification) => {
                   new Notification(notification.title, {
                     body: notification.message,
-                    icon: "/favicon.ico",
+                    icon: `${import.meta.env.BASE_URL}ChatGPT Image Jul 22, 2025, 11_54_47 AM.png`,
                     tag: notification.id,
                   });
                 });

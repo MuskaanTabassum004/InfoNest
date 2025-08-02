@@ -132,12 +132,9 @@ class ResumableUploadManager {
 
   private async checkConnectivity(): Promise<void> {
     try {
-      const response = await fetch("/favicon.ico", {
-        method: "HEAD",
-        cache: "no-cache",
-      });
+      // Use navigator.onLine only to prevent console spam
       const wasOnline = this.isOnline;
-      this.isOnline = response.ok;
+      this.isOnline = navigator.onLine;
 
       if (!wasOnline && this.isOnline) {
         // Connection restored - resume paused uploads
@@ -1055,7 +1052,7 @@ class ResumableUploadManager {
     if ("Notification" in window && Notification.permission === "granted") {
       new Notification("Upload Completed", {
         body: notification.message,
-        icon: "/favicon.ico",
+        icon: `${import.meta.env.BASE_URL}ChatGPT Image Jul 22, 2025, 11_54_47 AM.png`,
       });
     }
   }

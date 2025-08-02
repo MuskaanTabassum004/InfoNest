@@ -31,26 +31,13 @@ export const NetworkStatus: React.FC<NetworkStatusProps> = ({
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Test connection quality periodically
+    // Test connection quality periodically - DISABLED to prevent console spam
     const testConnection = async () => {
-      if (!navigator.onLine) return;
-
-      try {
-        const start = Date.now();
-        const response = await fetch('/favicon.ico', { 
-          method: 'HEAD',
-          cache: 'no-cache'
-        });
-        const duration = Date.now() - start;
-
-        if (response.ok) {
-          setIsOnline(true);
-          setConnectionQuality(duration > 2000 ? 'poor' : 'good');
-        } else {
-          setIsOnline(false);
-          setConnectionQuality('offline');
-        }
-      } catch (error) {
+      // Use navigator.onLine only, no network requests
+      if (navigator.onLine) {
+        setIsOnline(true);
+        setConnectionQuality('good');
+      } else {
         setIsOnline(false);
         setConnectionQuality('offline');
       }
