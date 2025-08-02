@@ -17,6 +17,7 @@ export const EmailVerificationPage: React.FC = () => {
   const [verificationEmail, setVerificationEmail] = useState<string>("");
   const [verificationDisplayName, setVerificationDisplayName] = useState<string>("");
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [message, setMessage] = useState<string>("");
 
   // Use real-time verification detection
   const { isVerified, user: verifiedUser } = useEmailVerificationDetection(verificationEmail);
@@ -40,14 +41,22 @@ export const EmailVerificationPage: React.FC = () => {
     }
 
     setSending(true);
+    setMessage(""); // Clear previous messages
     try {
       await sendEmailVerification(currentUser, {
         url: `${window.location.origin}/#/verify-email`,
         handleCodeInApp: false,
       });
-      // Show success message in UI instead of toast
+      setMessage("✅ Verification email sent! Please check your inbox.");
     } catch (error: any) {
-      // Handle errors silently or show in UI
+      // Handle specific Firebase errors
+      if (error.code === 'auth/too-many-requests') {
+        setMessage("⚠️ Too many requests. Please wait a few minutes before requesting another verification email.");
+      } else if (error.code === 'auth/user-not-found') {
+        setMessage("❌ User not found. Please sign up again.");
+      } else {
+        setMessage("❌ Failed to send verification email. Please try again later.");
+      }
     } finally {
       setSending(false);
     }
@@ -179,6 +188,27 @@ export const EmailVerificationPage: React.FC = () => {
                 </>
               )}
             </button>
+
+            {/* Message display for resend feedback */}
+            {message && (
+              <div className={`rounded-lg p-3 ${
+                message.includes('✅')
+                  ? 'bg-green-50 border border-green-200'
+                  : message.includes('⚠️')
+                  ? 'bg-yellow-50 border border-yellow-200'
+                  : 'bg-red-50 border border-red-200'
+              }`}>
+                <p className={`text-sm ${
+                  message.includes('✅')
+                    ? 'text-green-800'
+                    : message.includes('⚠️')
+                    ? 'text-yellow-800'
+                    : 'text-red-800'
+                }`}>
+                  {message}
+                </p>
+              </div>
+            )}
 
             {!currentUser && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
