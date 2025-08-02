@@ -301,7 +301,12 @@ export const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <Link to="/" className="cursor-pointer">
+              <Link to="/" className="cursor-pointer flex items-center space-x-3">
+                <img
+                  src={`${import.meta.env.BASE_URL}ChatGPT Image Jul 22, 2025, 11_54_47 AM.png`}
+                  alt="InfoNest Logo"
+                  className="w-10 h-10 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200"
+                />
                 <div>
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-[#1D4ED8] via-[#7C3AED] to-[#EC4899] bg-clip-text text-transparent">
                     InfoNest
@@ -412,7 +417,7 @@ export const HomePage: React.FC = () => {
       <section
         className="relative py-20 px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `linear-gradient(rgba(0,0,0,0.1),rgba(0,0,0,0.1)),url('/image.png')`,
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.1),rgba(0,0,0,0.1)),url('${import.meta.env.BASE_URL}image.png')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
