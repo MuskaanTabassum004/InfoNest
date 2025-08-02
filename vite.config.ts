@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // Set base path for GitHub Pages deployment
-  base: process.env.NODE_ENV === 'production' ? '/InfoNest/' : '/',
+  // Set base path dynamically: GitHub Pages uses /InfoNest/, Netlify uses /
+  base: process.env.DEPLOY_TARGET === 'netlify' ? '/' :
+        process.env.NODE_ENV === 'production' ? '/InfoNest/' : '/',
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],

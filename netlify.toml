@@ -1,8 +1,8 @@
 # Netlify configuration for InfoNest SPA
 
 [build]
-  # Build command (if you're using Netlify's build process)
-  command = "npm run build"
+  # Build command for Netlify (uses root base path)
+  command = "npm run build:netlify"
   # Directory to publish (Vite's default output directory)
   publish = "dist"
 
