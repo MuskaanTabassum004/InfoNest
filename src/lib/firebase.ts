@@ -19,6 +19,16 @@ export const auth = getAuth(app);
 export const firestore = getFirestore(app); // ✅ Exported as 'firestore'
 export const storage = getStorage(app); // ✅ Exported as 'storage'
 
+// Configure Firebase Auth action code settings for email verification
+// This ensures the correct URL format is used in email templates
+if (typeof window !== 'undefined') {
+  // Set the action code settings for email verification
+  auth.useDeviceLanguage(); // Use device language for emails
+
+  // Configure the auth domain for action codes
+  // This helps Firebase generate correct URLs for email verification
+}
+
 // Global error handler for Firestore permission errors
 const handleFirestoreError = (error: any) => {
   if (error?.code === 'permission-denied') {

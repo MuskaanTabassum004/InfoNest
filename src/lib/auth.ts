@@ -303,10 +303,9 @@ export const signUp = async (
     }
 
     // Send email verification immediately with proper action URL
-    // Use HashRouter format for both GitHub Pages and Netlify
-    const verificationUrl = window.location.origin.includes('github.io')
-      ? `${window.location.origin}/#/verify-email`
-      : `${window.location.origin}/#/verify-email`;
+    // CRITICAL: Use the correct domain and HashRouter format
+    const currentDomain = window.location.origin;
+    const verificationUrl = `${currentDomain}/#/verify-email`;
 
     await sendEmailVerification(result.user, {
       url: verificationUrl,
