@@ -41,6 +41,7 @@ export const AuthForm: React.FC = () => {
   );
   const [emailTouched, setEmailTouched] = useState(false);
   const [message, setMessage] = useState<string>("");
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +85,6 @@ export const AuthForm: React.FC = () => {
         });
       }
     } catch (error: any) {
-      console.error("Authentication error:", error);
       toast.error(error.message || "An error occurred");
     } finally {
       setLoading(false);
@@ -137,8 +137,6 @@ export const AuthForm: React.FC = () => {
     setEmailValidation({ isValid: true });
   };
 
-  const location = useLocation();
-
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const mode = queryParams.get("mode");
@@ -151,11 +149,26 @@ export const AuthForm: React.FC = () => {
     }
 
     // Show verification success message if passed from EmailVerificationPage
-    const state = location.state as { message?: string };
+    const state = location.state as {
+      message?: string;
+      verifiedEmail?: string;
+      showLogin?: boolean
+    };
+
     if (state?.message) {
-      // Show message in UI instead of toast
       setMessage(state.message);
-      // Clear the state to prevent showing the message again
+    }
+
+    if (state?.verifiedEmail) {
+      setFormData(prev => ({ ...prev, email: state.verifiedEmail }));
+    }
+
+    if (state?.showLogin) {
+      setIsLogin(true);
+    }
+
+    // Clear the state to prevent showing the message again
+    if (state) {
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.search, location.state, navigate]);

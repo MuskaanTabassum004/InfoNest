@@ -36,19 +36,26 @@ export const EmailVerificationHandler: React.FC = () => {
         setStatus('loading');
         setMessage('Verifying your email address...');
 
+        // First, check the action code to get user info
+        const info = await checkActionCode(auth, oobCode);
+        const userEmail = info.data.email;
+        setUserEmail(userEmail || '');
+
         // Apply the action code to verify the email
         // This works cross-browser/cross-device without requiring user to be signed in
         await applyActionCode(auth, oobCode);
 
         setStatus('success');
-        setMessage('Email verified successfully! Your account is now active and you can sign in.');
+        setMessage('🎉 Email verified successfully! Your account is now active and you can sign in with your verified email.');
 
-        // Redirect to login page after 3 seconds
+        // Redirect to login page after 3 seconds with verified email info
         setTimeout(() => {
           navigate('/auth', {
             replace: true,
             state: {
-              message: "Email verified successfully! Please log in to continue."
+              message: "✅ Email verified successfully! Please log in to continue.",
+              verifiedEmail: userEmail,
+              showLogin: true
             }
           });
         }, 3000);
@@ -97,16 +104,27 @@ export const EmailVerificationHandler: React.FC = () => {
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
                 Email Verified!
               </h1>
-              <p className="text-gray-600 mb-6">{message}</p>
+              <p className="text-gray-600 mb-4">{message}</p>
+              {userEmail && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-blue-800 text-sm font-medium">
+                    ✅ Verified Email: {userEmail}
+                  </p>
+                </div>
+              )}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <p className="text-green-800 text-sm">
-                  🎉 Your account is now active! You'll be redirected to the login page in a few seconds.
+                  🎉 Your account is now active! You can now log in with your verified email from any device.
                 </p>
               </div>
               <button
                 onClick={() => navigate('/auth', {
                   replace: true,
-                  state: { message: "Email verified successfully! Please log in to continue." }
+                  state: {
+                    message: "✅ Email verified successfully! Please log in to continue.",
+                    verifiedEmail: userEmail,
+                    showLogin: true
+                  }
                 })}
                 className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
               >

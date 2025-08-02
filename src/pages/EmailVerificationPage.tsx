@@ -47,7 +47,6 @@ export const EmailVerificationPage: React.FC = () => {
       });
       // Show success message in UI instead of toast
     } catch (error: any) {
-      console.error("Error sending verification email:", error);
       // Handle errors silently or show in UI
     } finally {
       setSending(false);
@@ -59,26 +58,22 @@ export const EmailVerificationPage: React.FC = () => {
       await signOut(auth);
       navigate("/");
     } catch (error) {
-      console.error("Sign out failed:", error);
+      // Handle sign out errors silently
     }
   };
 
   // Real-time Firebase Auth state listener with cross-device verification detection
   useEffect(() => {
-    console.log("🔄 Setting up verification listener");
-
     // Real-time Firebase Auth state listener
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setCurrentUser(firebaseUser);
 
       if (firebaseUser) {
-        console.log("🔍 Auth state changed");
-
         // Force reload user to get latest verification status
         try {
           await firebaseUser.reload();
         } catch (error) {
-          console.error("Error reloading user:", error);
+          // Handle reload errors silently
         }
         // This logic is now handled by the useEmailVerificationDetection hook
       } else {
