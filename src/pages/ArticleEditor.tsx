@@ -1,10 +1,6 @@
 // src/pages/ArticleEditor.tsx
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
-
-import { DraftRecovery } from "../components/DraftRecovery"; // Import DraftRecovery
-import { draftStorage } from "../utils/draftStorage"; // Import draftStorage
 import {
   createArticle,
   updateArticle,
@@ -69,25 +65,6 @@ export const ArticleEditor: React.FC = () => {
 
   // Draft recovery state
   const [showDraftRecovery, setShowDraftRecovery] = useState(false);
-
-  // Editor key for forcing re-render when resetting
-  const [editorKey, setEditorKey] = useState(0);
-
-  // Unsaved changes tracking
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [lastSavedData, setLastSavedData] = useState<string>("");
-  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
-
-  // Enhanced form state
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [tagInput, setTagInput] = useState("");
-  const [customCategory, setCustomCategory] = useState("");
-  const [coverImageMethod, setCoverImageMethod] = useState<"upload" | "url">(
-    "upload"
-  );
-  const [coverImageUrl, setCoverImageUrl] = useState("");
-  const [coverImageUploading, setCoverImageUploading] = useState(false);
-  const [showUploadManager, setShowUploadManager] = useState(false);
 
   // Field validation states
   const [fieldErrors, setFieldErrors] = useState({
@@ -243,47 +220,6 @@ export const ArticleEditor: React.FC = () => {
     userProfile,
     safeId
   ]);
-
-  // Browser navigation warning for unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue =
-          "You have unsaved changes. Are you sure you want to leave?";
-        return e.returnValue;
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasUnsavedChanges]);
-
-  // Handle navigation attempts when there are unsaved changes
-  const handleNavigation = async (path?: string) => {
-    if (hasUnsavedChanges) {
-      setShowUnsavedWarning(true);
-      return false;
-    }
-
-    // Clean up temp files if leaving without saving
-    if (id === "new" && userProfile) {
-      try {
-        await resumableUploadManager.cleanupTempFiles(userProfile.uid);
-        console.log("🧹 Cleaned up temp files on navigation");
-      } catch (error) {
-        console.error("Error cleaning up temp files:", error);
-      }
-    }
-
-    if (path) {
-      navigate(path);
-    } else {
-      navigate(-1);
-    }
-    return true;
-  };
-
   // Handle file removal from both document and storage
   const handleFileRemoved = (removedFile: ManagedFile) => {
     // Remove file references from article content
@@ -330,26 +266,6 @@ export const ArticleEditor: React.FC = () => {
   };
 
   // Handle draft recovery
-  const handleDraftRecover = (draft: any) => {
-    setArticle({
-      title: draft.title || "",
-      content: draft.content || "",
-      excerpt: draft.excerpt || "",
-      status: "draft",
-      categories: draft.categories || [],
-      tags: draft.tags || [],
-      coverImage: draft.coverImage || "",
-      attachments: [],
-      attachmentMetadata: [], // Ensure attachmentMetadata is always an array
-    });
-
-    // Set form state
-    setSelectedCategory(draft.categories?.[0] || "");
-    setShowDraftRecovery(false);
-
-    toast.success("Draft recovered successfully!");
-  };
-
   // Helper functions for enhanced features
   const addTag = () => {
     if (tagInput.trim() && article.tags && article.tags.length < 4) {
@@ -681,13 +597,6 @@ export const ArticleEditor: React.FC = () => {
       content: "",
       category: "",
       tags: "",
-    });
-
-    // Reset unsaved changes tracking
-    setLastSavedData("");
-    setHasUnsavedChanges(false);
-  };
-
   const handleSave = async (status: "draft" | "published" = "draft") => {
     if (!userProfile) {
       toast.error("User authentication error. Please refresh and try again.");
@@ -820,11 +729,6 @@ export const ArticleEditor: React.FC = () => {
         }
 
         // For draft saves when editing, don't reset form - just navigate
-        if (status === "draft") {
-          navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
-          return;
-        }
-      } else {
         // Create new article first to get an ID
         const newId = await createArticle(
           articleData as Omit<
@@ -871,11 +775,6 @@ export const ArticleEditor: React.FC = () => {
           navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
         } else if (status === "archive") {
           // For archived articles, navigate to my articles with archive filter
-          navigate("/my-articles?status=archive");
-        } else {
-          // For published articles, reset form and stay on new article page for next article
-          navigate("/article/new");
-        }
       }
 
       setArticle((prev) => ({ ...prev, status }));
@@ -1334,23 +1233,6 @@ export const ArticleEditor: React.FC = () => {
                 )}
               </div>
             </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
-
-  return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Draft Recovery Modal */}
-      {showDraftRecovery && (
-        <DraftRecovery
-          onRecover={handleDraftRecover}
-          onDismiss={() => setShowDraftRecovery(false)}
-          currentArticleId={id === "new" ? undefined : id}
-        />
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
