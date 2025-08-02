@@ -62,17 +62,17 @@ export const EmailVerificationHandler: React.FC = () => {
         setStatus('success');
         setMessage('🎉 Email verified successfully! Your account is now active and you can sign in with your verified email.');
 
-        // Redirect to login page after 3 seconds with verified email info
+        // Redirect to login page after 4 seconds with verified email info
         setTimeout(() => {
           navigate('/auth', {
             replace: true,
             state: {
-              message: "✅ Email verified successfully! Please log in to continue.",
+              message: "✅ Email verified successfully! Login to access the platform.",
               verifiedEmail: userEmail,
               showLogin: true
             }
           });
-        }, 3000);
+        }, 4000);
       } catch (error: any) {
         setStatus('error');
 
@@ -128,7 +128,7 @@ export const EmailVerificationHandler: React.FC = () => {
               )}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                 <p className="text-green-800 text-sm">
-                  🎉 Your account is now active! You can now log in with your verified email from any device.
+                  🎉 Email verification complete! You can now login to access the platform.
                 </p>
               </div>
               <button

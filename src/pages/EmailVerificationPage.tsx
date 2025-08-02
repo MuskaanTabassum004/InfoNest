@@ -43,8 +43,13 @@ export const EmailVerificationPage: React.FC = () => {
     setSending(true);
     setMessage(""); // Clear previous messages
     try {
+      // Use HashRouter format for both GitHub Pages and Netlify
+      const verificationUrl = window.location.origin.includes('github.io')
+        ? `${window.location.origin}/#/verify-email`
+        : `${window.location.origin}/#/verify-email`;
+
       await sendEmailVerification(currentUser, {
-        url: `${window.location.origin}/#/verify-email`,
+        url: verificationUrl,
         handleCodeInApp: false,
       });
       setMessage("✅ Verification email sent! Please check your inbox.");
