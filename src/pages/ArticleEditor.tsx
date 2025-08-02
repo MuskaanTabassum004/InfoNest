@@ -39,6 +39,9 @@ import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
 import { stripHtmlTags } from "../utils/searchUtils";
+import { useAuth } from "../contexts/AuthContext";
+import { draftStorage } from "../lib/draftStorage";
+
 export const ArticleEditor: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -73,6 +76,20 @@ export const ArticleEditor: React.FC = () => {
     category: "",
     tags: "",
   });
+
+  // Form state variables
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [tagInput, setTagInput] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [coverImageMethod, setCoverImageMethod] = useState<"upload" | "url">("upload");
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const [showUploadManager, setShowUploadManager] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+  const [lastSavedData, setLastSavedData] = useState("");
+
   // Available categories (you may want to fetch these from a backend)
   const availableCategories = [
     "Technology",
@@ -220,6 +237,7 @@ export const ArticleEditor: React.FC = () => {
     userProfile,
     safeId
   ]);
+
   // Handle file removal from both document and storage
   const handleFileRemoved = (removedFile: ManagedFile) => {
     // Remove file references from article content
@@ -597,7 +615,19 @@ export const ArticleEditor: React.FC = () => {
       content: "",
       category: "",
       tags: "",
-  const handleSave = async (status: "draft" | "published" = "draft") => {
+    });
+  };
+
+  // Handle navigation with unsaved changes warning
+  const handleNavigation = (path: string) => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedWarning(true);
+    } else {
+      navigate(path);
+    }
+  };
+
+  const handleSave = async (status: "draft" | "published" | "archive" = "draft") => {
     if (!userProfile) {
       toast.error("User authentication error. Please refresh and try again.");
       return;
@@ -729,6 +759,7 @@ export const ArticleEditor: React.FC = () => {
         }
 
         // For draft saves when editing, don't reset form - just navigate
+      } else {
         // Create new article first to get an ID
         const newId = await createArticle(
           articleData as Omit<
@@ -775,6 +806,10 @@ export const ArticleEditor: React.FC = () => {
           navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
         } else if (status === "archive") {
           // For archived articles, navigate to my articles with archive filter
+          navigate("/my-articles?status=archive");
+        } else {
+          navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
+        }
       }
 
       setArticle((prev) => ({ ...prev, status }));
@@ -1233,6 +1268,14 @@ export const ArticleEditor: React.FC = () => {
                 )}
               </div>
             </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
