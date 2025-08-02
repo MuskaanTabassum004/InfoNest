@@ -1,6 +1,10 @@
 // src/pages/ArticleEditor.tsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+
+import { DraftRecovery } from "../components/DraftRecovery"; // Import DraftRecovery
+import { draftStorage } from "../utils/draftStorage"; // Import draftStorage
 import {
   createArticle,
   updateArticle,
@@ -12,7 +16,6 @@ import { FileUpload } from "../components/FileUpload";
 import {
   FileManager,
   useArticleFiles,
-  useAllArticleFiles,
   ManagedFile,
 } from "../components/FileManager";
 import { UploadManager } from "../components/UploadManager";
@@ -39,17 +42,11 @@ import { UploadResult } from "../lib/fileUpload";
 import toast from "react-hot-toast";
 import { processLayoutSpecificCaptions } from "../lib/tiptap/utils/captionProcessor";
 import { stripHtmlTags } from "../utils/searchUtils";
-import { useAuth } from "../hooks/useAuth";
-import { draftStorage } from "../utils/draftStorage";
-
 export const ArticleEditor: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { userProfile, isInfoWriter, isAdmin } = useAuth();
-
-  // Ensure id is always a string
-  const safeId = id || "new";
-  const isEditing = safeId !== "new";
+  const isEditing = id !== "new";
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -63,11 +60,29 @@ export const ArticleEditor: React.FC = () => {
     tags: [],
     coverImage: "",
     attachments: [],
-    attachmentMetadata: [], // Ensure attachmentMetadata is always an array
   });
 
   // Draft recovery state
   const [showDraftRecovery, setShowDraftRecovery] = useState(false);
+
+  // Editor key for forcing re-render when resetting
+  const [editorKey, setEditorKey] = useState(0);
+
+  // Unsaved changes tracking
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedData, setLastSavedData] = useState<string>("");
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+
+  // Enhanced form state
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [tagInput, setTagInput] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [coverImageMethod, setCoverImageMethod] = useState<"upload" | "url">(
+    "upload"
+  );
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [coverImageUploading, setCoverImageUploading] = useState(false);
+  const [showUploadManager, setShowUploadManager] = useState(false);
 
   // Field validation states
   const [fieldErrors, setFieldErrors] = useState({
@@ -76,20 +91,6 @@ export const ArticleEditor: React.FC = () => {
     category: "",
     tags: "",
   });
-
-  // Form state variables
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [customCategory, setCustomCategory] = useState("");
-  const [tagInput, setTagInput] = useState("");
-  const [coverImageUrl, setCoverImageUrl] = useState("");
-  const [coverImageMethod, setCoverImageMethod] = useState<"upload" | "url">("upload");
-  const [coverImageUploading, setCoverImageUploading] = useState(false);
-  const [showUploadManager, setShowUploadManager] = useState(false);
-  const [editorKey, setEditorKey] = useState(0);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
-  const [lastSavedData, setLastSavedData] = useState("");
-
   // Available categories (you may want to fetch these from a backend)
   const availableCategories = [
     "Technology",
@@ -107,71 +108,23 @@ export const ArticleEditor: React.FC = () => {
     "Other",
   ];
 
-  // Create a stable article reference for dependency arrays
-  const stableArticle = useMemo(() => {
-    // Ensure article is an object
-    const safeArticle = article || {};
-
-    return {
-      ...safeArticle,
-      title: safeArticle.title || "",
-      content: safeArticle.content || "",
-      excerpt: safeArticle.excerpt || "",
-      status: safeArticle.status || "draft",
-      coverImage: safeArticle.coverImage || "",
-      categories: Array.isArray(safeArticle.categories) ? safeArticle.categories : [],
-      tags: Array.isArray(safeArticle.tags) ? safeArticle.tags : [],
-      attachments: Array.isArray(safeArticle.attachments) ? safeArticle.attachments : [],
-      attachmentMetadata: Array.isArray(safeArticle.attachmentMetadata) ? safeArticle.attachmentMetadata : [],
-      likedBy: Array.isArray(safeArticle.likedBy) ? safeArticle.likedBy : [],
-    };
-  }, [
-    article?.title || "",
-    article?.content || "",
-    article?.excerpt || "",
-    article?.status || "",
-    article?.coverImage || "",
-    JSON.stringify(article?.categories || []),
-    JSON.stringify(article?.tags || []),
-    JSON.stringify(article?.attachments || []),
-    JSON.stringify(article?.attachmentMetadata || []),
-    JSON.stringify(article?.likedBy || []),
-  ]);
-
-  // Extract files from article content and attachments
-  const articleFiles = useAllArticleFiles(
-    (stableArticle?.content && typeof stableArticle.content === 'string') ? stableArticle.content : "",
-    Array.isArray(stableArticle?.attachmentMetadata) ? stableArticle.attachmentMetadata : []
-  );
+  // Extract files from article content
+  const articleFiles = useArticleFiles(article.content || "");
 
   // Check for available drafts on component mount
   useEffect(() => {
     const checkForDrafts = () => {
-      try {
-        const drafts = draftStorage.getAllDrafts() || [];
-        const hasRecoverableDrafts = drafts.some((draft) => {
-          // Add null checks for all properties
-          if (!draft || typeof draft !== 'object') return false;
+      const drafts = draftStorage.getAllDrafts();
+      const hasRecoverableDrafts = drafts.some((draft) => {
+        const isNotCurrent = !id || draft.id !== id;
+        const hasContent = draft.content.trim().length > 50;
+        const isRecent =
+          Date.now() - draft.lastModified.getTime() < 7 * 24 * 60 * 60 * 1000; // 7 days
+        return isNotCurrent && hasContent && isRecent;
+      });
 
-          const isNotCurrent = !safeId || draft.id !== safeId;
-          const hasContent = draft.content && typeof draft.content === 'string' && draft.content.trim().length > 50;
-          const isRecent = draft.lastModified &&
-            Date.now() - new Date(draft.lastModified).getTime() < 7 * 24 * 60 * 60 * 1000; // 7 days
-
-          return isNotCurrent && hasContent && isRecent;
-        });
-
-        if (hasRecoverableDrafts && !isEditing) {
-          setShowDraftRecovery(true);
-        }
-      } catch (error) {
-        console.error('Error checking drafts:', error);
-        // Clear corrupted drafts if there's an error
-        try {
-          localStorage.removeItem('infonest_drafts');
-        } catch (clearError) {
-          console.error('Error clearing drafts:', clearError);
-        }
+      if (hasRecoverableDrafts && !isEditing) {
+        setShowDraftRecovery(true);
       }
     };
 
@@ -179,64 +132,86 @@ export const ArticleEditor: React.FC = () => {
     if (!isEditing) {
       setTimeout(checkForDrafts, 1000); // Delay to avoid showing during initial load
     }
-  }, [isEditing, safeId]);
+  }, [isEditing, id]);
 
   // Track unsaved changes
   useEffect(() => {
     if (!userProfile) return;
 
     const currentData = JSON.stringify({
-      title: stableArticle.title || "",
-      content: stableArticle.content || "",
-      excerpt: stableArticle.excerpt || "",
-      categories: stableArticle.categories || [],
-      tags: stableArticle.tags || [],
-      coverImage: stableArticle.coverImage || "",
+      title: article.title || "",
+      content: article.content || "",
+      excerpt: article.excerpt || "",
+      categories: article.categories || [],
+      tags: article.tags || [],
+      coverImage: article.coverImage || "",
     });
 
     // Check if data has changed from last saved state
     const hasChanges =
       currentData !== lastSavedData &&
-      (stableArticle.title?.trim() || stableArticle.content?.trim());
+      (article.title?.trim() || article.content?.trim());
     setHasUnsavedChanges(hasChanges);
-  }, [
-    stableArticle.title,
-    stableArticle.content,
-    stableArticle.excerpt,
-    stableArticle.categories,
-    stableArticle.tags,
-    stableArticle.coverImage,
-    lastSavedData,
-    userProfile
-  ]);
+  }, [article, lastSavedData, userProfile]);
 
   // Save draft to localStorage whenever article data changes
   useEffect(() => {
-    if (!userProfile || (!stableArticle.title && !stableArticle.content)) return;
+    if (!userProfile || (!article.title && !article.content)) return;
 
     const draftData = {
-      title: stableArticle.title || "",
-      content: stableArticle.content || "",
-      excerpt: stableArticle.excerpt || "",
-      categories: stableArticle.categories || [],
-      tags: stableArticle.tags || [],
-      coverImage: stableArticle.coverImage || "",
+      title: article.title || "",
+      content: article.content || "",
+      excerpt: article.excerpt || "",
+      categories: article.categories || [],
+      tags: article.tags || [],
+      coverImage: article.coverImage || "",
     };
 
     // Only save if there's meaningful content
     if (draftData.title.trim() || draftData.content.trim()) {
-      draftStorage.saveDraft(safeId === "new" ? null : safeId, draftData);
+      draftStorage.saveDraft(id === "new" ? null : id, draftData);
     }
-  }, [
-    stableArticle.title,
-    stableArticle.content,
-    stableArticle.excerpt,
-    stableArticle.categories,
-    stableArticle.tags,
-    stableArticle.coverImage,
-    userProfile,
-    safeId
-  ]);
+  }, [article, userProfile, id]);
+
+  // Browser navigation warning for unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue =
+          "You have unsaved changes. Are you sure you want to leave?";
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Handle navigation attempts when there are unsaved changes
+  const handleNavigation = async (path?: string) => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedWarning(true);
+      return false;
+    }
+
+    // Clean up temp files if leaving without saving
+    if (id === "new" && userProfile) {
+      try {
+        await resumableUploadManager.cleanupTempFiles(userProfile.uid);
+        console.log("🧹 Cleaned up temp files on navigation");
+      } catch (error) {
+        console.error("Error cleaning up temp files:", error);
+      }
+    }
+
+    if (path) {
+      navigate(path);
+    } else {
+      navigate(-1);
+    }
+    return true;
+  };
 
   // Handle file removal from both document and storage
   const handleFileRemoved = (removedFile: ManagedFile) => {
@@ -270,20 +245,34 @@ export const ArticleEditor: React.FC = () => {
     const updatedAttachments =
       article.attachments?.filter((url) => url !== removedFile.url) || [];
 
-    // Remove from attachment metadata if present
-    const updatedAttachmentMetadata =
-      article.attachmentMetadata?.filter((attachment) => attachment.url !== removedFile.url) || [];
-
-    // Update article content, attachments, and metadata
+    // Update article content and attachments
     setArticle((prev) => ({
       ...prev,
       content: updatedContent,
       attachments: updatedAttachments,
-      attachmentMetadata: updatedAttachmentMetadata,
     }));
   };
 
   // Handle draft recovery
+  const handleDraftRecover = (draft: any) => {
+    setArticle({
+      title: draft.title || "",
+      content: draft.content || "",
+      excerpt: draft.excerpt || "",
+      status: "draft",
+      categories: draft.categories || [],
+      tags: draft.tags || [],
+      coverImage: draft.coverImage || "",
+      attachments: [],
+    });
+
+    // Set form state
+    setSelectedCategory(draft.categories?.[0] || "");
+    setShowDraftRecovery(false);
+
+    toast.success("Draft recovered successfully!");
+  };
+
   // Helper functions for enhanced features
   const addTag = () => {
     if (tagInput.trim() && article.tags && article.tags.length < 4) {
@@ -395,7 +384,7 @@ export const ArticleEditor: React.FC = () => {
         handleCoverUploadCompleted as EventListener
       );
     };
-  }, [safeId]);
+  }, [id]);
 
   const handleCoverImageUrl = () => {
     const url = coverImageUrl.trim();
@@ -453,20 +442,11 @@ export const ArticleEditor: React.FC = () => {
   };
 
   const handleAttachmentUpload = (result: UploadResult) => {
-    const attachmentMetadata = {
-      url: result.url,
-      originalName: result.originalName,
-      size: result.size,
-      type: result.type,
-      uploadedAt: new Date(),
-    };
-
     setArticle((prev) => ({
       ...prev,
-      attachments: [...(prev.attachments || []), result.url], // Keep legacy format for backward compatibility
-      attachmentMetadata: [...(prev.attachmentMetadata || []), attachmentMetadata], // New metadata format
+      attachments: [...(prev.attachments || []), result.url],
     }));
-    toast.success(`File "${result.originalName}" attached successfully`);
+    toast.success("File attached successfully");
   };
 
   // Handle file uploads for newly created articles
@@ -541,15 +521,7 @@ export const ArticleEditor: React.FC = () => {
           navigate("/my-articles");
           return;
         }
-        // Ensure all array properties are initialized
-        setArticle({
-          ...loadedArticle,
-          attachments: loadedArticle.attachments || [],
-          attachmentMetadata: loadedArticle.attachmentMetadata || [],
-          categories: loadedArticle.categories || [],
-          tags: loadedArticle.tags || [],
-          likedBy: loadedArticle.likedBy || [],
-        });
+        setArticle(loadedArticle);
         // Set form state from loaded article
         setSelectedCategory(loadedArticle.categories?.[0] || "");
       } else {
@@ -616,18 +588,19 @@ export const ArticleEditor: React.FC = () => {
       category: "",
       tags: "",
     });
+
+    // Reset unsaved changes tracking
+    setLastSavedData("");
+    setHasUnsavedChanges(false);
   };
 
-  // Handle navigation with unsaved changes warning
-  const handleNavigation = (path: string) => {
-    if (hasUnsavedChanges) {
-      setShowUnsavedWarning(true);
-    } else {
-      navigate(path);
-    }
-  };
-
-  const handleSave = async (status: "draft" | "published" | "archive" = "draft") => {
+<<<<<<< HEAD
+  const handleSave = async (status: "draft" | "published" = "draft") => {
+=======
+  const handleSave = async (
+    status: "draft" | "published" | "archive" = "draft"
+  ) => {
+>>>>>>> fbd82a0 (Saved local changes before pulling from origin)
     if (!userProfile) {
       toast.error("User authentication error. Please refresh and try again.");
       return;
@@ -759,6 +732,10 @@ export const ArticleEditor: React.FC = () => {
         }
 
         // For draft saves when editing, don't reset form - just navigate
+        if (status === "draft") {
+          navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
+          return;
+        }
       } else {
         // Create new article first to get an ID
         const newId = await createArticle(
@@ -808,7 +785,8 @@ export const ArticleEditor: React.FC = () => {
           // For archived articles, navigate to my articles with archive filter
           navigate("/my-articles?status=archive");
         } else {
-          navigate(isAdmin ? "/personal-dashboard" : "/dashboard");
+          // For published articles, reset form and stay on new article page for next article
+          navigate("/article/new");
         }
       }
 
@@ -1218,54 +1196,27 @@ export const ArticleEditor: React.FC = () => {
           )}
 
           {/* Attachments Section */}
-          {((article.attachments && article.attachments.length > 0) ||
-            (article.attachmentMetadata && article.attachmentMetadata.length > 0)) && (
+          {article.attachments && article.attachments.length > 0 && (
             <div className="mt-8 pt-6 border-t border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <Paperclip className="h-5 w-5 mr-2" />
                 Attachments
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Display new format with metadata if available */}
-                {article.attachmentMetadata && article.attachmentMetadata.length > 0 ? (
-                  article.attachmentMetadata.map((attachment, index) => (
-                    <a
-                      key={index}
-                      href={attachment.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <FileText className="h-5 w-5 text-gray-600 mr-3" />
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-gray-700 truncate block">
-                          {attachment.originalName}
-                        </span>
-                        {attachment.size && (
-                          <span className="text-xs text-gray-500">
-                            {(attachment.size / 1024 / 1024).toFixed(2)} MB
-                          </span>
-                        )}
-                      </div>
-                    </a>
-                  ))
-                ) : (
-                  /* Fallback to legacy format for backward compatibility */
-                  article.attachments?.map((url, index) => (
-                    <a
-                      key={index}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <FileText className="h-5 w-5 text-gray-600 mr-3" />
-                      <span className="text-sm text-gray-700 truncate">
-                        {url.split("/").pop() || `Attachment ${index + 1}`}
-                      </span>
-                    </a>
-                  ))
-                )}
+                {article.attachments.map((url, index) => (
+                  <a
+                    key={index}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <FileText className="h-5 w-5 text-gray-600 mr-3" />
+                    <span className="text-sm text-gray-700 truncate">
+                      Attachment {index + 1}
+                    </span>
+                  </a>
+                ))}
               </div>
             </div>
           )}
@@ -1275,7 +1226,16 @@ export const ArticleEditor: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Draft Recovery Modal */}
+      {showDraftRecovery && (
+        <DraftRecovery
+          onRecover={handleDraftRecover}
+          onDismiss={() => setShowDraftRecovery(false)}
+          currentArticleId={id === "new" ? undefined : id}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
@@ -1377,6 +1337,8 @@ export const ArticleEditor: React.FC = () => {
                 <div className="space-y-4">
                   {/* Method Toggle */}
                   <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+<<<<<<< HEAD
+=======
                     <button
                       onClick={() => setCoverImageMethod("upload")}
                       className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
@@ -1387,6 +1349,7 @@ export const ArticleEditor: React.FC = () => {
                     >
                       📁 Upload File
                     </button>
+>>>>>>> fbd82a0 (Saved local changes before pulling from origin)
                     <button
                       onClick={() => setCoverImageMethod("url")}
                       className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
@@ -1743,80 +1706,36 @@ export const ArticleEditor: React.FC = () => {
                 </FileUpload>
               )}
 
-              {((article.attachments && article.attachments.length > 0) ||
-                (article.attachmentMetadata && article.attachmentMetadata.length > 0)) && (
+              {article.attachments && article.attachments.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  {/* Display new format with metadata if available */}
-                  {article.attachmentMetadata && article.attachmentMetadata.length > 0 ? (
-                    article.attachmentMetadata.map((attachment, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                      >
-                        <div className="flex items-center flex-1 min-w-0">
-                          <FileText className="h-4 w-4 text-gray-600 mr-2 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm text-gray-700 truncate block">
-                              {attachment.originalName}
-                            </span>
-                            {attachment.size && (
-                              <span className="text-xs text-gray-500">
-                                {(attachment.size / 1024 / 1024).toFixed(2)} MB
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            const updatedMetadata = article.attachmentMetadata?.filter(
+                  {article.attachments.map((url, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center">
+                        <FileText className="h-4 w-4 text-gray-600 mr-2" />
+                        <span className="text-sm text-gray-700 truncate">
+                          Attachment {index + 1}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const updatedAttachments =
+                            article.attachments?.filter(
                               (_, i) => i !== index
                             ) || [];
-                            const updatedAttachments = article.attachments?.filter(
-                              (_, i) => i !== index
-                            ) || [];
-                            setArticle((prev) => ({
-                              ...prev,
-                              attachments: updatedAttachments,
-                              attachmentMetadata: updatedMetadata,
-                            }));
-                          }}
-                          className="text-red-600 hover:text-red-800 transition-colors flex-shrink-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    /* Fallback to legacy format for backward compatibility */
-                    article.attachments?.map((url, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                          setArticle((prev) => ({
+                            ...prev,
+                            attachments: updatedAttachments,
+                          }));
+                        }}
+                        className="text-red-600 hover:text-red-800 transition-colors"
                       >
-                        <div className="flex items-center">
-                          <FileText className="h-4 w-4 text-gray-600 mr-2" />
-                          <span className="text-sm text-gray-700 truncate">
-                            {url.split("/").pop() || `Attachment ${index + 1}`}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            const updatedAttachments =
-                              article.attachments?.filter(
-                                (_, i) => i !== index
-                              ) || [];
-                            setArticle((prev) => ({
-                              ...prev,
-                              attachments: updatedAttachments,
-                            }));
-                          }}
-                          className="text-red-600 hover:text-red-800 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))
-                  )}
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
