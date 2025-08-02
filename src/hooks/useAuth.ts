@@ -166,6 +166,13 @@ export const useAuth = () => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
+        // CRITICAL: Always reload user to get latest verification status
+        try {
+          await firebaseUser.reload();
+        } catch (error) {
+          // Handle reload errors silently
+        }
+
         // STRICT VERIFICATION CHECK: Only process verified users
         if (firebaseUser.emailVerified) {
           try {
