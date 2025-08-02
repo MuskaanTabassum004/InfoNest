@@ -1244,9 +1244,17 @@ class ResumableUploadManager {
 
   // Extract image URLs from HTML content
   private extractImageUrlsFromContent(content: string): string[] {
-    // Use shared utility function
-    const { extractImageUrls } = require('../utils/htmlUtils');
-    return extractImageUrls(content);
+    // For now, use a simple regex to extract image URLs
+    // This avoids the require() issue in browser environment
+    const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+    const urls: string[] = [];
+    let match;
+    
+    while ((match = imgRegex.exec(content)) !== null) {
+      urls.push(match[1]);
+    }
+    
+    return urls;
   }
 
   // Get upload notifications
