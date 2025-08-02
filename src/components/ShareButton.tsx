@@ -63,12 +63,9 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       }
 
       // Record share event (don't let this fail the sharing action)
-      try {
-        await recordShareEvent(articleId, method, userProfile?.uid);
-      } catch (shareEventError) {
-        console.error("Failed to record share event (sharing still successful):", shareEventError);
-        // Don't show error to user - sharing worked, just analytics failed
-      }
+      recordShareEvent(articleId, method, userProfile?.uid).catch(() => {
+        // Silently handle analytics failures - sharing still works
+      });
 
       setIsOpen(false);
     } catch (error) {

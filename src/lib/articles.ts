@@ -727,8 +727,6 @@ export const recordShareEvent = async (
   userId?: string
 ): Promise<void> => {
   try {
-    console.log(`📤 Recording share event: ${shareMethod} for article ${articleId}, user: ${userId || 'anonymous'}`);
-
     // Prepare share event data with proper null handling
     const shareEventData = {
       articleId: articleId,
@@ -738,35 +736,15 @@ export const recordShareEvent = async (
       userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
     };
 
-    console.log(`📤 Share event data:`, shareEventData);
-
     // Create share event document
     const shareEventRef = doc(collection(firestore, "shareEvents"));
     await setDoc(shareEventRef, shareEventData);
-    console.log(`✅ Share event recorded successfully with ID: ${shareEventRef.id}`);
 
-    // Update article share count (separate operation to avoid blocking)
-    try {
-      const articleRef = doc(firestore, "articles", articleId);
-      await updateDoc(articleRef, {
-        shareCount: increment(1),
-      });
-      console.log(`✅ Article share count updated`);
-    } catch (countError) {
-      console.error(`⚠️ Failed to update share count (share event still recorded):`, countError);
-      // Don't throw - share event was recorded successfully
-    }
+    // Note: Share count is not updated on articles to avoid permission issues
+    // Share events are tracked separately for analytics
   } catch (error) {
-    console.error(`❌ Failed to record share event:`, error);
-    console.error(`❌ Error details:`, {
-      code: error?.code,
-      message: error?.message,
-      articleId,
-      shareMethod,
-      userId
-    });
     // Don't throw error - sharing should still work even if analytics fail
-    throw error; // Actually, let's throw it so we can see the exact error
+    console.error("Failed to record share event:", error);
   }
 };
 

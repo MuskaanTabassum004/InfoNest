@@ -120,7 +120,7 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for articles subscription - user may not be authenticated");
+          // Silently handle permission denied errors
           return;
         }
         console.error("Error in articles subscription:", error);

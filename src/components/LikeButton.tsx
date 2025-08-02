@@ -97,7 +97,7 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for like button subscription - article may be private");
+          // Silently handle permission denied errors
           return;
         }
         console.error("Error listening to article updates:", error);

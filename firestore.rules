@@ -48,10 +48,8 @@ service cloud.firestore {
                           resource.data.likedBy.toSet().difference(request.resource.data.likedBy.toSet()) == [request.auth.uid].toSet())
                        );
 
-      // Allow anyone (including unauthenticated users) to increment share count on published articles
-      allow update: if resource.data.status == 'published' &&
-                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['shareCount']) &&
-                       request.resource.data.shareCount >= resource.data.shareCount;
+      // Note: Share count functionality removed to avoid permission issues
+      // Share events are tracked separately in shareEvents collection
 
       // DELETE PERMISSIONS
       // Authors can delete their own articles (hard delete)
