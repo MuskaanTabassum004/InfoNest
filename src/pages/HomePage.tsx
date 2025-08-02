@@ -16,7 +16,6 @@ import {
   Bookmark,
 } from "lucide-react";
 import { signOut } from "../lib/auth";
-import toast from "react-hot-toast";
 import { ArticleCard } from "../components/ArticleCard";
 import { ExpandableSearchBar } from "../components/ExpandableSearchBar";
 

@@ -2,6 +2,8 @@
  * Utility functions for processing image captions in rendered HTML content
  */
 
+import { createTempDomElement } from '../../../utils/htmlUtils';
+
 /**
  * Processes HTML content to add caption elements below images with data-caption attributes
  * @param htmlContent - The HTML content string to process
@@ -11,8 +13,7 @@ export function processImageCaptions(htmlContent: string): string {
   if (!htmlContent) return htmlContent;
 
   // Create a temporary DOM element to parse the HTML
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlContent;
+  const tempDiv = createTempDomElement(htmlContent);
 
   // Find all images with data-caption attributes
   const imagesWithCaptions = tempDiv.querySelectorAll('img[data-caption]');
@@ -72,8 +73,7 @@ export function processLayoutSpecificCaptions(htmlContent: string): string {
   const processedContent = processImageCaptions(htmlContent);
   
   // Create a temporary DOM element to apply layout-specific styles
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = processedContent;
+  const tempDiv = createTempDomElement(processedContent);
 
   // Apply layout-specific caption styling
   const figures = tempDiv.querySelectorAll('figure.image-figure-container');

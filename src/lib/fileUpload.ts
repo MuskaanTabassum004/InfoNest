@@ -11,6 +11,7 @@ export interface UploadResult {
   url: string;
   path: string;
   name: string;
+  originalName: string; // Preserve original filename
   size: number;
   type: string;
 }
@@ -68,8 +69,20 @@ export const generateFileName = (
   folder?: string
 ): string => {
   const timestamp = Date.now();
-  const randomString = Math.random().toString(36).substring(2, 15);
-  const extension = originalName.split(".").pop();
+  const randomString = Math.random().toString(36).substring(2, 8);
+
+  // Clean the original filename to make it URL-safe
+  const cleanName = originalName
+    .replace(/[^a-zA-Z0-9._-]/g, '_') // Replace special chars with underscore
+    .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+    .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
+
+  const nameParts = cleanName.split('.');
+  const extension = nameParts.pop() || '';
+  const baseName = nameParts.join('.') || 'file';
+
+  // Create filename that preserves original name but ensures uniqueness
+  const uniqueFileName = `${baseName}_${timestamp}_${randomString}.${extension}`;
 
   // For articles folder, ALWAYS require articleId (new structure only)
   if (folder === "articles") {
@@ -78,11 +91,11 @@ export const generateFileName = (
         "Article ID is required for article file uploads. Please save the article first to get an ID."
       );
     }
-    // New structure: articles/{userId}/{articleId}/{timestamp}_{randomString}.{extension}
-    return `${userId}/${articleId}/${timestamp}_${randomString}.${extension}`;
+    // New structure: articles/{userId}/{articleId}/{originalName_timestamp_random.ext}
+    return `${userId}/${articleId}/${uniqueFileName}`;
   } else {
-    // For profiles folder, use simple structure: {userId}/{timestamp}_{randomString}.{extension}
-    return `${userId}/${timestamp}_${randomString}.${extension}`;
+    // For profiles folder, use simple structure: {userId}/{originalName_timestamp_random.ext}
+    return `${userId}/${uniqueFileName}`;
   }
 };
 
@@ -117,7 +130,8 @@ export const uploadFile = async (
     const result = {
       url: downloadURL,
       path: filePath,
-      name: file.name,
+      name: fileName.split('/').pop() || file.name, // Generated filename
+      originalName: file.name, // Preserve original filename
       size: file.size,
       type: file.type,
     };

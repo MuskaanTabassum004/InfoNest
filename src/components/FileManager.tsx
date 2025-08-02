@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { Trash2, Eye, Download, File, Image, AlertTriangle } from "lucide-react";
 import { deleteFile, isImageFile, formatFileSize } from "../lib/fileUpload";
+import { extractFirebaseStoragePath, parseHtmlContent } from "../utils/htmlUtils";
+import { AttachmentMetadata } from "../lib/articles";
 import toast from "react-hot-toast";
 
 export interface ManagedFile {
@@ -155,25 +157,8 @@ export const useArticleFiles = (content: string): ManagedFile[] => {
   return useMemo(() => {
     if (!content) return [];
 
-    const extractPathFromUrl = (url: string): string => {
-      try {
-        const urlObj = new URL(url);
-        // Extract path from Firebase Storage URL format
-        const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(?:\?|$)/);
-        if (pathMatch) {
-          const decodedPath = decodeURIComponent(pathMatch[1]);
-          return decodedPath;
-        }
-        return '';
-      } catch (error) {
-        console.error("❌ Error parsing URL:", error);
-        return '';
-      }
-    };
-
     const files: ManagedFile[] = [];
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(content, 'text/html');
+    const doc = parseHtmlContent(content);
 
     // Extract images
     const images = doc.querySelectorAll('img[src*="firebasestorage.googleapis.com"]');
@@ -183,7 +168,7 @@ export const useArticleFiles = (content: string): ManagedFile[] => {
       if (src) {
         files.push({
           url: src,
-          path: extractPathFromUrl(src),
+          path: extractFirebaseStoragePath(src),
           name: alt,
           size: 0, // Size not available from HTML
           type: 'image/unknown'
@@ -199,7 +184,7 @@ export const useArticleFiles = (content: string): ManagedFile[] => {
       if (href) {
         files.push({
           url: href,
-          path: extractPathFromUrl(href),
+          path: extractFirebaseStoragePath(href),
           name: text.replace('📄 ', '').replace(/\s*\([^)]*\)$/, ''),
           size: 0, // Size not available from HTML
           type: text.includes('PDF') ? 'application/pdf' : 'application/unknown'
@@ -209,4 +194,45 @@ export const useArticleFiles = (content: string): ManagedFile[] => {
 
     return files;
   }, [content]); // Only recalculate when content changes
+};
+
+// Enhanced hook that combines content files and attachment metadata
+export const useAllArticleFiles = (
+  content: string,
+  attachmentMetadata?: AttachmentMetadata[]
+): ManagedFile[] => {
+  return useMemo(() => {
+    const contentFiles = useArticleFiles(content);
+    const attachmentFiles: ManagedFile[] = [];
+
+    // Convert attachment metadata to ManagedFile format
+    if (attachmentMetadata && Array.isArray(attachmentMetadata) && attachmentMetadata.length > 0) {
+      attachmentMetadata.forEach((attachment) => {
+        if (attachment && attachment.url && attachment.originalName) {
+          attachmentFiles.push({
+            url: attachment.url,
+            path: extractFirebaseStoragePath(attachment.url),
+            name: attachment.originalName,
+            size: attachment.size || 0,
+            type: attachment.type || 'application/unknown'
+          });
+        }
+      });
+    }
+
+    // Combine and deduplicate files (prefer attachment metadata over content extraction)
+    const allFiles: ManagedFile[] = [...attachmentFiles];
+
+    // Add content files that aren't already in attachments
+    contentFiles.forEach((contentFile) => {
+      const isDuplicate = attachmentFiles.some(
+        (attachmentFile) => attachmentFile.url === contentFile.url
+      );
+      if (!isDuplicate) {
+        allFiles.push(contentFile);
+      }
+    });
+
+    return allFiles;
+  }, [content, attachmentMetadata]);
 };

@@ -27,6 +27,14 @@ export type ArticleStatus =
   | "deleted"
   | "archive";
 
+export interface AttachmentMetadata {
+  url: string;
+  originalName: string;
+  size?: number;
+  type?: string;
+  uploadedAt?: Date;
+}
+
 export interface Article {
   id: string;
   title: string;
@@ -44,7 +52,8 @@ export interface Article {
   coverImage?: string;
   views?: number;
   shareCount?: number;
-  attachments?: string[];
+  attachments?: string[]; // Legacy: URLs only (for backward compatibility)
+  attachmentMetadata?: AttachmentMetadata[]; // New: Full metadata with original names
   // Like fields
   likes?: number;
   likedBy?: string[];

@@ -2,21 +2,10 @@
  * Search utilities for fuzzy matching and text processing
  */
 
-/**
- * Strips HTML tags from text content
- * @param html - HTML string to strip tags from
- * @returns Plain text without HTML tags
- */
-export const stripHtmlTags = (html: string): string => {
-  if (!html) return '';
-  
-  // Create a temporary div element to parse HTML
-  const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = html;
-  
-  // Get text content and clean up extra whitespace
-  return tempDiv.textContent || tempDiv.innerText || '';
-};
+import { stripHtmlTags } from './htmlUtils';
+
+// Re-export for backward compatibility
+export { stripHtmlTags };
 
 /**
  * Creates a Fuse.js search query with exact and fuzzy matching

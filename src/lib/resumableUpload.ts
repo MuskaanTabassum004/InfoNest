@@ -54,6 +54,7 @@ export interface ResumableUploadResult {
   url: string;
   path: string;
   name: string;
+  originalName: string; // Preserve original filename
   size: number;
   type: string;
   uploadId: string;
@@ -553,7 +554,8 @@ class ResumableUploadManager {
       const result: ResumableUploadResult = {
         url: downloadURL,
         path: upload.filePath,
-        name: upload.fileName,
+        name: upload.filePath.split('/').pop() || upload.fileName, // Generated filename
+        originalName: upload.fileName, // Original filename from user
         size: upload.totalBytes,
         type: upload.file?.type || "application/octet-stream",
         uploadId,
@@ -1242,15 +1244,9 @@ class ResumableUploadManager {
 
   // Extract image URLs from HTML content
   private extractImageUrlsFromContent(content: string): string[] {
-    const urls: string[] = [];
-    const imgRegex = /<img[^>]+src="([^"]+)"/g;
-    let match;
-
-    while ((match = imgRegex.exec(content)) !== null) {
-      urls.push(match[1]);
-    }
-
-    return urls;
+    // Use shared utility function
+    const { extractImageUrls } = require('../utils/htmlUtils');
+    return extractImageUrls(content);
   }
 
   // Get upload notifications

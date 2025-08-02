@@ -16,6 +16,7 @@ import {
   Share2,
   Download,
   Heart,
+  ChevronDown,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import toast from "react-hot-toast";
@@ -48,6 +49,9 @@ export const ArticleView: React.FC = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [likingInProgress, setLikingInProgress] = useState(false);
+
+  // Attachments collapse state (default: collapsed)
+  const [isAttachmentsExpanded, setIsAttachmentsExpanded] = useState(false);
 
   // Comment section state
   const commentSection = useCommentSection(article?.id || "");
@@ -836,36 +840,94 @@ export const ArticleView: React.FC = () => {
             </div>
 
             {/* Attachments */}
-            {article.attachments && article.attachments.length > 0 && (
+            {((article.attachments && article.attachments.length > 0) ||
+              (article.attachmentMetadata && article.attachmentMetadata.length > 0)) && (
               <div className="mt-8 pt-6 border-t border-gray-200">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Download className="h-5 w-5 text-blue-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Attachments
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  {article.attachments.map((attachment, index) => (
-                    <a
-                      key={index}
-                      href={attachment}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200 group"
-                    >
-                      <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all">
-                        <Download className="h-5 w-5 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors block truncate">
-                          {attachment.split("/").pop() || "Download"}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Click to download
-                        </span>
-                      </div>
-                    </a>
-                  ))}
+                {/* Collapsible Header */}
+                <button
+                  onClick={() => setIsAttachmentsExpanded(!isAttachmentsExpanded)}
+                  className="flex items-center justify-between w-full mb-4 p-2 -m-2 rounded-lg hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-200 group"
+                  aria-expanded={isAttachmentsExpanded}
+                  aria-controls="attachments-content"
+                  aria-label={`${isAttachmentsExpanded ? 'Collapse' : 'Expand'} attachments section`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Download className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                      Attachments ({article.attachmentMetadata?.length || article.attachments?.length || 0})
+                    </h3>
+                  </div>
+                  <ChevronDown
+                    className={`h-5 w-5 text-gray-500 transition-transform duration-300 ease-in-out ${
+                      isAttachmentsExpanded ? 'rotate-180' : 'rotate-0'
+                    }`}
+                  />
+                </button>
+
+                {/* Collapsible Content */}
+                <div
+                  id="attachments-content"
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isAttachmentsExpanded
+                      ? 'max-h-screen opacity-100'
+                      : 'max-h-0 opacity-0'
+                  }`}
+                  style={{
+                    transitionProperty: 'max-height, opacity, margin',
+                    marginTop: isAttachmentsExpanded ? '0' : '0',
+                  }}
+                >
+                  <div className={`space-y-3 transition-all duration-300 ease-in-out ${
+                    isAttachmentsExpanded ? 'pb-2 pt-1' : 'pb-0 pt-0'
+                  }`}>
+                    {/* Display new format with metadata if available */}
+                    {article.attachmentMetadata && article.attachmentMetadata.length > 0 ? (
+                      article.attachmentMetadata.map((attachment, index) => (
+                        <a
+                          key={index}
+                          href={attachment.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200 group"
+                        >
+                          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all">
+                            <Download className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors block truncate">
+                              {attachment.originalName}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {attachment.size ? `${(attachment.size / 1024 / 1024).toFixed(2)} MB • ` : ''}Click to download
+                            </span>
+                          </div>
+                        </a>
+                      ))
+                    ) : (
+                      /* Fallback to legacy format for backward compatibility */
+                      article.attachments?.map((attachment, index) => (
+                        <a
+                          key={index}
+                          href={attachment}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-xl border border-blue-100 hover:border-blue-200 transition-all duration-200 group"
+                        >
+                          <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:from-blue-600 group-hover:to-purple-700 transition-all">
+                            <Download className="h-5 w-5 text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors block truncate">
+                              {attachment.split("/").pop() || "Download"}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Click to download
+                            </span>
+                          </div>
+                        </a>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             )}
