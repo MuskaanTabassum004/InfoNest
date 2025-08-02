@@ -167,7 +167,7 @@ export const WriterRequestPage: React.FC = () => {
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for legacy writer request subscription - user may not be authenticated");
+          // Silently handle permission denied errors
           return;
         }
         console.error("Error in legacy writer request subscription:", error);
@@ -213,7 +213,7 @@ export const WriterRequestPage: React.FC = () => {
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for legacy writer requests subscription - user may not be admin");
+          // Silently handle permission denied errors
           return;
         }
         console.error("Error in legacy writer requests subscription:", error);

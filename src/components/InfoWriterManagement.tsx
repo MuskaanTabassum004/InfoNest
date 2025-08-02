@@ -90,7 +90,7 @@ export const InfoWriterManagement: React.FC<InfoWriterManagementProps> = ({
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for InfoWriter management - user may not be admin");
+          // Silently handle permission denied errors
           setLoading(false);
           return;
         }

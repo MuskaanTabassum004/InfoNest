@@ -173,7 +173,7 @@ export const subscribeToUserNotifications = (
     (error) => {
       // Handle permission errors silently
       if (error.code === "permission-denied") {
-        console.warn("Permission denied for notifications subscription - user may not be authenticated or verified");
+        // Silently handle permission denied errors
         callback([]);
         return;
       }

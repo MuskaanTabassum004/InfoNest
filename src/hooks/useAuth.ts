@@ -261,7 +261,7 @@ export const useAuth = () => {
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for user profile subscription - user may not be authenticated or verified");
+          // Silently handle permission denied errors
           return;
         }
         console.error("Error in user profile subscription:", error);

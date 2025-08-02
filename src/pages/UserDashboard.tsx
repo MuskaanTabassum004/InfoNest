@@ -95,7 +95,7 @@ export const UserDashboard: React.FC = () => {
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for dashboard articles subscription - user may not be authenticated");
+          // Silently handle permission denied errors
           setLoading(false);
           return;
         }

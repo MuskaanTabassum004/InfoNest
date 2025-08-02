@@ -91,7 +91,7 @@ export const ActiveWritersPage: React.FC = () => {
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for ActiveWriters subscription - user may not be admin");
+          // Silently handle permission denied errors
           setLoading(false);
           return;
         }
@@ -122,18 +122,13 @@ export const ActiveWritersPage: React.FC = () => {
           }
         });
 
-        // Log published article counts for debugging
-        const totalAuthors = Object.keys(articlesData).length;
-        const totalPublishedArticles = Object.values(articlesData).reduce((sum: number, count: number) => sum + count, 0);
-        console.log(`📈 Published article counts updated: ${totalAuthors} authors, ${totalPublishedArticles} published articles`);
-
         // Update the UI with new counts
         updateWritersList();
       },
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for articles subscription - user may not be authenticated");
+          // Silently handle permission denied errors
           return;
         }
         console.error("Error in articles subscription:", error);

@@ -33,7 +33,6 @@ if (typeof window !== 'undefined') {
 const handleFirestoreError = (error: any) => {
   if (error?.code === 'permission-denied') {
     // Silently handle permission denied errors during logout
-    console.warn('Firestore permission denied - user may have logged out');
     return true; // Indicate error was handled
   }
   // Log other errors normally

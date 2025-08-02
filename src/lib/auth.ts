@@ -651,7 +651,7 @@ export const removeInfoWriterPrivileges = async (
     return { deletedArticlesCount };
 
   } catch (error) {
-    console.error(`❌ Error during InfoWriter privilege removal:`, error);
+    console.error(`Error during InfoWriter privilege removal:`, error);
     throw error;
   }
 };

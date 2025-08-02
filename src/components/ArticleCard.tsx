@@ -145,7 +145,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for author profile subscription - user may not have access");
+          // Silently handle permission denied errors
           return;
         }
         console.error("Error in author profile subscription:", error);

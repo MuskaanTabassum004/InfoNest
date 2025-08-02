@@ -217,7 +217,7 @@ export const ArticleView: React.FC = () => {
       (error) => {
         // Handle permission errors silently
         if (error.code === "permission-denied") {
-          console.warn("Permission denied for article subscription - article may be private or user not authenticated");
+          // Silently handle permission denied errors
           navigate("/dashboard");
           return;
         }

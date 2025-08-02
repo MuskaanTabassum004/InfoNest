@@ -505,15 +505,8 @@ class ResumableUploadManager {
     const upload = this.uploads.get(uploadId);
     if (!upload) return;
 
-    console.error(`❌ Upload error for ${upload.filePath}:`, error);
-    console.error(`📋 Upload details:`, {
-      fileName: upload.fileName,
-      filePath: upload.filePath,
-      userId: upload.userId,
-      articleId: upload.context?.articleId,
-      bytesTransferred: upload.bytesTransferred,
-      totalBytes: upload.totalBytes,
-    });
+    // Log upload errors for debugging
+    console.error(`Upload error for ${upload.filePath}:`, error);
 
     upload.state = "error";
     upload.error = error.message;
