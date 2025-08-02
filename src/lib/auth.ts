@@ -374,6 +374,10 @@ export const createUserProfileAfterVerification = async (
 export const signIn = async (email: string, password: string) => {
   const result = await signInWithEmailAndPassword(auth, email, password);
 
+  // CRITICAL: Reload user to get the latest verification status
+  // This ensures we have the most up-to-date emailVerified status
+  await result.user.reload();
+
   // STRICT: Check if email is verified before allowing sign in
   if (!result.user.emailVerified) {
     // Sign out the unverified user immediately

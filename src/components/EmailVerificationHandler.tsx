@@ -45,6 +45,15 @@ export const EmailVerificationHandler: React.FC = () => {
         // This works cross-browser/cross-device without requiring user to be signed in
         await applyActionCode(auth, oobCode);
 
+        // CRITICAL: Handle cross-device verification properly
+        // If user is signed in on this device, reload their auth state
+        if (auth.currentUser && auth.currentUser.email === userEmail) {
+          await auth.currentUser.reload();
+        }
+
+        // For cross-device verification, the email is verified in Firebase's system
+        // The user will be able to login from any device with verified status
+
         setStatus('success');
         setMessage('🎉 Email verified successfully! Your account is now active and you can sign in with your verified email.');
 
