@@ -595,8 +595,6 @@ export const ArticleEditor: React.FC = () => {
   };
 
   const handleSave = async (status: "draft" | "published" = "draft") => {
-  ) => {
->>>>>>> fbd82a0 (Saved local changes before pulling from origin)
     if (!userProfile) {
       toast.error("User authentication error. Please refresh and try again.");
       return;
@@ -1333,8 +1331,6 @@ export const ArticleEditor: React.FC = () => {
                 <div className="space-y-4">
                   {/* Method Toggle */}
                   <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-<<<<<<< HEAD
-=======
                     <button
                       onClick={() => setCoverImageMethod("upload")}
                       className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
@@ -1345,7 +1341,6 @@ export const ArticleEditor: React.FC = () => {
                     >
                       📁 Upload File
                     </button>
->>>>>>> fbd82a0 (Saved local changes before pulling from origin)
                     <button
                       onClick={() => setCoverImageMethod("url")}
                       className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
