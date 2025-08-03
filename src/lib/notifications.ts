@@ -16,7 +16,7 @@ import { firestore } from "./firebase";
 export interface AppNotification {
   id: string;
   userId: string;
-  type: "role_approval" | "general" | "article_published" | "system" | "writer_privileges_removed";
+  type: "role_approval" | "general" | "article_published" | "system" | "writer_privileges_removed" | "article_deleted";
   title: string;
   message: string;
   isRead: boolean;
@@ -133,6 +133,36 @@ export const createInfoWriterStatusNotification = async (
   } else {
     await createInfoWriterRejectionNotification(userId, adminNote);
   }
+};
+
+// Create article deletion notification
+export const createArticleDeletionNotification = async (
+  userId: string,
+  articleTitle: string,
+  deleteReason?: string
+): Promise<void> => {
+  const message = deleteReason
+    ? `Your article "${articleTitle}" has been deleted by an administrator. Reason: ${deleteReason}. If you have questions about this action, please contact support.`
+    : `Your article "${articleTitle}" has been deleted by an administrator. If you have questions about this action, please contact support.`;
+
+  // Build metadata without undefined values
+  const metadata: any = {
+    articleTitle: articleTitle,
+    deletedBy: "admin",
+  };
+
+  // Only add deleteReason if it has a value
+  if (deleteReason && deleteReason.trim()) {
+    metadata.deleteReason = deleteReason.trim();
+  }
+
+  await createNotification(
+    userId,
+    "article_deleted",
+    "Article Deleted",
+    message,
+    metadata
+  );
 };
 // Get user notifications
 export const getUserNotifications = async (

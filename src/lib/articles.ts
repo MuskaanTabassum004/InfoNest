@@ -386,8 +386,6 @@ export const deleteArticleByRole = async (
   authorRole?: string,
   deleteReason?: string
 ): Promise<void> => {
-  console.log(`🗑️ deleteArticleByRole called: articleId=${articleId}, userRole=${userRole}, userId=${userId}, authorId=${authorId}, authorRole=${authorRole}`);
-
   // Get article data before deletion for notification purposes
   let articleData: any = null;
   try {
@@ -395,52 +393,40 @@ export const deleteArticleByRole = async (
     const articleDoc = await getDoc(articleRef);
     if (articleDoc.exists()) {
       articleData = articleDoc.data();
-      console.log(`📄 Article data retrieved: ${articleData.title}`);
-    } else {
-      console.log(`⚠️ Article document not found: ${articleId}`);
     }
   } catch (error) {
-    console.error("Error fetching article data for notification:", error);
+    // Handle error silently
   }
 
   // Self-deletion (hard delete) - NO NOTIFICATION
   if (userId === authorId) {
-    console.log(`👤 Self-deletion detected - performing hard delete without notification`);
     await hardDeleteArticle(articleId);
     return;
   }
 
   // Admin deleting someone else's article - SEND NOTIFICATION
   if (userRole === "admin" && userId !== authorId) {
-    console.log(`👨‍💼 Admin deleting other user's article - performing hard delete with notification`);
-
     // Perform the deletion first
     await hardDeleteArticle(articleId);
 
     // Send notification ONLY to InfoWriter authors
     if (articleData && authorRole === "infowriter") {
       try {
-        console.log(`📧 Sending deletion notification to InfoWriter: ${authorId}`);
         const { createArticleDeletionNotification } = await import("./notifications");
         await createArticleDeletionNotification(
           authorId,
           articleData.title || "Untitled Article",
           deleteReason
         );
-        console.log(`✅ Deletion notification sent successfully`);
       } catch (error) {
-        console.error("Error sending article deletion notification:", error);
         // Don't throw error to avoid breaking the deletion process
       }
-    } else {
-      console.log(`📝 No notification sent - author is not InfoWriter or no article data`);
     }
     return;
   }
 
   // Admin deleting their own article - NO NOTIFICATION
   if (userRole === "admin") {
-    console.log(`👨‍💼 Admin deleting own article - performing hard delete without notification`);
     await hardDeleteArticle(articleId);
     return;
   }
