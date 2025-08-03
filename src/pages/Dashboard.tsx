@@ -5,37 +5,16 @@ import { UserDashboard } from "./UserDashboard";
 import { AdminDashboard } from "./AdminDashboard";
 
 export const Dashboard: React.FC = () => {
-  const { userProfile, isAdmin, isInfoWriter, isUser, loading, permissions } =
+  const { userProfile, isAdmin, isUser, loading, permissions } =
     useAuth();
   const navigate = useNavigate();
 
-  // Immediate check on component mount
-  if (userProfile?.role === "infowriter") {
-    console.log("Dashboard: Immediate redirect for InfoWriter on mount");
-    navigate("/my-articles", { replace: true });
-  }
-
-  // Immediate redirect for InfoWriters - check as soon as userProfile is available
+  // Redirect InfoWriters to My Articles page (backup in case they reach Dashboard)
   useEffect(() => {
-    if (userProfile) {
-      console.log("Dashboard: userProfile detected", { role: userProfile.role, isInfoWriter, isAdmin });
-
-      // Check if user is InfoWriter but not Admin
-      if (userProfile.role === "infowriter") {
-        console.log("Dashboard: Redirecting InfoWriter to My Articles");
-        navigate("/my-articles", { replace: true });
-        return;
-      }
-    }
-  }, [userProfile, navigate, isInfoWriter, isAdmin]);
-
-  // Also check with isInfoWriter hook for backup
-  useEffect(() => {
-    if (userProfile && isInfoWriter && !isAdmin) {
-      console.log("Dashboard: Backup redirect for InfoWriter");
+    if (userProfile?.role === "infowriter") {
       navigate("/my-articles", { replace: true });
     }
-  }, [userProfile, isInfoWriter, isAdmin, navigate]);
+  }, [userProfile, navigate]);
 
   // Memoized dashboard component selection for performance
   const DashboardComponent = useMemo(() => {
