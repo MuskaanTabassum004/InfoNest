@@ -323,19 +323,18 @@ export const HomePage: React.FC = () => {
                 Docs
               </a>
 
-              <a
-                href="#about"
-                onClick={(e) => {
-                  e.preventDefault();
+              <button
+                type="button"
+                onClick={() => {
                   const aboutSection = document.getElementById('about');
                   if (aboutSection) {
                     aboutSection.scrollIntoView({ behavior: 'smooth' });
                   }
                 }}
-                className="text-gray-600 hover:text-blue-600 transition-colors"
+                className="text-gray-600 hover:text-blue-600 transition-colors bg-transparent border-none cursor-pointer"
               >
                 About
-              </a>
+              </button>
             </nav>
 
             <div className="flex items-center space-x-4">
@@ -665,19 +664,18 @@ export const HomePage: React.FC = () => {
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="#about"
-                    onClick={(e) => {
-                      e.preventDefault();
+                  <button
+                    type="button"
+                    onClick={() => {
                       const aboutSection = document.getElementById('about');
                       if (aboutSection) {
                         aboutSection.scrollIntoView({ behavior: 'smooth' });
                       }
                     }}
-                    className="hover:text-white transition-colors"
+                    className="hover:text-white transition-colors bg-transparent border-none cursor-pointer"
                   >
                     About
-                  </a>
+                  </button>
                 </li>
                 <li>
                   <Link
