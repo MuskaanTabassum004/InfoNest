@@ -9,7 +9,18 @@ export const Dashboard: React.FC = () => {
     useAuth();
   const navigate = useNavigate();
 
-  // Redirect InfoWriters to My Articles page
+  // Immediate redirect for InfoWriters - check as soon as userProfile is available
+  useEffect(() => {
+    if (userProfile) {
+      // Check if user is InfoWriter but not Admin
+      if (userProfile.role === "infowriter") {
+        navigate("/my-articles", { replace: true });
+        return;
+      }
+    }
+  }, [userProfile, navigate]);
+
+  // Also check with isInfoWriter hook for backup
   useEffect(() => {
     if (userProfile && isInfoWriter && !isAdmin) {
       navigate("/my-articles", { replace: true });
@@ -33,6 +44,15 @@ export const Dashboard: React.FC = () => {
 
     return null;
   }, [userProfile, isAdmin, isUser]);
+
+  // Early return for InfoWriters to prevent any rendering
+  if (userProfile?.role === "infowriter") {
+    return (
+      <div className="flex items-center justify-center min-h-32">
+        <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   // Loading state - only show on initial load, not on cached data
   if (loading && !userProfile) {
