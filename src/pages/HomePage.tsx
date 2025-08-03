@@ -33,6 +33,21 @@ export const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+  // Scroll functions for navigation
+  const scrollToFeaturedArticles = () => {
+    const element = document.getElementById('features');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const scrollToAbout = () => {
+    const element = document.getElementById('about');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const loadHomePageData = (): (() => void) => {
     setLoading(true);
 
@@ -314,19 +329,19 @@ export const HomePage: React.FC = () => {
               </Link>
             </div>
             <nav className="hidden md:flex items-center space-x-10 pr-8 ml-auto">
-              <a
-                href="#features"
+              <button
+                onClick={scrollToFeaturedArticles}
                 className="text-gray-600 hover:text-blue-600 transition-colors"
               >
                 Docs
-              </a>
+              </button>
 
-              <a
-                href="#about"
+              <button
+                onClick={scrollToAbout}
                 className="text-gray-600 hover:text-blue-600 transition-colors"
               >
                 About
-              </a>
+              </button>
             </nav>
 
             <div className="flex items-center space-x-4">
@@ -656,12 +671,12 @@ export const HomePage: React.FC = () => {
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="#about"
+                  <button
+                    onClick={scrollToAbout}
                     className="hover:text-white transition-colors"
                   >
                     About
-                  </a>
+                  </button>
                 </li>
                 <li>
                   <Link
