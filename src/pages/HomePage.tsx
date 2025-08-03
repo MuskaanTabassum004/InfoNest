@@ -325,6 +325,13 @@ export const HomePage: React.FC = () => {
 
               <a
                 href="#about"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const aboutSection = document.getElementById('about');
+                  if (aboutSection) {
+                    aboutSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
                 className="text-gray-600 hover:text-blue-600 transition-colors"
               >
                 About
@@ -660,6 +667,13 @@ export const HomePage: React.FC = () => {
                 <li>
                   <a
                     href="#about"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const aboutSection = document.getElementById('about');
+                      if (aboutSection) {
+                        aboutSection.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
                     className="hover:text-white transition-colors"
                   >
                     About
