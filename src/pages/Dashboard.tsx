@@ -5,15 +5,9 @@ import { UserDashboard } from "./UserDashboard";
 import { AdminDashboard } from "./AdminDashboard";
 
 export const Dashboard: React.FC = () => {
-  const { userProfile, isAdmin, isInfoWriter, isUser, loading, permissions, isAuthenticated } =
+  const { userProfile, isAdmin, isInfoWriter, isUser, loading, permissions } =
     useAuth();
   const navigate = useNavigate();
-
-  // Quick authentication check without heavy verification
-  if (!isAuthenticated && !loading) {
-    navigate("/auth", { replace: true });
-    return null;
-  }
 
   // Redirect InfoWriters to My Articles page
   useEffect(() => {
