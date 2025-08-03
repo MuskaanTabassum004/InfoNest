@@ -28,15 +28,7 @@ interface HomePageData {
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, userProfile, loading: authLoading, isAdmin, isInfoWriter } = useAuth();
-
-  // Get the correct dashboard route for the current user
-  const getDashboardRoute = () => {
-    if (isInfoWriter && !isAdmin) {
-      return "/my-articles";
-    }
-    return "/dashboard";
-  };
+  const { isAuthenticated, userProfile, loading: authLoading } = useAuth();
   const [homeData, setHomeData] = useState<HomePageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -391,12 +383,12 @@ export const HomePage: React.FC = () => {
                         <span>Profile</span>
                       </Link>
                       <Link
-                        to={getDashboardRoute()}
+                        to="/dashboard"
                         onClick={() => setIsDropdownOpen(false)}
                         className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
                       >
                         <Shield className="h-4 w-4" />
-                        <span>{isInfoWriter && !isAdmin ? "My Articles" : "Dashboard"}</span>
+                        <span>Dashboard</span>
                       </Link>
                       <Link
                         to="/saved-articles"
@@ -465,10 +457,10 @@ export const HomePage: React.FC = () => {
           <div className="mt-8">
             {isAuthenticated ? (
               <Link
-                to={getDashboardRoute()}
+                to="/dashboard"
                 className="inline-flex items-center space-x-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
               >
-                <span>{isInfoWriter && !isAdmin ? "Go to My Articles" : "Go to Dashboard"}</span>
+                <span>Go to Dashboard</span>
                 <ArrowRight className="h-5 w-5" />
               </Link>
             ) : (
@@ -541,7 +533,7 @@ export const HomePage: React.FC = () => {
               <button
                 onClick={() => {
                   if (isAuthenticated) {
-                    navigate(getDashboardRoute());
+                    navigate("/dashboard");
                   } else {
                     navigate("/auth?redirect=dashboard");
                   }

@@ -143,11 +143,7 @@ function AppContent({
             {/* Routes accessible to all authenticated users */}
             <Route
               path="dashboard"
-              element={
-                <UserRoute>
-                  <Dashboard />
-                </UserRoute>
-              }
+              element={<Dashboard />}
             />
             <Route
               path="article/:id"
