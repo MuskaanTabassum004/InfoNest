@@ -27,10 +27,8 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   useEffect(() => {
     if (!articleId) return;
 
-    console.log("Subscribing to comments for article:", articleId);
     setLoading(true);
     const unsubscribe = subscribeToComments(articleId, (newComments) => {
-      console.log("Received comments:", newComments);
       setComments(newComments);
       setCommentCount(newComments.length);
       setLoading(false);

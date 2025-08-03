@@ -213,7 +213,6 @@ export const ReplyInput: React.FC<ReplyInputProps> = ({
       toast.success("Reply added!");
       onReplyAdded?.();
     } catch (error) {
-      console.error("Error adding reply:", error);
       toast.error("Failed to add reply");
     } finally {
       setIsSubmitting(false);

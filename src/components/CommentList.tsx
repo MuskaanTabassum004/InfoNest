@@ -35,7 +35,6 @@ const ReplyItem: React.FC<ReplyItemProps> = ({ reply, articleId, onReplyDeleted 
         toast.success("Reply deleted");
         onReplyDeleted?.();
       } catch (error) {
-        console.error("Error deleting reply:", error);
         toast.error("Failed to delete reply");
       } finally {
         setIsDeleting(false);
@@ -125,7 +124,6 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, articleId, onComment
         toast.success("Comment deleted");
         onCommentDeleted?.();
       } catch (error) {
-        console.error("Error deleting comment:", error);
         toast.error("Failed to delete comment");
       } finally {
         setIsDeleting(false);

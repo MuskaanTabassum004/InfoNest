@@ -113,7 +113,6 @@ export const createReply = async (
 
     return docRef.id;
   } catch (error) {
-    console.error("Error creating reply:", error);
     throw error;
   }
 };
@@ -243,7 +242,6 @@ export const deleteReply = async (
       replyCount: increment(-1),
     });
   } catch (error) {
-    console.error("Error deleting reply:", error);
     throw error;
   }
 };
@@ -257,7 +255,6 @@ export const subscribeToComments = (
   const q = query(commentsRef, orderBy("createdAt", "desc"));
 
   return onSnapshot(q, (snapshot) => {
-    console.log("Comments snapshot received:", snapshot.docs.length, "comments");
     const comments: Comment[] = [];
     snapshot.docs.forEach((docSnap) => {
       const data = docSnap.data();
@@ -277,7 +274,7 @@ export const subscribeToComments = (
   }, (error) => {
     // Handle permission errors silently
     if (error.code === "permission-denied") {
-      console.warn("Permission denied for comments subscription - user may not have access to this article");
+      // Silently handle permission denied errors
       callback([]);
       return;
     }
