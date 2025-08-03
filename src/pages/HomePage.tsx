@@ -34,14 +34,18 @@ export const HomePage: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Scroll functions for navigation
-  const scrollToFeaturedArticles = () => {
+  const scrollToFeaturedArticles = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     const element = document.getElementById('features');
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
-  const scrollToAbout = () => {
+  const scrollToAbout = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     const element = document.getElementById('about');
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -330,6 +334,7 @@ export const HomePage: React.FC = () => {
             </div>
             <nav className="hidden md:flex items-center space-x-10 pr-8 ml-auto">
               <button
+                type="button"
                 onClick={scrollToFeaturedArticles}
                 className="text-gray-600 hover:text-blue-600 transition-colors"
               >
@@ -337,6 +342,7 @@ export const HomePage: React.FC = () => {
               </button>
 
               <button
+                type="button"
                 onClick={scrollToAbout}
                 className="text-gray-600 hover:text-blue-600 transition-colors"
               >
@@ -672,6 +678,7 @@ export const HomePage: React.FC = () => {
                 </li>
                 <li>
                   <button
+                    type="button"
                     onClick={scrollToAbout}
                     className="hover:text-white transition-colors"
                   >
