@@ -188,6 +188,19 @@ service cloud.firestore {
         request.auth.token.email_verified == true &&
         request.auth.uid == resource.data.userId;
 
+      // Allow authenticated users to increment/decrement reply count on any comment
+      allow update: if request.auth != null &&
+        request.auth.token.email_verified == true &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount']) &&
+        (
+          // Handle case where replyCount doesn't exist yet (initialize to 1)
+          (!('replyCount' in resource.data) && request.resource.data.replyCount == 1) ||
+          // Handle normal increment/decrement case
+          (('replyCount' in resource.data) &&
+           (request.resource.data.replyCount == resource.data.replyCount + 1 ||
+            request.resource.data.replyCount == resource.data.replyCount - 1))
+        );
+
       // DELETE PERMISSIONS
       // Users can delete their own comments
       allow delete: if request.auth != null &&
