@@ -555,7 +555,6 @@ export const approveWriterRequest = async (uid: string) => {
     );
     await createInfoWriterApprovalNotification(uid);
   } catch (error) {
-    console.error("Error creating InfoWriter approval notification:", error);
     // Don't throw error to avoid breaking the approval process
   }
 };
@@ -670,7 +669,6 @@ export const denyWriterRequest = async (uid: string) => {
     );
     await createInfoWriterRejectionNotification(uid);
   } catch (error) {
-    console.error("Error creating InfoWriter rejection notification:", error);
     // Don't throw error to avoid breaking the denial process
   }
 };

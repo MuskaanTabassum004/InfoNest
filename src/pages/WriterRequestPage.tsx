@@ -399,7 +399,7 @@ export const WriterRequestPage: React.FC = () => {
           try {
             await createInfoWriterApprovalNotification(request.userId);
           } catch (notifError) {
-            console.error("Failed to create notification:", notifError);
+            // Handle notification errors silently
           }
         }
       } else {
@@ -419,7 +419,7 @@ export const WriterRequestPage: React.FC = () => {
           try {
             await createInfoWriterApprovalNotification(request.userId);
           } catch (notifError) {
-            console.error("Failed to create notification:", notifError);
+            // Handle notification errors silently
           }
         } else {
           await updateDoc(userRef, {
@@ -447,7 +447,6 @@ export const WriterRequestPage: React.FC = () => {
         })
       );
     } catch (error) {
-      console.error(`Error ${action}ing request:`, error);
       toast.error(`Failed to ${action} request`);
     } finally {
       setProcessingId(null);

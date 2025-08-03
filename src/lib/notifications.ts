@@ -50,15 +50,26 @@ export const createNotification = async (
       createdAt: Timestamp.fromDate(new Date()),
     };
 
-    // Only add metadata if it's defined
+    // Only add metadata if it's defined and clean up undefined values
     if (metadata !== undefined) {
-      notification.metadata = metadata;
+      // Remove undefined values from metadata
+      const cleanMetadata: any = {};
+      Object.keys(metadata).forEach(key => {
+        if (metadata[key] !== undefined) {
+          cleanMetadata[key] = metadata[key];
+        }
+      });
+
+      // Only add metadata if it has valid properties
+      if (Object.keys(cleanMetadata).length > 0) {
+        notification.metadata = cleanMetadata;
+      }
     }
 
     await setDoc(notificationRef, notification);
 
   } catch (error) {
-    console.error("Error creating notification:", error);
+    // Handle errors silently for notifications
     throw new Error("Failed to create notification");
   }
 };
@@ -85,21 +96,28 @@ export const createInfoWriterRejectionNotification = async (
   userId: string,
   adminNote?: string
 ): Promise<void> => {
-  const message = adminNote 
+  const message = adminNote
     ? `Your InfoWriter request has been rejected. Reason: ${adminNote}. You can submit a new request after addressing the feedback.`
     : "Your InfoWriter request has been rejected. You can submit a new request in the future.";
+
+  // Build metadata without undefined values
+  const metadata: any = {
+    previousRole: "user",
+    newRole: "user",
+    status: "rejected",
+  };
+
+  // Only add adminNote if it has a value
+  if (adminNote && adminNote.trim()) {
+    metadata.adminNote = adminNote.trim();
+  }
 
   await createNotification(
     userId,
     "role_approval",
     "InfoWriter Request Update",
     message,
-    {
-      previousRole: "user",
-      newRole: "user",
-      status: "rejected",
-      adminNote: adminNote || undefined,
-    }
+    metadata
   );
 };
 
@@ -138,7 +156,6 @@ export const getUserNotifications = async (
       } as AppNotification;
     });
   } catch (error) {
-    console.error("❌ Error fetching notifications:", error);
     return [];
   }
 };
@@ -235,7 +252,6 @@ export const deleteNotification = async (
     await deleteDoc(notificationRef);
 
   } catch (error) {
-    console.error("Error deleting notification:", error);
     throw new Error("Failed to delete notification");
   }
 };

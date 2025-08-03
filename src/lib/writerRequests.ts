@@ -175,7 +175,6 @@ export const processWriterRequest = async (
     const { createInfoWriterStatusNotification } = await import("./notifications");
     await createInfoWriterStatusNotification(userId, status, adminNotes);
   } catch (error) {
-    console.error("Error creating InfoWriter status notification:", error);
     // Don't throw error to avoid breaking the process
   }
 };
