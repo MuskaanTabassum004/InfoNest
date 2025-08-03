@@ -33,24 +33,7 @@ export const HomePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Scroll functions for navigation
-  const scrollToFeaturedArticles = (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    const element = document.getElementById('features');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
-  const scrollToAbout = (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    const element = document.getElementById('about');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   const loadHomePageData = (): (() => void) => {
     setLoading(true);
@@ -333,21 +316,19 @@ export const HomePage: React.FC = () => {
               </Link>
             </div>
             <nav className="hidden md:flex items-center space-x-10 pr-8 ml-auto">
-              <button
-                type="button"
-                onClick={scrollToFeaturedArticles}
+              <a
+                href="#features"
                 className="text-gray-600 hover:text-blue-600 transition-colors"
               >
                 Docs
-              </button>
+              </a>
 
-              <button
-                type="button"
-                onClick={scrollToAbout}
+              <a
+                href="#about"
                 className="text-gray-600 hover:text-blue-600 transition-colors"
               >
                 About
-              </button>
+              </a>
             </nav>
 
             <div className="flex items-center space-x-4">
@@ -677,13 +658,12 @@ export const HomePage: React.FC = () => {
                   </a>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={scrollToAbout}
+                  <a
+                    href="#about"
                     className="hover:text-white transition-colors"
                   >
                     About
-                  </button>
+                  </a>
                 </li>
                 <li>
                   <Link
