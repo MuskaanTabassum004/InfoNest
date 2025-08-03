@@ -548,15 +548,8 @@ export const approveWriterRequest = async (uid: string) => {
     updatedAt: new Date(),
   });
 
-  // Create notification for the approved user
-  try {
-    const { createInfoWriterApprovalNotification } = await import(
-      "./notifications"
-    );
-    await createInfoWriterApprovalNotification(uid);
-  } catch (error) {
-    // Don't throw error to avoid breaking the approval process
-  }
+  // Note: Notification creation is handled by the calling function (processWriterRequest)
+  // to avoid duplicate notifications
 };
 
 // Comprehensive InfoWriter privilege removal with article cleanup

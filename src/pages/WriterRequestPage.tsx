@@ -394,13 +394,7 @@ export const WriterRequestPage: React.FC = () => {
         // If approved, also update user role in auth system
         if (action === "approve") {
           await approveWriterRequest(request.userId);
-
-          // Create notification
-          try {
-            await createInfoWriterApprovalNotification(request.userId);
-          } catch (notifError) {
-            // Handle notification errors silently
-          }
+          // Note: Notification is already created by processWriterRequest above
         }
       } else {
         // Process legacy system request
@@ -415,12 +409,7 @@ export const WriterRequestPage: React.FC = () => {
             requestedWriterAccess: false,
           });
 
-          // Create notification
-          try {
-            await createInfoWriterApprovalNotification(request.userId);
-          } catch (notifError) {
-            // Handle notification errors silently
-          }
+          // Note: Notification is handled by the legacy approval process
         } else {
           await updateDoc(userRef, {
             writerRequestRejected: true,
