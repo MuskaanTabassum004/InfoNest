@@ -9,20 +9,30 @@ export const Dashboard: React.FC = () => {
     useAuth();
   const navigate = useNavigate();
 
+  // Immediate check on component mount
+  if (userProfile?.role === "infowriter") {
+    console.log("Dashboard: Immediate redirect for InfoWriter on mount");
+    navigate("/my-articles", { replace: true });
+  }
+
   // Immediate redirect for InfoWriters - check as soon as userProfile is available
   useEffect(() => {
     if (userProfile) {
+      console.log("Dashboard: userProfile detected", { role: userProfile.role, isInfoWriter, isAdmin });
+
       // Check if user is InfoWriter but not Admin
       if (userProfile.role === "infowriter") {
+        console.log("Dashboard: Redirecting InfoWriter to My Articles");
         navigate("/my-articles", { replace: true });
         return;
       }
     }
-  }, [userProfile, navigate]);
+  }, [userProfile, navigate, isInfoWriter, isAdmin]);
 
   // Also check with isInfoWriter hook for backup
   useEffect(() => {
     if (userProfile && isInfoWriter && !isAdmin) {
+      console.log("Dashboard: Backup redirect for InfoWriter");
       navigate("/my-articles", { replace: true });
     }
   }, [userProfile, isInfoWriter, isAdmin, navigate]);
