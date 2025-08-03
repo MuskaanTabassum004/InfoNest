@@ -88,6 +88,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // Special handling for Dashboard route - allow InfoWriters to pass through
+  if (location.pathname === '/dashboard' && userProfile?.role === 'infowriter') {
+    // Allow InfoWriters to access Dashboard (they'll be redirected by Dashboard component)
+    return <>{children}</>;
+  }
+
   // Fast permission check using cached data
   if (!hasRequiredRole || !hasCurrentRoutePermission) {
     if (showError) {
