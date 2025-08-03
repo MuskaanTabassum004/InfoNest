@@ -316,12 +316,18 @@ export const HomePage: React.FC = () => {
               </Link>
             </div>
             <nav className="hidden md:flex items-center space-x-10 pr-8 ml-auto">
-              <a
-                href="#features"
-                className="text-gray-600 hover:text-blue-600 transition-colors"
+              <button
+                type="button"
+                onClick={() => {
+                  const featuresSection = document.getElementById('features');
+                  if (featuresSection) {
+                    featuresSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="text-gray-600 hover:text-blue-600 transition-colors bg-transparent border-none cursor-pointer"
               >
                 Docs
-              </a>
+              </button>
 
               <button
                 type="button"
