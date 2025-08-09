@@ -30,14 +30,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   } = useAuth();
   const location = useLocation();
 
-  // FAST PATH: Immediate access for verified InfoWriters/Admins on My Articles
-  if (userProfile && requiredRoles && location.pathname === '/my-articles') {
-    const userRole = userProfile.role;
-    if (userRole === 'infowriter' || userRole === 'admin') {
-      return <>{children}</>;
-    }
-  }
-
   // Always call hooks unconditionally (Rules of Hooks)
   const hasRequiredRole = useMemo(() => {
     if (!userProfile) return false;

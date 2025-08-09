@@ -34,6 +34,7 @@ export const MyArticles: React.FC = () => {
     isAdmin,
     loading: authLoading,
     canCreateArticles,
+    isAuthenticated,
   } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -63,12 +64,27 @@ export const MyArticles: React.FC = () => {
     }
   }, [searchParams]);
 
+  // INSTANT ACCESS CONTROL: Handle redirects for unauthorized users
+  useEffect(() => {
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        navigate("/auth", { replace: true });
+        return;
+      }
+      if (userProfile && !isInfoWriter && !isAdmin) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+    }
+  }, [authLoading, isAuthenticated, userProfile, isInfoWriter, isAdmin, navigate]);
+
+  // INSTANT ACCESS: Allow InfoWriters/Admins immediate access
+  const hasInstantAccess = userProfile?.role === "infowriter" || userProfile?.role === "admin";
+
   // Determine if we should show loading, access denied, or content
-  const shouldShowLoading = authLoading || (!userProfile && !authLoading);
-  const shouldShowAccessDenied =
-    userProfile && !authLoading && canCreateArticles === false;
-  const shouldShowContent =
-    userProfile && !authLoading && canCreateArticles === true;
+  const shouldShowLoading = !hasInstantAccess && (authLoading || (!userProfile && !authLoading));
+  const shouldShowAccessDenied = !hasInstantAccess && userProfile && !authLoading && canCreateArticles === false;
+  const shouldShowContent = hasInstantAccess || (userProfile && !authLoading && canCreateArticles === true);
 
   // Real-time articles loading with Firebase snapshots
   useEffect(() => {

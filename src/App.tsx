@@ -137,6 +137,11 @@ function AppContent({
         {/* Author Profile - Public route (viewable by anyone) */}
         <Route path="/author/:authorId" element={<AuthorProfilePage />} />
 
+        {/* My Articles - Direct access for InfoWriters/Admins without verification */}
+        <Route path="/my-articles" element={<Layout />}>
+          <Route index element={<MyArticles />} />
+        </Route>
+
         {/* Protected Routes */}
         {isAuthenticated && emailVerified ? (
           <Route path="/*" element={<Layout />}>
@@ -206,14 +211,6 @@ function AppContent({
               element={
                 <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
                   <ArticleEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="my-articles"
-              element={
-                <ProtectedRoute requiredRoles={["infowriter", "admin"]}>
-                  <MyArticles />
                 </ProtectedRoute>
               }
             />
